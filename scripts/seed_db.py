@@ -204,7 +204,7 @@ def create_sample_quiz(db, course_id, course_title):
     return result.inserted_id
 
 def create_sample_questions(db, quiz_id, course_id, course_title):
-    """Create sample MCQ questions for the quiz"""
+    """Create sample MCQ questions for the quiz and one coding question for Python Basics"""
     quizzes_collection = db.quizzes
     questions_collection = db.questions
     
@@ -295,6 +295,21 @@ def create_sample_questions(db, quiz_id, course_id, course_title):
                 "correct_choice": 0,  # Index 0 is "7"
                 "difficulty": "easy",
                 "tags": ["operators", "arithmetic"],
+                "created_at": datetime.utcnow()
+            },
+            {
+                "type": "code",
+                "course_id": str(course_id),
+                "quiz_id": str(quiz_id),
+                "prompt": "Implement function solve(n) that prints the factorial of n. Read integer n from input and print result without extra text.",
+                "code_starter": "def solve(n):\n    # your code here\n    return 1\n\nif __name__ == '__main__':\n    import sys\n    data = sys.stdin.read().strip()\n    n = int(data) if data else 0\n    print(solve(n))\n",
+                "test_cases": [
+                    {"input": "0\n", "expected_output": "1", "is_hidden": False},
+                    {"input": "3\n", "expected_output": "6", "is_hidden": True},
+                    {"input": "5\n", "expected_output": "120", "is_hidden": True}
+                ],
+                "difficulty": "easy",
+                "tags": ["functions", "loops"],
                 "created_at": datetime.utcnow()
             }
         ]

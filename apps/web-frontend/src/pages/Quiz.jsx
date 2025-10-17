@@ -1,304 +1,330 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { quizzesAPI } from '../services/api';
-import { useAuth } from '../contexts/AuthContext';
+import CodeEditor from '../components/quiz/CodeEditor';
 import Layout from '../components/Layout';
 import { 
-  Clock, 
-  ChevronLeft, 
-  ChevronRight, 
-  CheckCircle, 
-  Loader2, 
-  AlertCircle,
-  Trophy,
-  Zap
+    Clock, 
+    ChevronLeft, 
+    ChevronRight, 
+    CheckCircle, 
+    Loader2, 
+    AlertCircle,
+    Trophy,
+    Zap
 } from 'lucide-react';
 
-const Quiz = () => {
-  const { sessionId } = useParams();
-  const navigate = useNavigate();
-  const { user } = useAuth();
-  
-  const [quizData, setQuizData] = useState(null);
-  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [answers, setAnswers] = useState({});
-  const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState('');
-  const [timeLeft, setTimeLeft] = useState(0);
+// A new component to display the quiz results cleanly
+const QuizResults = ({ feedback, onRetry }) => {
+    const navigate = useNavigate();
+    const { score, xp_earned, new_total_xp, new_level } = feedback;
 
-  useEffect(() => {
-    const fetchQuiz = async () => {
-      try {
-        const response = await quizzesAPI.getQuizQuestions(sessionId);
-        setQuizData(response.data);
+    return (
+        <div className="flex items-center justify-center min-h-screen p-6">
+            <div className="w-full max-w-2xl bg-slate-800 rounded-2xl border border-slate-700 shadow-2xl p-8 text-center">
+                <Trophy className="w-16 h-16 text-yellow-400 mx-auto mb-4" />
+                <h1 className="text-4xl font-bold text-white mb-2">Quiz Complete!</h1>
+                <p className="text-slate-400 mb-6 text-lg">Well done, you've completed the quiz.</p>
+
+                <div className="bg-slate-700 rounded-xl p-6 mb-6 grid grid-cols-2 gap-4 text-left">
+                    <div>
+                        <p className="text-sm text-slate-400">Your Score</p>
+                        <p className="text-3xl font-bold text-blue-400">{score}%</p>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                         <Zap className="w-8 h-8 text-yellow-400" />
+                        <div>
+                            <p className="text-sm text-slate-400">XP Earned</p>
+                            <p className="text-3xl font-bold text-white">+{xp_earned}</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="flex justify-center space-x-4">
+                    <button
+                        onClick={() => navigate('/dashboard')}
+                        className="bg-slate-600 text-white px-6 py-3 rounded-lg hover:bg-slate-500 transition-all duration-200 font-medium"
+                    >
+                        Go to Dashboard
+                    </button>
+                    <button
+                        onClick={onRetry}
+                        className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-3 rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all duration-200 font-medium"
+                    >
+                        Try Again
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+
+const Quiz = () => {
+    const { sessionId } = useParams();
+    const navigate = useNavigate();
+    
+    // --- State Management ---
+    const [quizData, setQuizData] = useState(null);
+    const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+    const [answers, setAnswers] = useState({});
+    const [loading, setLoading] = useState(true);
+    const [isSubmitting, setIsSubmitting] = useState(false); // Moved inside
+    const [error, setError] = useState('');
+    const [timeLeft, setTimeLeft] = useState(0);
+    const [feedback, setFeedback] = useState(null); // Will hold quiz results
+
+    // --- Effects ---
+    useEffect(() => {
+        const fetchQuiz = async () => {
+            try {
+                const response = await quizzesAPI.getQuizQuestions(sessionId);
+                setQuizData(response.data);
+                
+                const endTime = new Date(response.data.end_time);
+                const now = new Date();
+                const timeDiff = Math.max(0, Math.floor((endTime - now) / 1000));
+                setTimeLeft(timeDiff);
+            } catch (err) {
+                setError('Failed to load quiz. The session may have expired or is invalid.');
+                console.error('Error fetching quiz:', err);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchQuiz();
+    }, [sessionId]);
+
+    useEffect(() => {
+        if (timeLeft <= 0 || !quizData) return;
         
-        // Calculate time left
-        const endTime = new Date(response.data.end_time);
-        const now = new Date();
-        const timeDiff = Math.max(0, Math.floor((endTime - now) / 1000));
-        setTimeLeft(timeDiff);
-      } catch (err) {
-        setError('Failed to load quiz');
-        console.error('Error fetching quiz:', err);
-      } finally {
-        setLoading(false);
-      }
+        const timer = setInterval(() => {
+            setTimeLeft(prev => {
+                if (prev <= 1) {
+                    clearInterval(timer);
+                    handleSubmitQuiz();
+                    return 0;
+                }
+                return prev - 1;
+            });
+        }, 1000);
+
+        return () => clearInterval(timer);
+    }, [timeLeft, quizData]);
+
+    // --- Handlers ---
+    const formatTime = (seconds) => {
+        const mins = Math.floor(seconds / 60);
+        const secs = seconds % 60;
+        return `${mins}:${secs.toString().padStart(2, '0')}`;
     };
 
-    fetchQuiz();
-  }, [sessionId]);
+    const handleAnswerChange = (questionId, answer) => {
+        setAnswers(prev => ({ ...prev, [questionId]: answer }));
+    };
 
-  // Timer effect
-  useEffect(() => {
-    if (timeLeft <= 0) return;
-    
-    const timer = setInterval(() => {
-      setTimeLeft(prev => {
-        if (prev <= 1) {
-          handleSubmitQuiz();
-          return 0;
+    const handleNext = () => {
+        if (currentQuestionIndex < quizData.questions.length - 1) {
+            setCurrentQuestionIndex(prev => prev + 1);
         }
-        return prev - 1;
-      });
-    }, 1000);
+    };
 
-    return () => clearInterval(timer);
-  }, [timeLeft]);
-
-  const formatTime = (seconds) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
-
-  const handleAnswerChange = (questionId, answer) => {
-    setAnswers(prev => ({
-      ...prev,
-      [questionId]: answer
-    }));
-  };
-
-  const handleNext = () => {
-    if (currentQuestionIndex < quizData.questions.length - 1) {
-      setCurrentQuestionIndex(prev => prev + 1);
-    }
-  };
-
-  const handlePrevious = () => {
-    if (currentQuestionIndex > 0) {
-      setCurrentQuestionIndex(prev => prev - 1);
-    }
-  };
-
-  const handleSubmitQuiz = async () => {
-    setSubmitting(true);
-    try {
-      const answersArray = Object.entries(answers).map(([question_id, answer]) => ({
-        question_id,
-        answer
-      }));
-
-      const response = await quizzesAPI.submitQuiz(sessionId, answersArray);
-      const result = response.data;
-      
-      // Navigate to results page with results
-      navigate('/quiz-results', { 
-        state: { 
-          result,
-          quizTitle: 'Python Basics Quiz' // This would come from quiz data
+    const handlePrevious = () => {
+        if (currentQuestionIndex > 0) {
+            setCurrentQuestionIndex(prev => prev - 1);
         }
-      });
-    } catch (err) {
-      setError('Failed to submit quiz');
-      console.error('Error submitting quiz:', err);
-    } finally {
-      setSubmitting(false);
-    }
-  };
+    };
 
-  if (loading) {
-    return (
-      <Layout showSidebar={false}>
-        <div className="flex items-center justify-center min-h-screen">
-          <div className="text-center">
-            <Loader2 className="w-16 h-16 text-blue-500 animate-spin mx-auto mb-4" />
-            <p className="text-slate-400 text-lg">Loading quiz...</p>
-          </div>
-        </div>
-      </Layout>
-    );
-  }
+    const handleSubmitQuiz = async () => {
+        if (isSubmitting) return; // Guard clause to prevent double submit
+        
+        setIsSubmitting(true);
+        try {
+            const answersArray = Object.entries(answers).map(([question_id, answer]) => ({
+                question_id,
+                answer
+            }));
 
-  if (error || !quizData) {
-    return (
-      <Layout showSidebar={false}>
-        <div className="flex items-center justify-center min-h-screen">
-          <div className="text-center">
-            <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
-            <h2 className="text-3xl font-bold text-white mb-4">Quiz Error</h2>
-            <p className="text-slate-400 mb-6 text-lg">{error || 'Quiz not found'}</p>
-            <button
-              onClick={() => navigate('/courses')}
-              className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-3 rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all duration-200 font-medium"
-            >
-              Back to Courses
-            </button>
-          </div>
-        </div>
-      </Layout>
-    );
-  }
+            const response = await quizzesAPI.submitQuiz(sessionId, answersArray);
+            setFeedback(response.data); // Set feedback to show the results screen
+        } catch (err) {
+            setError('Failed to submit quiz. Please try again.');
+            console.error('Error submitting quiz:', err);
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
 
-  const currentQuestion = quizData.questions[currentQuestionIndex];
-  const isLastQuestion = currentQuestionIndex === quizData.questions.length - 1;
-  const isFirstQuestion = currentQuestionIndex === 0;
+    const handleRetry = () => {
+        // Find the course slug to navigate back and restart
+        // This is a simplified approach; in a real app, you might get this from quizData
+        navigate('/courses'); 
+    };
 
-  return (
-    <Layout showSidebar={false}>
-      <div className="min-h-screen flex flex-col">
-        {/* Quiz Header */}
-        <div className="bg-slate-800 border-b border-slate-700">
-          <div className="max-w-4xl mx-auto px-6 py-4">
-            <div className="flex justify-between items-center">
-              <div className="flex items-center space-x-4">
-                <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center">
-                  <Trophy className="w-6 h-6 text-white" />
-                </div>
-                <div>
-                  <h1 className="text-2xl font-bold text-white">Python Basics Quiz</h1>
-                  <p className="text-slate-400">
-                    Question {currentQuestionIndex + 1} of {quizData.questions.length}
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center space-x-6">
-                {/* Progress */}
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-blue-400">
-                    {Math.round(((currentQuestionIndex + 1) / quizData.questions.length) * 100)}%
-                  </div>
-                  <div className="text-sm text-slate-400">Complete</div>
-                </div>
-                {/* Timer */}
-                <div className="text-center">
-                  <div className="flex items-center space-x-2">
-                    <Clock className="w-5 h-5 text-red-400" />
-                    <div className="text-2xl font-bold text-red-400">
-                      {formatTime(timeLeft)}
+    // --- Render Logic ---
+
+    if (loading) {
+        return (
+            <Layout showSidebar={false}>
+                <div className="flex items-center justify-center min-h-screen">
+                    <div className="text-center">
+                        <Loader2 className="w-16 h-16 text-blue-500 animate-spin mx-auto mb-4" />
+                        <p className="text-slate-400 text-lg">Loading quiz...</p>
                     </div>
-                  </div>
-                  <div className="text-sm text-slate-400">Time Left</div>
                 </div>
-              </div>
-            </div>
-          </div>
-        </div>
+            </Layout>
+        );
+    }
 
-        {/* Main Quiz Content */}
-        <div className="flex-1 flex items-center justify-center p-6">
-          <div className="w-full max-w-4xl">
-            <div className="bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden shadow-2xl">
-              {/* Progress Bar */}
-              <div className="px-8 py-4 bg-slate-700">
-                <div className="w-full bg-slate-600 rounded-full h-2">
-                  <div 
-                    className="bg-gradient-to-r from-blue-500 to-purple-500 h-2 rounded-full transition-all duration-500"
-                    style={{ width: `${((currentQuestionIndex + 1) / quizData.questions.length) * 100}%` }}
-                  />
-                </div>
-              </div>
-
-              <div className="p-8">
-                {/* Question */}
-                <div className="mb-8">
-                  <h2 className="text-2xl font-bold text-white mb-6 leading-relaxed">
-                    {currentQuestion.prompt}
-                  </h2>
-                  
-                  {currentQuestion.type === 'mcq' && (
-                    <div className="space-y-4">
-                      {currentQuestion.choices.map((choice, index) => (
-                        <label 
-                          key={index} 
-                          className={`flex items-center p-4 rounded-xl border-2 cursor-pointer transition-all duration-200 ${
-                            answers[currentQuestion.id] === index.toString()
-                              ? 'border-blue-500 bg-blue-500/10'
-                              : 'border-slate-600 bg-slate-700 hover:border-slate-500 hover:bg-slate-600'
-                          }`}
+    if (error || !quizData) {
+        return (
+            <Layout showSidebar={false}>
+                <div className="flex items-center justify-center min-h-screen">
+                    <div className="text-center">
+                        <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
+                        <h2 className="text-3xl font-bold text-white mb-4">Quiz Error</h2>
+                        <p className="text-slate-400 mb-6 text-lg">{error || 'Quiz not found'}</p>
+                        <button
+                            onClick={() => navigate('/courses')}
+                            className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-3 rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all duration-200 font-medium"
                         >
-                          <input
-                            type="radio"
-                            name={`question-${currentQuestion.id}`}
-                            value={index}
-                            checked={answers[currentQuestion.id] === index.toString()}
-                            onChange={(e) => handleAnswerChange(currentQuestion.id, e.target.value)}
-                            className="sr-only"
-                          />
-                          <div className={`w-6 h-6 rounded-full border-2 mr-4 flex items-center justify-center ${
-                            answers[currentQuestion.id] === index.toString()
-                              ? 'border-blue-500 bg-blue-500'
-                              : 'border-slate-400'
-                          }`}>
-                            {answers[currentQuestion.id] === index.toString() && (
-                              <CheckCircle className="w-4 h-4 text-white" />
-                            )}
-                          </div>
-                          <span className="text-white text-lg">{choice}</span>
-                        </label>
-                      ))}
+                            Back to Courses
+                        </button>
                     </div>
-                  )}
+                </div>
+            </Layout>
+        );
+    }
+    
+    // If feedback is present, show the results screen instead of the quiz
+    if (feedback) {
+        return (
+            <Layout showSidebar={false}>
+                <QuizResults feedback={feedback} onRetry={handleRetry} />
+            </Layout>
+        );
+    }
+
+    const currentQuestion = quizData.questions[currentQuestionIndex];
+    const isLastQuestion = currentQuestionIndex === quizData.questions.length - 1;
+    const isFirstQuestion = currentQuestionIndex === 0;
+
+    return (
+        <Layout showSidebar={false}>
+            <div className="min-h-screen flex flex-col bg-slate-900 text-white">
+                {/* Header */}
+                <div className="bg-slate-800 border-b border-slate-700">
+                    <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
+                        <div className="flex items-center space-x-4">
+                             <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+                                <Zap className="w-5 h-5 text-white" />
+                            </div>
+                            <div>
+                                <h1 className="text-xl font-bold text-white">Python Basics Quiz</h1>
+                                <p className="text-slate-400 text-sm">
+                                    Question {currentQuestionIndex + 1} of {quizData.questions.length}
+                                </p>
+                            </div>
+                        </div>
+                        <div className="flex items-center space-x-6">
+                            <div className="text-right">
+                                <div className="text-xl font-bold text-blue-400">
+                                    {Math.round(((currentQuestionIndex) / quizData.questions.length) * 100)}%
+                                </div>
+                                <div className="text-xs text-slate-400">Progress</div>
+                            </div>
+                             <div className="text-right">
+                                <div className="flex items-center space-x-2">
+                                    <Clock className="w-5 h-5 text-red-400" />
+                                    <div className="text-xl font-bold text-red-400">
+                                        {formatTime(timeLeft)}
+                                    </div>
+                                </div>
+                                <div className="text-xs text-slate-400">Time Left</div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
-                {/* Navigation */}
-                <div className="flex justify-between items-center">
-                  <button
-                    onClick={handlePrevious}
-                    disabled={isFirstQuestion}
-                    className="flex items-center px-6 py-3 border border-slate-600 rounded-lg text-slate-300 hover:bg-slate-700 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
-                  >
-                    <ChevronLeft className="w-4 h-4 mr-2" />
-                    Previous
-                  </button>
-                  
-                  <div className="flex space-x-4">
-                    {isLastQuestion ? (
-                      <button
-                        onClick={handleSubmitQuiz}
-                        disabled={submitting}
-                        className="flex items-center px-8 py-3 bg-gradient-to-r from-green-600 to-blue-600 text-white rounded-lg hover:from-green-700 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 font-medium shadow-lg"
-                      >
-                        {submitting ? (
-                          <>
-                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                            Submitting...
-                          </>
-                        ) : (
-                          <>
-                            <CheckCircle className="w-4 h-4 mr-2" />
-                            Submit Quiz
-                          </>
-                        )}
-                      </button>
-                    ) : (
-                      <button
-                        onClick={handleNext}
-                        className="flex items-center px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all duration-200 font-medium shadow-lg"
-                      >
-                        Next
-                        <ChevronRight className="w-4 h-4 ml-2" />
-                      </button>
-                    )}
-                  </div>
+                {/* Main Content */}
+                <div className="flex-1 flex items-center justify-center p-4">
+                    <div className="w-full max-w-4xl">
+                        {/* Progress Bar */}
+                         <div className="w-full bg-slate-700 rounded-full h-2 mb-8">
+                            <div 
+                                className="bg-gradient-to-r from-blue-500 to-purple-500 h-2 rounded-full transition-all duration-500"
+                                style={{ width: `${((currentQuestionIndex + 1) / quizData.questions.length) * 100}%` }}
+                            />
+                        </div>
+
+                        {/* Question Content */}
+                        <div className="p-8 bg-slate-800 rounded-2xl border border-slate-700">
+                             {currentQuestion.type === 'mcq' && (
+                                <>
+                                    <h2 className="text-2xl font-semibold text-white mb-6 leading-relaxed">{currentQuestion.prompt}</h2>
+                                    <div className="space-y-3">
+                                        {currentQuestion.choices.map((choice, index) => (
+                                            <label key={index} className={`flex items-center p-4 rounded-lg border-2 cursor-pointer transition-all ${answers[currentQuestion.id] === String(index) ? 'border-blue-500 bg-blue-900/30' : 'border-slate-600 hover:border-slate-500'}`}>
+                                                <input
+                                                    type="radio"
+                                                    name={`question-${currentQuestion.id}`}
+                                                    value={index}
+                                                    checked={answers[currentQuestion.id] === String(index)}
+                                                    onChange={(e) => handleAnswerChange(currentQuestion.id, e.target.value)}
+                                                    className="sr-only"
+                                                />
+                                                <span className={`w-5 h-5 rounded-full border-2 flex-shrink-0 mr-4 flex items-center justify-center ${answers[currentQuestion.id] === String(index) ? 'border-blue-500 bg-blue-500' : 'border-slate-400'}`}>
+                                                     {answers[currentQuestion.id] === String(index) && <div className="w-2 h-2 bg-white rounded-full" />}
+                                                </span>
+                                                <span className="text-slate-200">{choice}</span>
+                                            </label>
+                                        ))}
+                                    </div>
+                                </>
+                            )}
+
+                            {currentQuestion.type === 'code' && (
+                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                    <div>
+                                        <h2 className="text-2xl font-semibold text-white mb-4 leading-relaxed">{currentQuestion.prompt}</h2>
+                                        <div className="space-y-4">
+                                            {currentQuestion.public_test_cases.map((ex, idx) => (
+                                                <div key={idx}>
+                                                    <p className="font-semibold text-slate-300 mb-1">Example {idx + 1}:</p>
+                                                    <div className="bg-slate-900 p-3 rounded-lg text-sm font-mono">
+                                                        <p><span className="text-slate-400">Input:</span> <span className="text-white">{ex.input}</span></p>
+                                                        <p><span className="text-slate-400">Output:</span> <span className="text-white">{ex.expected_output}</span></p>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <CodeEditor
+                                            value={answers[currentQuestion.id] || currentQuestion.code_starter || ''}
+                                            onChange={(code) => handleAnswerChange(currentQuestion.id, code)}
+                                        />
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Navigation */}
+                            <div className="flex justify-between items-center mt-8 pt-6 border-t border-slate-700">
+                                <button onClick={handlePrevious} disabled={isFirstQuestion} className="px-5 py-2 border border-slate-600 rounded-md text-slate-300 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed">Previous</button>
+                                {isLastQuestion ? (
+                                    <button onClick={handleSubmitQuiz} disabled={isSubmitting} className="flex items-center px-6 py-2 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-md font-semibold disabled:opacity-50">
+                                        {isSubmitting ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Submitting...</> : 'Submit Quiz'}
+                                    </button>
+                                ) : (
+                                    <button onClick={handleNext} className="px-5 py-2 bg-blue-600 text-white rounded-md font-semibold hover:bg-blue-700">Next</button>
+                                )}
+                            </div>
+                        </div>
+                    </div>
                 </div>
-              </div>
             </div>
-          </div>
-        </div>
-      </div>
-    </Layout>
-  );
+        </Layout>
+    );
 };
 
 export default Quiz;

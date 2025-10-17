@@ -51,6 +51,7 @@ async def login(request: LoginRequest):
             "email": user_data["email"],
             "avatar_url": user_data.get("avatar_url"),
             "auth_provider": user_data.get("auth_provider", "email"),
+            "role": user_data.get("role", "student"),
             "xp": user_data.get("xp", 0),
             "level": user_data.get("level", 1),
             "badges": user_data.get("badges", [])
@@ -79,6 +80,7 @@ async def get_current_user_info(current_user: User = Depends(get_current_user)):
         "email": current_user.email,
         "avatar_url": current_user.avatar_url,
         "auth_provider": current_user.auth_provider,
+        "role": getattr(current_user, "role", "student"),
         "xp": current_user.xp,
         "level": current_user.level,
         "badges": current_user.badges,

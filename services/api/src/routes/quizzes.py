@@ -1,6 +1,8 @@
 from fastapi import APIRouter, HTTPException, Depends, status
 from pydantic import BaseModel
 from typing import List, Dict, Any
+import os
+import httpx
 from datetime import datetime, timedelta
 import random
 import uuid
@@ -138,6 +140,17 @@ async def get_quiz_questions(session_id: str, current_user: User = Depends(get_c
                     "difficulty": question.get("difficulty", "easy"),
                     "tags": question.get("tags", [])
                 }
+                if question["type"] == "code":
+                    # Include starter code and only public test cases for preview/examples
+                    question_data["code_starter"] = question.get("code_starter", "")
+                    public_examples = []
+                    for tc in question.get("test_cases", []) or []:
+                        if not tc.get("is_hidden", False):
+                            public_examples.append({
+                                "input": tc.get("input", ""),
+                                "expected_output": tc.get("expected_output", "")
+                            })
+                    question_data["public_test_cases"] = public_examples
                 questions.append(question_data)
         
         return {
@@ -186,6 +199,8 @@ async def submit_quiz(session_id: str, request: SubmitQuizRequest, current_user:
         correct_answers = 0
         total_questions = len(session.question_order)
         wrong_questions = []
+        detailed_results: List[Dict[str, Any]] = []
+        judge0_url = os.getenv("JUDGE0_URL", "http://judge0:2358")
         
         for answer in request.answers:
             from bson import ObjectId
@@ -198,12 +213,91 @@ async def submit_quiz(session_id: str, request: SubmitQuizRequest, current_user:
                     
                     if user_choice == correct_choice:
                         correct_answers += 1
+                        detailed_results.append({
+                            "question_id": answer.question_id,
+                            "type": "mcq",
+                            "result": "correct"
+                        })
                     else:
                         wrong_questions.append({
                             "q_id": answer.question_id,
                             "user_answer": answer.answer,
                             "correct_answer": str(correct_choice)
                         })
+                        detailed_results.append({
+                            "question_id": answer.question_id,
+                            "type": "mcq",
+                            "result": "incorrect"
+                        })
+                elif question["type"] == "code":
+                    # Execute user's code against all test cases via Judge0
+                    user_code = answer.answer
+                    test_cases = question.get("test_cases", []) or []
+                    test_results: List[Dict[str, Any]] = []
+                    passed_count = 0
+                    # Language mapping: Python (3.8+) is 71 in Judge0 CE
+                    language_id = 71
+                    # Run sequentially to respect Judge0 rate limits; could be parallelized if needed
+                    async with httpx.AsyncClient(timeout=30) as client:
+                        for idx, tc in enumerate(test_cases):
+                            payload = {
+                                "language_id": language_id,
+                                "source_code": user_code,
+                                "stdin": tc.get("input", "")
+                            }
+                            try:
+                                resp = await client.post(
+                                    f"{judge0_url}/submissions/?base64_encoded=false&wait=true",
+                                    json=payload
+                                )
+                                resp.raise_for_status()
+                                data = resp.json()
+                                stdout = (data.get("stdout") or "").rstrip("\n")
+                                stderr = data.get("stderr")
+                                compile_output = data.get("compile_output")
+                                status = (data.get("status") or {}).get("description", "")
+                                expected = (tc.get("expected_output", "") or "").rstrip("\n")
+                                passed = (stderr is None) and (compile_output is None) and (stdout == expected)
+                                if passed:
+                                    passed_count += 1
+                                test_results.append({
+                                    "index": idx,
+                                    "is_hidden": bool(tc.get("is_hidden", False)),
+                                    "input": tc.get("input", ""),
+                                    "expected_output": expected,
+                                    "stdout": stdout,
+                                    "stderr": stderr,
+                                    "status": status,
+                                    "passed": passed
+                                })
+                            except Exception as exec_err:
+                                status = "Execution Error"
+                                test_results.append({
+                                    "index": idx,
+                                    "is_hidden": bool(tc.get("is_hidden", False)),
+                                    "input": tc.get("input", ""),
+                                    "expected_output": tc.get("expected_output", ""),
+                                    "stdout": "",
+                                    "stderr": str(exec_err),
+                                    "status": status,
+                                    "passed": False
+                                })
+                    # For scoring, consider a code question correct only if all public and hidden tests pass
+                    if passed_count == len(test_cases) and len(test_cases) > 0:
+                        correct_answers += 1
+                    else:
+                        wrong_questions.append({
+                            "q_id": answer.question_id,
+                            "user_answer": "<code submission>",
+                            "correct_answer": None
+                        })
+                    detailed_results.append({
+                        "question_id": answer.question_id,
+                        "type": "code",
+                        "passed": passed_count,
+                        "total": len(test_cases),
+                        "tests": test_results
+                    })
         
         # Calculate score and XP
         score = int((correct_answers / total_questions) * 100) if total_questions > 0 else 0
@@ -246,7 +340,8 @@ async def submit_quiz(session_id: str, request: SubmitQuizRequest, current_user:
             "xp_earned": xp_earned,
             "new_total_xp": new_xp,
             "new_level": new_level,
-            "wrong_questions": wrong_questions
+            "wrong_questions": wrong_questions,
+            "question_results": detailed_results
         }
         
     except HTTPException:

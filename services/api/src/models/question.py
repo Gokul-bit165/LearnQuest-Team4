@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field
 class TestCase(BaseModel):
     input: str
     expected_output: str
+    is_hidden: bool = False
 
 
 class Question(BaseModel):
