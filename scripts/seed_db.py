@@ -37,6 +37,9 @@ def create_sample_user(db):
     # Check if user already exists
     existing_user = users_collection.find_one({"email": "student@learnquest.com"})
     if existing_user:
+        # Ensure the sample user is an admin
+        if existing_user.get("role") != "admin":
+            db.users.update_one({"_id": existing_user["_id"]}, {"$set": {"role": "admin"}})
         print("Sample user already exists")
         return existing_user["_id"]
     
@@ -44,6 +47,7 @@ def create_sample_user(db):
         "name": "John Student",
         "email": "student@learnquest.com",
         "password_hash": hash_password("password123"),
+        "role": "admin",
         "avatar_url": None,
         "auth_provider": "email",
         "xp": 0,

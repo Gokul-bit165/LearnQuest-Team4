@@ -27,6 +27,7 @@ class User(BaseModel):
     name: str
     email: str
     password_hash: Optional[str] = None
+    role: str = "student"
     avatar_url: Optional[str] = None
     auth_provider: str = "email"
     xp: int = 0
