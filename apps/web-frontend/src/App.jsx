@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
+import Layout from './components/Layout';
 import Login from './pages/Login';
 import Courses from './pages/Courses';
 import CourseDetail from './pages/CourseDetail';
@@ -18,25 +19,13 @@ function App() {
           <Routes>
             {/* Public Routes */}
             <Route path="/login" element={<Login />} />
+            <Route path="/" element={<Navigate to="/courses" replace />} />
+            <Route path="/courses" element={<Courses />} />
+            
+            {/* Public Course Detail */}
+            <Route path="/courses/:slug" element={<CourseDetail />} />
             
             {/* Protected Routes */}
-            <Route path="/" element={<Navigate to="/courses" replace />} />
-            <Route 
-              path="/courses" 
-              element={
-                <ProtectedRoute>
-                  <Courses />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/courses/:slug" 
-              element={
-                <ProtectedRoute>
-                  <CourseDetail />
-                </ProtectedRoute>
-              } 
-            />
             <Route 
               path="/quiz/:sessionId" 
               element={

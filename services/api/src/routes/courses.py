@@ -1,14 +1,14 @@
 from fastapi import APIRouter, HTTPException, Depends, status
-from typing import List
+from typing import List, Optional
 from ..models.course import Course
 from ..models.user import User
-from ..auth import get_current_user
+from ..auth import get_current_user_optional
 from ..database import get_collection
 
 router = APIRouter(prefix="/api/courses", tags=["courses"])
 
 @router.get("/", response_model=List[dict])
-async def get_courses(current_user: User = Depends(get_current_user)):
+async def get_courses(current_user: Optional[User] = Depends(get_current_user_optional)):
     """Get all courses"""
     try:
         courses_collection = get_collection("courses")
@@ -28,7 +28,7 @@ async def get_courses(current_user: User = Depends(get_current_user)):
         )
 
 @router.get("/{slug}", response_model=dict)
-async def get_course_by_slug(slug: str, current_user: User = Depends(get_current_user)):
+async def get_course_by_slug(slug: str, current_user: Optional[User] = Depends(get_current_user_optional)):
     """Get course details by slug"""
     try:
         courses_collection = get_collection("courses")

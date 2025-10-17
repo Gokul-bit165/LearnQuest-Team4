@@ -83,3 +83,30 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
     # Convert MongoDB document to User model
     user_data["id"] = str(user_data["_id"])
     return User(**user_data)
+
+async def get_current_user_optional(credentials: Optional[HTTPAuthorizationCredentials] = Depends(HTTPBearer(auto_error=False))) -> Optional[User]:
+    """Get the current authenticated user from JWT token, returns None if not authenticated"""
+    if credentials is None:
+        return None
+    
+    try:
+        token = credentials.credentials
+        payload = verify_token(token)
+        
+        user_id = payload.get("sub")
+        if user_id is None:
+            return None
+        
+        # Get user from database
+        users_collection = get_collection("users")
+        from bson import ObjectId
+        user_data = users_collection.find_one({"_id": ObjectId(user_id)})
+        
+        if user_data is None:
+            return None
+        
+        # Convert MongoDB document to User model
+        user_data["id"] = str(user_data["_id"])
+        return User(**user_data)
+    except:
+        return None

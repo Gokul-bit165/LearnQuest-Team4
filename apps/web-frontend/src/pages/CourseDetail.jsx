@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { coursesAPI, quizzesAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
+import Layout from '../components/Layout';
 
 const CourseDetail = () => {
   const { slug } = useParams();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, isAuthenticated } = useAuth();
   
   const [course, setCourse] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -32,6 +33,12 @@ const CourseDetail = () => {
   const handleStartQuiz = async () => {
     if (!course) return;
     
+    // Check if user is authenticated
+    if (!isAuthenticated) {
+      navigate('/login');
+      return;
+    }
+    
     setStartingQuiz(true);
     try {
       // For now, we'll use a hardcoded quiz ID from the seeded data
@@ -49,74 +56,52 @@ const CourseDetail = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-500"></div>
-      </div>
+      <Layout>
+        <div className="flex items-center justify-center min-h-96">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-500"></div>
+        </div>
+      </Layout>
     );
   }
 
   if (error || !course) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">Course Not Found</h2>
-          <p className="text-gray-600 mb-4">{error || 'The requested course could not be found.'}</p>
-          <button
-            onClick={() => navigate('/courses')}
-            className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
-          >
-            Back to Courses
-          </button>
+      <Layout>
+        <div className="flex items-center justify-center min-h-96">
+          <div className="text-center">
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">Course Not Found</h2>
+            <p className="text-gray-600 mb-4">{error || 'The requested course could not be found.'}</p>
+            <Link
+              to="/courses"
+              className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
+            >
+              Back to Courses
+            </Link>
+          </div>
         </div>
-      </div>
+      </Layout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-6">
-            <div>
-              <nav className="flex" aria-label="Breadcrumb">
-                <ol className="flex items-center space-x-4">
-                  <li>
-                    <button
-                      onClick={() => navigate('/courses')}
-                      className="text-blue-600 hover:text-blue-800"
-                    >
-                      Courses
-                    </button>
-                  </li>
-                  <li>
-                    <span className="text-gray-500">/</span>
-                  </li>
-                  <li>
-                    <span className="text-gray-900">{course.title}</span>
-                  </li>
-                </ol>
-              </nav>
-            </div>
-            <div className="flex items-center space-x-4">
-              <div className="text-right">
-                <p className="text-sm text-gray-500">Level {user?.level}</p>
-                <p className="text-lg font-semibold text-blue-600">{user?.xp} XP</p>
-              </div>
-              <button
-                onClick={() => navigate('/dashboard')}
-                className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
-              >
-                Dashboard
-              </button>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        <div className="px-4 py-6 sm:px-0">
+    <Layout>
+      <div className="px-4 py-6 sm:px-0">
+        {/* Breadcrumb */}
+        <nav className="flex mb-8" aria-label="Breadcrumb">
+          <ol className="flex items-center space-x-4">
+            <li>
+              <Link to="/courses" className="text-gray-400 hover:text-gray-500">
+                Courses
+              </Link>
+            </li>
+            <li>
+              <span className="text-gray-500">/</span>
+            </li>
+            <li>
+              <span className="text-gray-900">{course.title}</span>
+            </li>
+          </ol>
+        </nav>
           <div className="bg-white rounded-lg shadow-md overflow-hidden">
             <div className="p-6">
               <h1 className="text-3xl font-bold text-gray-900 mb-4">{course.title}</h1>
@@ -161,25 +146,34 @@ const CourseDetail = () => {
 
               {/* Action Buttons */}
               <div className="flex space-x-4">
-                <button
-                  onClick={handleStartQuiz}
-                  disabled={startingQuiz}
-                  className="bg-green-600 text-white px-6 py-3 rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {startingQuiz ? 'Starting Quiz...' : 'Start Quiz'}
-                </button>
-                <button
-                  onClick={() => navigate('/courses')}
+                {isAuthenticated ? (
+                  <button
+                    onClick={handleStartQuiz}
+                    disabled={startingQuiz}
+                    className="bg-green-600 text-white px-6 py-3 rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {startingQuiz ? 'Starting Quiz...' : 'Start Quiz'}
+                  </button>
+                ) : (
+                  <Link
+                    to="/login"
+                    className="bg-green-600 text-white px-6 py-3 rounded-md hover:bg-green-700"
+                  >
+                    Sign In to Start Quiz
+                  </Link>
+                )}
+                <Link
+                  to="/courses"
                   className="bg-gray-600 text-white px-6 py-3 rounded-md hover:bg-gray-700"
                 >
                   Back to Courses
-                </button>
+                </Link>
               </div>
             </div>
           </div>
         </div>
-      </main>
-    </div>
+      </div>
+    </Layout>
   );
 };
 
