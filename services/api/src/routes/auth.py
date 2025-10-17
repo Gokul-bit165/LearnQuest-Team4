@@ -1,48 +1,87 @@
-"""
-Authentication routes.
-Handles user registration, login, and token management.
+from fastapi import APIRouter, HTTPException, Depends, status
+from pydantic import BaseModel
+from datetime import timedelta
+from ..models.user import User
+from ..auth import verify_password, create_access_token, get_current_user
+from ..database import get_collection
 
-TODO: Future implementation
-- POST /register - Create new user account
-- POST /login - Authenticate user and return JWT token
-- POST /logout - Invalidate user session
-- POST /refresh - Refresh JWT token
-- POST /forgot-password - Send password reset email
-- POST /reset-password - Reset user password with token
-- GET /me - Get current authenticated user info
-"""
+router = APIRouter(prefix="/api/auth", tags=["auth"])
 
-# TODO: Import FastAPI dependencies
-# from fastapi import APIRouter, Depends, HTTPException
-# from pydantic import BaseModel, EmailStr
+class LoginRequest(BaseModel):
+    email: str
+    password: str
 
-# TODO: Create router instance
-# router = APIRouter()
+class LoginResponse(BaseModel):
+    access_token: str
+    token_type: str
+    user: dict
 
-# TODO: Define request/response models
-# class RegisterRequest(BaseModel):
-#     email: EmailStr
-#     password: str
-#     name: str
+@router.post("/login", response_model=LoginResponse)
+async def login(request: LoginRequest):
+    """Authenticate user and return JWT token"""
+    try:
+        # Get user from database
+        users_collection = get_collection("users")
+        user_data = users_collection.find_one({"email": request.email})
+        
+        if not user_data:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid credentials"
+            )
+        
+        # Verify password
+        if not verify_password(request.password, user_data["password_hash"]):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid credentials"
+            )
+        
+        # Create access token
+        access_token_expires = timedelta(minutes=30)
+        access_token = create_access_token(
+            data={"sub": str(user_data["_id"])}, 
+            expires_delta=access_token_expires
+        )
+        
+        # Prepare user data for response (exclude password_hash)
+        user_response = {
+            "id": str(user_data["_id"]),
+            "name": user_data["name"],
+            "email": user_data["email"],
+            "avatar_url": user_data.get("avatar_url"),
+            "auth_provider": user_data.get("auth_provider", "email"),
+            "xp": user_data.get("xp", 0),
+            "level": user_data.get("level", 1),
+            "badges": user_data.get("badges", [])
+        }
+        
+        return {
+            "access_token": access_token,
+            "token_type": "bearer",
+            "user": user_response
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Authentication error: {str(e)}"
+        )
 
-# class LoginRequest(BaseModel):
-#     email: EmailStr
-#     password: str
-
-# TODO: Implement endpoints
-# @router.post("/register")
-# async def register(request: RegisterRequest):
-#     # Hash password
-#     # Create user in database
-#     # Return user info and token
-
-# @router.post("/login")
-# async def login(request: LoginRequest):
-#     # Verify credentials
-#     # Generate JWT token
-#     # Return token and user info
-
-# @router.post("/logout")
-# async def logout():
-#     # Invalidate token (if using token blacklist)
-#     # Return success message
+@router.get("/me")
+async def get_current_user_info(current_user: User = Depends(get_current_user)):
+    """Get current user information"""
+    return {
+        "id": current_user.id,
+        "name": current_user.name,
+        "email": current_user.email,
+        "avatar_url": current_user.avatar_url,
+        "auth_provider": current_user.auth_provider,
+        "xp": current_user.xp,
+        "level": current_user.level,
+        "badges": current_user.badges,
+        "enrolled_courses": current_user.enrolled_courses,
+        "quiz_history": current_user.quiz_history
+    }

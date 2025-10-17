@@ -21,12 +21,26 @@ services:
     environment:
       - MONGO_URL=mongodb://db:27017
       - MONGO_DB=learnquest
+      - JWT_SECRET_KEY=your-secret-key-change-in-production
     depends_on:
       - db
+      - seed
     restart: unless-stopped
 
+  seed:
+    image: python:3.10-slim
+    volumes:
+      - ./scripts:/app/scripts
+      - ./services/api/src:/app/services/api/src
+    working_dir: /app
+    command: >
+      sh -c "pip install pymongo passlib==1.7.4 bcrypt==3.2.0 python-jose[cryptography] && python /app/scripts/seed_db.py"
+    depends_on:
+      - db
+    restart: "no"
+
   db:
-    image: mongo:6
+    image: mongo:7.0
     ports:
       - "27017:27017"
     volumes:
