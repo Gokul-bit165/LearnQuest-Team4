@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Database migration script.
 Handles database schema updates and migrations.
@@ -8,7 +7,7 @@ def run_migrations():
     """Run database migrations"""
     print("🔄 Running migrations...")
     
-    # TODO: Implement migration logic (use Alembic)
+    # TODO:
     
     print("✅ Migrations completed!")
 
