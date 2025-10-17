@@ -62,6 +62,12 @@ def create_sample_courses(db):
     """Create sample courses with modules"""
     courses_collection = db.courses
     
+    # Check if courses already exist
+    existing_courses = list(courses_collection.find({}))
+    if existing_courses:
+        print("Courses already exist, skipping course creation")
+        return [course["_id"] for course in existing_courses]
+    
     # Python Basics Course
     python_course = {
         "title": "Python Basics",
@@ -170,13 +176,19 @@ def create_sample_courses(db):
     
     return python_result.inserted_id, ds_result.inserted_id
 
-def create_sample_quiz(db, course_id):
-    """Create a sample quiz for the Python Basics course"""
+def create_sample_quiz(db, course_id, course_title):
+    """Create a sample quiz for a course"""
     quizzes_collection = db.quizzes
+    
+    # Check if quiz already exists for this course
+    existing_quiz = quizzes_collection.find_one({"course_id": str(course_id)})
+    if existing_quiz:
+        print(f"Quiz already exists for {course_title}")
+        return existing_quiz["_id"]
     
     quiz_data = {
         "course_id": str(course_id),
-        "title": "Python Basics Quiz",
+        "title": f"{course_title} Quiz",
         "duration_seconds": 1800,  # 30 minutes
         "question_ids": [],
         "xp_reward": 50,
@@ -184,96 +196,155 @@ def create_sample_quiz(db, course_id):
     }
     
     result = quizzes_collection.insert_one(quiz_data)
-    print(f"Created quiz: {result.inserted_id}")
+    print(f"Created quiz for {course_title}: {result.inserted_id}")
     return result.inserted_id
 
-def create_sample_questions(db, quiz_id, course_id):
+def create_sample_questions(db, quiz_id, course_id, course_title):
     """Create sample MCQ questions for the quiz"""
     quizzes_collection = db.quizzes
     questions_collection = db.questions
     
-    questions = [
-        {
-            "type": "mcq",
-            "course_id": str(course_id),
-            "quiz_id": str(quiz_id),
-            "prompt": "What is the correct way to declare a variable in Python?",
-            "choices": [
-                "var x = 5",
-                "x = 5",
-                "int x = 5",
-                "x := 5"
-            ],
-            "correct_choice": 1,  # Index 1 is "x = 5"
-            "difficulty": "easy",
-            "tags": ["variables", "syntax"],
-            "created_at": datetime.utcnow()
-        },
-        {
-            "type": "mcq",
-            "course_id": str(course_id),
-            "quiz_id": str(quiz_id),
-            "prompt": "Which of the following is NOT a Python data type?",
-            "choices": [
-                "int",
-                "string",
-                "char",
-                "float"
-            ],
-            "correct_choice": 2,  # Index 2 is "char"
-            "difficulty": "easy",
-            "tags": ["data-types"],
-            "created_at": datetime.utcnow()
-        },
-        {
-            "type": "mcq",
-            "course_id": str(course_id),
-            "quiz_id": str(quiz_id),
-            "prompt": "What will be the output of: print(3 + 2 * 4)",
-            "choices": [
-                "20",
-                "11",
-                "14",
-                "Error"
-            ],
-            "correct_choice": 1,  # Index 1 is "11"
-            "difficulty": "medium",
-            "tags": ["operators", "precedence"],
-            "created_at": datetime.utcnow()
-        },
-        {
-            "type": "mcq",
-            "course_id": str(course_id),
-            "quiz_id": str(quiz_id),
-            "prompt": "Which keyword is used to define a function in Python?",
-            "choices": [
-                "function",
-                "def",
-                "define",
-                "func"
-            ],
-            "correct_choice": 1,  # Index 1 is "def"
-            "difficulty": "easy",
-            "tags": ["functions"],
-            "created_at": datetime.utcnow()
-        },
-        {
-            "type": "mcq",
-            "course_id": str(course_id),
-            "quiz_id": str(quiz_id),
-            "prompt": "What is the result of: 'Hello' + 'World'",
-            "choices": [
-                "HelloWorld",
-                "Hello World",
-                "Hello+World",
-                "Error"
-            ],
-            "correct_choice": 0,  # Index 0 is "HelloWorld"
-            "difficulty": "easy",
-            "tags": ["strings", "concatenation"],
-            "created_at": datetime.utcnow()
-        }
-    ]
+    # Check if questions already exist for this quiz
+    existing_questions = list(questions_collection.find({"quiz_id": str(quiz_id)}))
+    if existing_questions:
+        print(f"Questions already exist for {course_title} quiz")
+        return [q["_id"] for q in existing_questions]
+    
+    # Different questions based on course
+    if course_title == "Python Basics":
+        questions = [
+            {
+                "type": "mcq",
+                "course_id": str(course_id),
+                "quiz_id": str(quiz_id),
+                "prompt": "What is the correct way to declare a variable in Python?",
+                "choices": [
+                    "var x = 5",
+                    "x = 5",
+                    "int x = 5",
+                    "x := 5"
+                ],
+                "correct_choice": 1,  # Index 1 is "x = 5"
+                "difficulty": "easy",
+                "tags": ["variables", "syntax"],
+                "created_at": datetime.utcnow()
+            },
+            {
+                "type": "mcq",
+                "course_id": str(course_id),
+                "quiz_id": str(quiz_id),
+                "prompt": "Which of the following is NOT a Python data type?",
+                "choices": [
+                    "int",
+                    "string",
+                    "char",
+                    "float"
+                ],
+                "correct_choice": 2,  # Index 2 is "char"
+                "difficulty": "easy",
+                "tags": ["data-types"],
+                "created_at": datetime.utcnow()
+            },
+            {
+                "type": "mcq",
+                "course_id": str(course_id),
+                "quiz_id": str(quiz_id),
+                "prompt": "What does the 'len()' function do in Python?",
+                "choices": [
+                    "Returns the length of a string or list",
+                    "Returns the largest number",
+                    "Returns the smallest number",
+                    "Returns the sum of numbers"
+                ],
+                "correct_choice": 0,  # Index 0
+                "difficulty": "easy",
+                "tags": ["functions", "built-in"],
+                "created_at": datetime.utcnow()
+            },
+            {
+                "type": "mcq",
+                "course_id": str(course_id),
+                "quiz_id": str(quiz_id),
+                "prompt": "Which keyword is used to define a function in Python?",
+                "choices": [
+                    "function",
+                    "def",
+                    "define",
+                    "func"
+                ],
+                "correct_choice": 1,  # Index 1 is "def"
+                "difficulty": "medium",
+                "tags": ["functions", "syntax"],
+                "created_at": datetime.utcnow()
+            },
+            {
+                "type": "mcq",
+                "course_id": str(course_id),
+                "quiz_id": str(quiz_id),
+                "prompt": "What is the output of: print(3 * 2 + 1)?",
+                "choices": [
+                    "7",
+                    "9",
+                    "6",
+                    "5"
+                ],
+                "correct_choice": 0,  # Index 0 is "7"
+                "difficulty": "easy",
+                "tags": ["operators", "arithmetic"],
+                "created_at": datetime.utcnow()
+            }
+        ]
+    else:  # Data Structures course
+        questions = [
+            {
+                "type": "mcq",
+                "course_id": str(course_id),
+                "quiz_id": str(quiz_id),
+                "prompt": "What is the time complexity of accessing an element in an array?",
+                "choices": [
+                    "O(1)",
+                    "O(n)",
+                    "O(log n)",
+                    "O(n²)"
+                ],
+                "correct_choice": 0,  # Index 0 is "O(1)"
+                "difficulty": "medium",
+                "tags": ["arrays", "time-complexity"],
+                "created_at": datetime.utcnow()
+            },
+            {
+                "type": "mcq",
+                "course_id": str(course_id),
+                "quiz_id": str(quiz_id),
+                "prompt": "Which data structure follows LIFO (Last In, First Out) principle?",
+                "choices": [
+                    "Queue",
+                    "Stack",
+                    "Array",
+                    "Linked List"
+                ],
+                "correct_choice": 1,  # Index 1 is "Stack"
+                "difficulty": "easy",
+                "tags": ["stack", "data-structures"],
+                "created_at": datetime.utcnow()
+            },
+            {
+                "type": "mcq",
+                "course_id": str(course_id),
+                "quiz_id": str(quiz_id),
+                "prompt": "What is the main advantage of a linked list over an array?",
+                "choices": [
+                    "Faster access time",
+                    "Dynamic size",
+                    "Less memory usage",
+                    "Better cache performance"
+                ],
+                "correct_choice": 1,  # Index 1 is "Dynamic size"
+                "difficulty": "medium",
+                "tags": ["linked-list", "arrays", "advantages"],
+                "created_at": datetime.utcnow()
+            }
+        ]
     
     question_ids = []
     for question in questions:
@@ -304,16 +375,22 @@ def main():
         python_course_id, ds_course_id = create_sample_courses(db)
         
         # Create sample quiz for Python course
-        quiz_id = create_sample_quiz(db, python_course_id)
+        python_quiz_id = create_sample_quiz(db, python_course_id, "Python Basics")
         
-        # Create sample questions
-        question_ids = create_sample_questions(db, quiz_id, python_course_id)
+        # Create sample quiz for Data Structures course
+        ds_quiz_id = create_sample_quiz(db, ds_course_id, "Data Structures")
+        
+        # Create sample questions for Python quiz
+        create_sample_questions(db, python_quiz_id, python_course_id, "Python Basics")
+        
+        # Create sample questions for Data Structures quiz
+        create_sample_questions(db, ds_quiz_id, ds_course_id, "Data Structures")
         
         print("\n✅ Database seeding completed successfully!")
         print(f"📊 Created:")
         print(f"  - 1 user (student@learnquest.com / password123)")
         print(f"  - 2 courses (Python Basics, Data Structures)")
-        print(f"  - 1 quiz with {len(question_ids)} questions")
+        print(f"  - 2 quizzes with questions")
         
     except Exception as e:
         print(f"❌ Error during seeding: {e}")

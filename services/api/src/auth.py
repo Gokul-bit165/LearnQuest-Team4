@@ -82,6 +82,7 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
     
     # Convert MongoDB document to User model
     user_data["id"] = str(user_data["_id"])
+    del user_data["_id"]  # Remove the ObjectId field
     return User(**user_data)
 
 async def get_current_user_optional(credentials: Optional[HTTPAuthorizationCredentials] = Depends(HTTPBearer(auto_error=False))) -> Optional[User]:
@@ -107,6 +108,7 @@ async def get_current_user_optional(credentials: Optional[HTTPAuthorizationCrede
         
         # Convert MongoDB document to User model
         user_data["id"] = str(user_data["_id"])
+        del user_data["_id"]  # Remove the ObjectId field
         return User(**user_data)
     except:
         return None

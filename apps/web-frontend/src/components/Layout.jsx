@@ -1,12 +1,22 @@
 import React from 'react';
-import Navigation from './Navigation';
+import Sidebar from './Sidebar';
 
-const Layout = ({ children }) => {
-  return (
-    <div className="min-h-screen bg-gray-50">
-      <Navigation />
-      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+const Layout = ({ children, showSidebar = true }) => {
+  if (!showSidebar) {
+    return (
+      <div className="min-h-screen bg-slate-900">
         {children}
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-slate-900 flex">
+      <Sidebar />
+      <main className="flex-1 ml-72">
+        <div className="p-8">
+          {children}
+        </div>
       </main>
     </div>
   );

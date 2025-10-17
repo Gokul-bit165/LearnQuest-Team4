@@ -2,6 +2,17 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { quizzesAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
+import Layout from '../components/Layout';
+import { 
+  Clock, 
+  ChevronLeft, 
+  ChevronRight, 
+  CheckCircle, 
+  Loader2, 
+  AlertCircle,
+  Trophy,
+  Zap
+} from 'lucide-react';
 
 const Quiz = () => {
   const { sessionId } = useParams();
@@ -108,26 +119,34 @@ const Quiz = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-500"></div>
-      </div>
+      <Layout showSidebar={false}>
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-center">
+            <Loader2 className="w-16 h-16 text-blue-500 animate-spin mx-auto mb-4" />
+            <p className="text-slate-400 text-lg">Loading quiz...</p>
+          </div>
+        </div>
+      </Layout>
     );
   }
 
   if (error || !quizData) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">Quiz Error</h2>
-          <p className="text-gray-600 mb-4">{error || 'Quiz not found'}</p>
-          <button
-            onClick={() => navigate('/courses')}
-            className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
-          >
-            Back to Courses
-          </button>
+      <Layout showSidebar={false}>
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-center">
+            <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
+            <h2 className="text-3xl font-bold text-white mb-4">Quiz Error</h2>
+            <p className="text-slate-400 mb-6 text-lg">{error || 'Quiz not found'}</p>
+            <button
+              onClick={() => navigate('/courses')}
+              className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-3 rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all duration-200 font-medium"
+            >
+              Back to Courses
+            </button>
+          </div>
         </div>
-      </div>
+      </Layout>
     );
   }
 
@@ -136,105 +155,149 @@ const Quiz = () => {
   const isFirstQuestion = currentQuestionIndex === 0;
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Quiz Header */}
-      <header className="bg-white shadow-sm border-b">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
-            <div>
-              <h1 className="text-xl font-semibold text-gray-900">Python Basics Quiz</h1>
-              <p className="text-sm text-gray-500">
-                Question {currentQuestionIndex + 1} of {quizData.questions.length}
-              </p>
-            </div>
-            <div className="flex items-center space-x-4">
-              <div className="text-right">
-                <div className="text-2xl font-bold text-red-600">
-                  {formatTime(timeLeft)}
+    <Layout showSidebar={false}>
+      <div className="min-h-screen flex flex-col">
+        {/* Quiz Header */}
+        <div className="bg-slate-800 border-b border-slate-700">
+          <div className="max-w-4xl mx-auto px-6 py-4">
+            <div className="flex justify-between items-center">
+              <div className="flex items-center space-x-4">
+                <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center">
+                  <Trophy className="w-6 h-6 text-white" />
                 </div>
-                <div className="text-sm text-gray-500">Time Remaining</div>
+                <div>
+                  <h1 className="text-2xl font-bold text-white">Python Basics Quiz</h1>
+                  <p className="text-slate-400">
+                    Question {currentQuestionIndex + 1} of {quizData.questions.length}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center space-x-6">
+                {/* Progress */}
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-blue-400">
+                    {Math.round(((currentQuestionIndex + 1) / quizData.questions.length) * 100)}%
+                  </div>
+                  <div className="text-sm text-slate-400">Complete</div>
+                </div>
+                {/* Timer */}
+                <div className="text-center">
+                  <div className="flex items-center space-x-2">
+                    <Clock className="w-5 h-5 text-red-400" />
+                    <div className="text-2xl font-bold text-red-400">
+                      {formatTime(timeLeft)}
+                    </div>
+                  </div>
+                  <div className="text-sm text-slate-400">Time Left</div>
+                </div>
               </div>
             </div>
           </div>
         </div>
-      </header>
 
-      {/* Main Quiz Content */}
-      <main className="max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
-        <div className="bg-white rounded-lg shadow-md overflow-hidden">
-          <div className="p-6">
-            {/* Progress Bar */}
-            <div className="mb-6">
-              <div className="flex justify-between text-sm text-gray-600 mb-2">
-                <span>Progress</span>
-                <span>{Math.round(((currentQuestionIndex + 1) / quizData.questions.length) * 100)}%</span>
-              </div>
-              <div className="w-full bg-gray-200 rounded-full h-2">
-                <div 
-                  className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                  style={{ width: `${((currentQuestionIndex + 1) / quizData.questions.length) * 100}%` }}
-                ></div>
-              </div>
-            </div>
-
-            {/* Question */}
-            <div className="mb-8">
-              <h2 className="text-xl font-semibold text-gray-900 mb-4">
-                {currentQuestion.prompt}
-              </h2>
-              
-              {currentQuestion.type === 'mcq' && (
-                <div className="space-y-3">
-                  {currentQuestion.choices.map((choice, index) => (
-                    <label key={index} className="flex items-center p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer">
-                      <input
-                        type="radio"
-                        name={`question-${currentQuestion.id}`}
-                        value={index}
-                        checked={answers[currentQuestion.id] === index.toString()}
-                        onChange={(e) => handleAnswerChange(currentQuestion.id, e.target.value)}
-                        className="mr-3"
-                      />
-                      <span className="text-gray-900">{choice}</span>
-                    </label>
-                  ))}
+        {/* Main Quiz Content */}
+        <div className="flex-1 flex items-center justify-center p-6">
+          <div className="w-full max-w-4xl">
+            <div className="bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden shadow-2xl">
+              {/* Progress Bar */}
+              <div className="px-8 py-4 bg-slate-700">
+                <div className="w-full bg-slate-600 rounded-full h-2">
+                  <div 
+                    className="bg-gradient-to-r from-blue-500 to-purple-500 h-2 rounded-full transition-all duration-500"
+                    style={{ width: `${((currentQuestionIndex + 1) / quizData.questions.length) * 100}%` }}
+                  />
                 </div>
-              )}
-            </div>
+              </div>
 
-            {/* Navigation */}
-            <div className="flex justify-between">
-              <button
-                onClick={handlePrevious}
-                disabled={isFirstQuestion}
-                className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Previous
-              </button>
-              
-              <div className="flex space-x-2">
-                {isLastQuestion ? (
+              <div className="p-8">
+                {/* Question */}
+                <div className="mb-8">
+                  <h2 className="text-2xl font-bold text-white mb-6 leading-relaxed">
+                    {currentQuestion.prompt}
+                  </h2>
+                  
+                  {currentQuestion.type === 'mcq' && (
+                    <div className="space-y-4">
+                      {currentQuestion.choices.map((choice, index) => (
+                        <label 
+                          key={index} 
+                          className={`flex items-center p-4 rounded-xl border-2 cursor-pointer transition-all duration-200 ${
+                            answers[currentQuestion.id] === index.toString()
+                              ? 'border-blue-500 bg-blue-500/10'
+                              : 'border-slate-600 bg-slate-700 hover:border-slate-500 hover:bg-slate-600'
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            name={`question-${currentQuestion.id}`}
+                            value={index}
+                            checked={answers[currentQuestion.id] === index.toString()}
+                            onChange={(e) => handleAnswerChange(currentQuestion.id, e.target.value)}
+                            className="sr-only"
+                          />
+                          <div className={`w-6 h-6 rounded-full border-2 mr-4 flex items-center justify-center ${
+                            answers[currentQuestion.id] === index.toString()
+                              ? 'border-blue-500 bg-blue-500'
+                              : 'border-slate-400'
+                          }`}>
+                            {answers[currentQuestion.id] === index.toString() && (
+                              <CheckCircle className="w-4 h-4 text-white" />
+                            )}
+                          </div>
+                          <span className="text-white text-lg">{choice}</span>
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Navigation */}
+                <div className="flex justify-between items-center">
                   <button
-                    onClick={handleSubmitQuiz}
-                    disabled={submitting}
-                    className="px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    onClick={handlePrevious}
+                    disabled={isFirstQuestion}
+                    className="flex items-center px-6 py-3 border border-slate-600 rounded-lg text-slate-300 hover:bg-slate-700 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
                   >
-                    {submitting ? 'Submitting...' : 'Submit Quiz'}
+                    <ChevronLeft className="w-4 h-4 mr-2" />
+                    Previous
                   </button>
-                ) : (
-                  <button
-                    onClick={handleNext}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-                  >
-                    Next
-                  </button>
-                )}
+                  
+                  <div className="flex space-x-4">
+                    {isLastQuestion ? (
+                      <button
+                        onClick={handleSubmitQuiz}
+                        disabled={submitting}
+                        className="flex items-center px-8 py-3 bg-gradient-to-r from-green-600 to-blue-600 text-white rounded-lg hover:from-green-700 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 font-medium shadow-lg"
+                      >
+                        {submitting ? (
+                          <>
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            Submitting...
+                          </>
+                        ) : (
+                          <>
+                            <CheckCircle className="w-4 h-4 mr-2" />
+                            Submit Quiz
+                          </>
+                        )}
+                      </button>
+                    ) : (
+                      <button
+                        onClick={handleNext}
+                        className="flex items-center px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all duration-200 font-medium shadow-lg"
+                      >
+                        Next
+                        <ChevronRight className="w-4 h-4 ml-2" />
+                      </button>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
           </div>
         </div>
-      </main>
-    </div>
+      </div>
+    </Layout>
   );
 };
 

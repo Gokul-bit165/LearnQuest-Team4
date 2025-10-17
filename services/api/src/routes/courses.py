@@ -12,12 +12,20 @@ async def get_courses(current_user: Optional[User] = Depends(get_current_user_op
     """Get all courses"""
     try:
         courses_collection = get_collection("courses")
+        quizzes_collection = get_collection("quizzes")
         courses = list(courses_collection.find().sort("title", 1))
         
-        # Convert ObjectId to string for JSON serialization
+        # Convert ObjectId to string for JSON serialization and add quiz info
         for course in courses:
             course["id"] = str(course["_id"])
             del course["_id"]
+            
+            # Find quiz for this course
+            quiz = quizzes_collection.find_one({"course_id": course["id"]})
+            if quiz:
+                course["quiz_id"] = str(quiz["_id"])
+            else:
+                course["quiz_id"] = None
         
         return courses
         
@@ -32,6 +40,7 @@ async def get_course_by_slug(slug: str, current_user: Optional[User] = Depends(g
     """Get course details by slug"""
     try:
         courses_collection = get_collection("courses")
+        quizzes_collection = get_collection("quizzes")
         course = courses_collection.find_one({"slug": slug})
         
         if not course:
@@ -43,6 +52,13 @@ async def get_course_by_slug(slug: str, current_user: Optional[User] = Depends(g
         # Convert ObjectId to string for JSON serialization
         course["id"] = str(course["_id"])
         del course["_id"]
+        
+        # Find quiz for this course
+        quiz = quizzes_collection.find_one({"course_id": course["id"]})
+        if quiz:
+            course["quiz_id"] = str(quiz["_id"])
+        else:
+            course["quiz_id"] = None
         
         return course
         
