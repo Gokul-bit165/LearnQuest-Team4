@@ -5,6 +5,7 @@ import Dashboard from './pages/Dashboard'
 import Users from './pages/Users'
 import Courses from './pages/Courses'
 import Quizzes from './pages/Quizzes'
+import CreateCoursePage from './pages/CreateCoursePage'
 
 function App() {
   // Capture token from URL on first load and store in localStorage
@@ -29,6 +30,7 @@ function App() {
         <Route path="/" element={<Dashboard />} />
         <Route path="/users" element={<Users />} />
         <Route path="/courses" element={<Courses />} />
+        <Route path="/courses/new" element={<CreateCoursePage />} />
         <Route path="/quizzes" element={<Quizzes />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

@@ -11,7 +11,8 @@ import {
   Play, 
   Loader2, 
   AlertCircle,
-  CheckCircle
+  CheckCircle,
+  Bot
 } from 'lucide-react';
 
 const CourseDetail = () => {
@@ -146,23 +147,32 @@ const CourseDetail = () => {
             {/* Action Buttons */}
             <div className="flex space-x-4">
               {isAuthenticated ? (
-                <button
-                  onClick={handleStartQuiz}
-                  disabled={startingQuiz || !course.quiz_id}
-                  className="flex items-center px-8 py-4 bg-gradient-to-r from-green-600 to-blue-600 text-white rounded-lg hover:from-green-700 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 font-medium shadow-lg"
-                >
-                  {startingQuiz ? (
-                    <>
-                      <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                      Starting Quiz...
-                    </>
-                  ) : (
-                    <>
-                      <Play className="w-5 h-5 mr-2" />
-                      Start Quiz
-                    </>
-                  )}
-                </button>
+                <>
+                  <button
+                    onClick={handleStartQuiz}
+                    disabled={startingQuiz || !course.quiz_id}
+                    className="flex items-center px-8 py-4 bg-gradient-to-r from-green-600 to-blue-600 text-white rounded-lg hover:from-green-700 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 font-medium shadow-lg"
+                  >
+                    {startingQuiz ? (
+                      <>
+                        <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                        Starting Quiz...
+                      </>
+                    ) : (
+                      <>
+                        <Play className="w-5 h-5 mr-2" />
+                        Start Quiz
+                      </>
+                    )}
+                  </button>
+                  <Link
+                    to={`/tutor/${course.id}`}
+                    className="flex items-center px-8 py-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg hover:from-purple-700 hover:to-pink-700 transition-all duration-200 font-medium shadow-lg"
+                  >
+                    <Bot className="w-5 h-5 mr-2" />
+                    Ask AI Tutor
+                  </Link>
+                </>
               ) : (
                 <Link
                   to="/login"

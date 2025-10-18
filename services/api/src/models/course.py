@@ -7,6 +7,7 @@ class Topic(BaseModel):
     topic_id: str
     title: str
     content_url: Optional[str] = None
+    image_url: Optional[str] = None
 
 
 class Module(BaseModel):

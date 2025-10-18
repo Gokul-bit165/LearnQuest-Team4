@@ -28,7 +28,9 @@ def get_database():
 
 def hash_password(password: str) -> str:
     """Hash a password using bcrypt"""
-    return pwd_context.hash(password)
+    # Truncate password to 72 bytes to avoid bcrypt limitation
+    truncated_password = password[:72]
+    return pwd_context.hash(truncated_password)
 
 def create_sample_user(db):
     """Create a sample user with hashed password"""

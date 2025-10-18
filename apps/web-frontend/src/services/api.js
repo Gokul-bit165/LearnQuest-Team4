@@ -61,4 +61,10 @@ export const usersAPI = {
   getDashboard: () => api.get('/api/users/me/dashboard'),
 };
 
+// AI API
+export const aiAPI = {
+  explain: (question, courseId) => api.post('/api/ai/explain', { question, course_id: courseId }),
+  health: () => api.get('/api/ai/health'),
+};
+
 export default api;

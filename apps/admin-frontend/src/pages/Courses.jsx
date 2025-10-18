@@ -1,10 +1,9 @@
 import React, { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { adminAPI } from '../services/api'
 
 const Courses = () => {
   const [courses, setCourses] = useState([])
-  const [creating, setCreating] = useState(false)
-  const [form, setForm] = useState({ title: '', slug: '', description: '', xp_reward: 0, modules: [] })
 
   const load = async () => {
     // Reuse public endpoint for listing via web app base if needed; admin only for mutations
@@ -15,12 +14,6 @@ const Courses = () => {
 
   useEffect(() => { load() }, [])
 
-  const create = async () => {
-    await adminAPI.createCourse(form)
-    setCreating(false)
-    setForm({ title: '', slug: '', description: '', xp_reward: 0, modules: [] })
-    await load()
-  }
 
   const remove = async (id) => {
     await adminAPI.deleteCourse(id)
@@ -31,7 +24,7 @@ const Courses = () => {
     <div>
       <div className="flex items-center justify-between mb-4">
         <h1 className="text-2xl font-bold">Courses</h1>
-        <button className="px-3 py-2 bg-blue-600 rounded" onClick={() => setCreating(true)}>Create New Course</button>
+        <Link className="px-3 py-2 bg-blue-600 rounded inline-block" to="/courses/new">Create New Course</Link>
       </div>
 
       <div className="grid gap-3">
@@ -46,24 +39,7 @@ const Courses = () => {
           </div>
         ))}
       </div>
-
-      {creating && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center">
-          <div className="bg-slate-800 border border-slate-700 rounded p-6 w-full max-w-md">
-            <h2 className="text-xl font-bold mb-4">Create Course</h2>
-            <div className="space-y-3">
-              <input className="w-full bg-slate-700 rounded px-3 py-2" placeholder="Title" value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} />
-              <input className="w-full bg-slate-700 rounded px-3 py-2" placeholder="Slug" value={form.slug} onChange={e => setForm({ ...form, slug: e.target.value })} />
-              <textarea className="w-full bg-slate-700 rounded px-3 py-2" placeholder="Description" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} />
-              <input type="number" className="w-full bg-slate-700 rounded px-3 py-2" placeholder="XP Reward" value={form.xp_reward} onChange={e => setForm({ ...form, xp_reward: Number(e.target.value) })} />
-            </div>
-            <div className="mt-4 flex justify-end gap-2">
-              <button className="px-3 py-2 bg-slate-600 rounded" onClick={() => setCreating(false)}>Cancel</button>
-              <button className="px-3 py-2 bg-blue-600 rounded" onClick={create}>Create</button>
-            </div>
-          </div>
-        </div>
-      )}
+      
     </div>
   )
 }

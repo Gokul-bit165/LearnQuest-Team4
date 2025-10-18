@@ -14,16 +14,20 @@ services:
 
   api:
     build:
-      context: ./services/api
-      dockerfile: Dockerfile
+      context: .  # Use the root project folder as the context
+      dockerfile: ./services/api/Dockerfile # Tell it where to find the Dockerfile
     ports:
       - "8000:8000"
     environment:
       - MONGO_URL=mongodb://db:27017
       - MONGO_DB=learnquest
       - JWT_SECRET_KEY=your-secret-key-change-in-production
+      - CHROMA_HOST=chroma
+      - CHROMA_PORT=8000
+      - OLLAMA_BASE_URL=http://host.docker.internal:11434
     depends_on:
       - db
+      - chroma-init
       - seed
     restart: unless-stopped
 
@@ -87,7 +91,7 @@ services:
       - ./services/api/src:/app/services/api/src
     working_dir: /app
     command: >
-      sh -c "pip install pymongo passlib==1.7.4 bcrypt==3.2.0 python-jose[cryptography] && python /app/scripts/seed_db.py"
+      sh -c "pip install pymongo passlib[bcrypt] python-jose[cryptography] && python /app/scripts/seed_db.py"
     depends_on:
       - db
     restart: "no"
@@ -100,9 +104,33 @@ services:
       - mongo_data:/data/db
     restart: unless-stopped
 
+  chroma:
+    image: chromadb/chroma:latest
+    ports:
+      - "8001:8000"
+    volumes:
+      - chroma_data:/chroma/chroma
+    environment:
+      - CHROMA_SERVER_HOST=0.0.0.0
+      - CHROMA_SERVER_HTTP_PORT=8000
+      - CHROMA_SERVER_CORS_ALLOW_ORIGINS=["*"]
+    restart: unless-stopped
+
+  chroma-init:
+    image: python:3.10-slim
+    volumes:
+      - ./scripts:/app/scripts
+    working_dir: /app
+    command: >
+      sh -c "sleep 30 && pip install chromadb && python /app/scripts/init_chroma.py"
+    depends_on:
+      - chroma
+    restart: "no"
+
 volumes:
   mongo_data:
   judge0_pg_data:
+  chroma_data:
 
 networks:
   default:

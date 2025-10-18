@@ -9,6 +9,7 @@ import CourseDetail from './pages/CourseDetail';
 import Quiz from './pages/Quiz';
 import QuizResults from './pages/QuizResults';
 import Dashboard from './pages/Dashboard';
+import Tutor from './pages/Tutor';
 import './App.css';
 
 function App() {
@@ -47,6 +48,14 @@ function App() {
               element={
                 <ProtectedRoute>
                   <Dashboard />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/tutor/:courseId" 
+              element={
+                <ProtectedRoute>
+                  <Tutor />
                 </ProtectedRoute>
               } 
             />
