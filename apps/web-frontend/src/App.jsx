@@ -10,6 +10,8 @@ import Quiz from './pages/Quiz';
 import QuizResults from './pages/QuizResults';
 import Dashboard from './pages/Dashboard';
 import Tutor from './pages/Tutor';
+import CoachPage from './pages/CoachPage';
+import Lesson from './pages/Lesson';
 import './App.css';
 
 function App() {
@@ -48,6 +50,22 @@ function App() {
               element={
                 <ProtectedRoute>
                   <Dashboard />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/coach" 
+              element={
+                <ProtectedRoute>
+                  <CoachPage />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/courses/:slug/:moduleId/:topicId" 
+              element={
+                <ProtectedRoute>
+                  <Lesson />
                 </ProtectedRoute>
               } 
             />

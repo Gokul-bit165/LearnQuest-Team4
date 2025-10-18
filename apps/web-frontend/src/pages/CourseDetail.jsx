@@ -198,29 +198,62 @@ const CourseDetail = () => {
         {/* Modules */}
         {course.modules && course.modules.length > 0 && (
           <div className="bg-slate-800 rounded-2xl border border-slate-700 p-8">
-            <h3 className="text-2xl font-bold text-white mb-6">Course Modules</h3>
-            <div className="space-y-4">
-              {course.modules.map((module, index) => (
-                <div key={module.module_id} className="bg-slate-700 rounded-xl p-6 border border-slate-600 hover:border-slate-500 transition-colors">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-4">
-                      <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
-                        <span className="text-white font-bold">{index + 1}</span>
-                      </div>
-                      <div>
-                        <h4 className="text-lg font-semibold text-white mb-1">
-                          {module.title}
-                        </h4>
-                        <p className="text-slate-400 text-sm">
-                          {module.topics?.length || 0} topics
-                        </p>
-                      </div>
+            <h3 className="text-2xl font-bold text-white mb-6">Learning Path</h3>
+            <div className="space-y-6">
+              {course.modules.map((module, moduleIndex) => (
+                <div key={module.module_id} className="bg-slate-700 rounded-xl p-6 border border-slate-600">
+                  <div className="flex items-center space-x-4 mb-4">
+                    <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+                      <span className="text-white font-bold">{moduleIndex + 1}</span>
                     </div>
-                    <div className="flex items-center space-x-2">
-                      <CheckCircle className="w-5 h-5 text-green-400" />
-                      <span className="text-slate-400 text-sm">Module {module.order}</span>
+                    <div>
+                      <h4 className="text-lg font-semibold text-white mb-1">
+                        {module.title}
+                      </h4>
+                      <p className="text-slate-400 text-sm">
+                        {module.topics?.length || 0} lessons
+                      </p>
                     </div>
                   </div>
+                  
+                  {/* Topics as Lessons */}
+                  {module.topics && module.topics.length > 0 && (
+                    <div className="ml-14 space-y-3">
+                      {module.topics.map((topic, topicIndex) => (
+                        <div key={topic.topic_id} className="flex items-center justify-between bg-slate-800 rounded-lg p-4 border border-slate-600 hover:border-slate-500 transition-colors">
+                          <div className="flex items-center space-x-3">
+                            <div className="w-8 h-8 bg-gradient-to-br from-green-500 to-blue-500 rounded-lg flex items-center justify-center">
+                              <span className="text-white font-bold text-sm">{topicIndex + 1}</span>
+                            </div>
+                            <div>
+                              <h5 className="text-white font-medium">{topic.title}</h5>
+                              <p className="text-slate-400 text-sm">
+                                {topic.cards?.length || 0} cards • {topic.xp_reward || 50} XP
+                              </p>
+                            </div>
+                          </div>
+                          
+                          {isAuthenticated ? (
+                            <button
+                              onClick={() => navigate(`/courses/${slug}/${module.module_id}/${topic.topic_id}`)}
+                              className="px-4 py-2 bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white rounded-lg font-medium transition-all duration-200 flex items-center gap-2"
+                            >
+                              <Play className="w-4 h-4" />
+                              Start Lesson
+                            </button>
+                          ) : (
+                            <Link
+                              to="/login"
+                              className="px-4 py-2 bg-slate-600 hover:bg-slate-700 text-white rounded-lg font-medium transition-all duration-200 flex items-center gap-2"
+                            >
+                              <Play className="w-4 h-4" />
+                              Sign In to Start
+                            </Link>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

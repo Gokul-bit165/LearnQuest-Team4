@@ -35,6 +35,8 @@ class User(BaseModel):
     enrolled_courses: List[EnrolledCourse] = Field(default_factory=list)
     quiz_history: List[QuizHistoryItem] = Field(default_factory=list)
     badges: List[str] = Field(default_factory=list)
+    last_active_date: Optional[datetime] = None
+    streak_count: int = 0
     created_at: Optional[datetime] = None
 
     class Config:

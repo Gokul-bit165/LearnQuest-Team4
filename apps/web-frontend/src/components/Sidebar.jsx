@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { 
   Home, 
@@ -8,56 +8,20 @@ import {
   LogOut,
   Star,
   Zap,
-  Bot,
-  MessageSquare
+  Sparkles,
+  Flame
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { coursesAPI } from '../services/api';
 
 const Sidebar = () => {
   const location = useLocation();
   const { user, logout } = useAuth();
-  const [currentCourse, setCurrentCourse] = useState(null);
-  const [loadingCourse, setLoadingCourse] = useState(false);
 
   const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: Home },
+    { name: 'AI Coach', href: '/coach', icon: Sparkles },
     { name: 'Courses', href: '/courses', icon: BookOpen },
   ];
-
-  // Fetch course data when on a course page
-  useEffect(() => {
-    const fetchCurrentCourse = async () => {
-      if (location.pathname.startsWith('/courses/') && location.pathname !== '/courses') {
-        const slug = location.pathname.split('/courses/')[1];
-        setLoadingCourse(true);
-        try {
-          const response = await coursesAPI.getCourseBySlug(slug);
-          setCurrentCourse(response.data);
-        } catch (error) {
-          console.error('Error fetching course:', error);
-          setCurrentCourse(null);
-        } finally {
-          setLoadingCourse(false);
-        }
-      } else {
-        setCurrentCourse(null);
-      }
-    };
-
-    fetchCurrentCourse();
-  }, [location.pathname]);
-
-  // Determine AI Tutor link based on current location
-  const getAITutorLink = () => {
-    // If we have course data, use the actual course ID
-    if (currentCourse && currentCourse.id) {
-      return `/tutor/${currentCourse.id}`;
-    }
-    return null; // No specific course context
-  };
-
-  const aiTutorLink = getAITutorLink();
 
   const isActive = (path) => location.pathname === path;
 
@@ -95,40 +59,6 @@ const Sidebar = () => {
             </Link>
           );
         })}
-        
-        {/* AI Tutor Link */}
-        {loadingCourse ? (
-          <div className="flex items-center px-4 py-3 text-sm font-medium rounded-lg text-slate-400">
-            <Bot className="w-5 h-5 mr-3" />
-            AI Tutor
-            <span className="ml-auto text-xs bg-slate-600 text-slate-400 px-2 py-1 rounded-full">
-              Loading...
-            </span>
-          </div>
-        ) : aiTutorLink ? (
-          <Link
-            to={aiTutorLink}
-            className={`flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-all duration-200 ${
-              isActive(aiTutorLink)
-                ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg'
-                : 'text-slate-300 hover:bg-gradient-to-r hover:from-purple-600 hover:to-pink-600 hover:text-white hover:shadow-lg'
-            }`}
-          >
-            <Bot className="w-5 h-5 mr-3" />
-            AI Tutor
-            <span className="ml-auto text-xs bg-purple-500 text-white px-2 py-1 rounded-full font-semibold">
-              AI
-            </span>
-          </Link>
-        ) : (
-          <div className="flex items-center px-4 py-3 text-sm font-medium rounded-lg text-slate-500 cursor-not-allowed">
-            <Bot className="w-5 h-5 mr-3" />
-            AI Tutor
-            <span className="ml-auto text-xs bg-slate-600 text-slate-400 px-2 py-1 rounded-full">
-              Select Course
-            </span>
-          </div>
-        )}
       </nav>
 
       {/* User Profile */}
@@ -146,6 +76,23 @@ const Sidebar = () => {
             <p className="text-xs text-slate-400 truncate">
               Level {user?.level || 1}
             </p>
+          </div>
+        </div>
+
+        {/* Streak Display */}
+        <div className="mb-4">
+          <div className="flex items-center justify-between text-xs text-slate-400 mb-1">
+            <span className="flex items-center gap-1">
+              <Flame className="w-3 h-3 text-orange-400" />
+              Daily Streak
+            </span>
+            <span className="text-orange-400 font-semibold">{user?.streak_count || 0}</span>
+          </div>
+          <div className="w-full bg-slate-700 rounded-full h-2">
+            <div 
+              className="bg-gradient-to-r from-orange-500 to-red-500 h-2 rounded-full transition-all duration-300"
+              style={{ width: `${Math.min((user?.streak_count || 0) * 10, 100)}%` }}
+            />
           </div>
         </div>
 

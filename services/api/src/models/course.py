@@ -1,13 +1,39 @@
-from typing import List, Optional
+from typing import List, Optional, Dict, Any, Union
 from datetime import datetime
 from pydantic import BaseModel, Field
+from enum import Enum
+
+
+class CardType(str, Enum):
+    THEORY = "theory"
+    MCQ = "mcq"
+    CODE = "code"
+    FILL_IN_BLANK = "fill-in-blank"
+
+
+class Card(BaseModel):
+    card_id: str
+    type: CardType
+    content: str  # Question or instruction text
+    
+    # Fields that vary by card type
+    choices: Optional[List[str]] = None  # For MCQ
+    correct_choice_index: Optional[int] = None  # For MCQ
+    starter_code: Optional[str] = None  # For CODE
+    test_cases: Optional[List[Dict[str, Any]]] = None  # For CODE
+    blanks: Optional[List[str]] = None  # For FILL_IN_BLANK
+    correct_answers: Optional[List[str]] = None  # For FILL_IN_BLANK
+    
+    # Common fields
+    explanation: Optional[str] = None  # Explanation shown after answer
+    xp_reward: int = 10  # XP awarded for correct answer
 
 
 class Topic(BaseModel):
     topic_id: str
     title: str
-    content_url: Optional[str] = None
-    image_url: Optional[str] = None
+    cards: List[Card] = Field(default_factory=list)
+    xp_reward: int = 50  # Bonus XP for completing entire topic
 
 
 class Module(BaseModel):

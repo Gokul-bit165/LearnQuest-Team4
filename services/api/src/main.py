@@ -6,6 +6,7 @@ from .routes.courses import router as courses_router
 from .routes.quizzes import router as quizzes_router
 from .routes.users import router as users_router
 from .routes.ai import router as ai_router
+from .routes.lessons import router as lessons_router
 from .routes.admin import router as admin_router  # base admin router
 from .routes.admin import users as admin_users
 from .routes.admin import courses as admin_courses
@@ -38,6 +39,7 @@ app.include_router(courses_router)
 app.include_router(quizzes_router)
 app.include_router(users_router)
 app.include_router(ai_router)
+app.include_router(lessons_router)
 app.include_router(admin_router)
 
 @app.get("/")

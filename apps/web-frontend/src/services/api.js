@@ -61,9 +61,16 @@ export const usersAPI = {
   getDashboard: () => api.get('/api/users/me/dashboard'),
 };
 
+// Lessons API
+export const lessonsAPI = {
+  checkAnswer: (cardId, answer) => api.post('/api/lessons/check-answer', { card_id: cardId, answer }),
+  completeLesson: (topicId) => api.post(`/api/lessons/complete/${topicId}`),
+};
+
 // AI API
 export const aiAPI = {
   explain: (question, courseId) => api.post('/api/ai/explain', { question, course_id: courseId }),
+  coach: (messages) => api.post('/api/ai/coach', { messages }),
   health: () => api.get('/api/ai/health'),
 };
 
