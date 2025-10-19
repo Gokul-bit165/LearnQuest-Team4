@@ -12,6 +12,7 @@ const CreateCoursePage = () => {
     modules: [] 
   })
   const [draggedCard, setDraggedCard] = useState(null)
+  const [saving, setSaving] = useState(false)
 
   const addModule = () => {
     setCourse(prev => ({
@@ -46,6 +47,7 @@ const CreateCoursePage = () => {
               topics: [...m.topics, { 
                 id: crypto.randomUUID(), 
                 title: '', 
+                content: '',
                 xp_reward: 50,
                 cards: [] 
               }] 
@@ -320,40 +322,245 @@ const CreateCoursePage = () => {
     return filteredCards
   }
 
+  const validateCourse = () => {
+    console.log('Validating course:', course)
+    
+    if (!course.title.trim()) {
+      alert('Please enter a course title')
+      return false
+    }
+    if (!course.description.trim()) {
+      alert('Please enter a course description')
+      return false
+    }
+    if (course.modules.length === 0) {
+      alert('Please add at least one module')
+      return false
+    }
+    
+    // Basic validation - allow saving even with minimal content
+    for (const module of course.modules) {
+      if (!module.title.trim()) {
+        alert(`Please enter a title for Module ${course.modules.indexOf(module) + 1}`)
+        return false
+      }
+      
+      // Allow modules without topics for now
+      for (const topic of module.topics) {
+        if (!topic.title.trim()) {
+          alert(`Please enter a title for all topics in Module "${module.title}"`)
+          return false
+        }
+        
+        if (!topic.content || !topic.content.trim()) {
+          alert(`Please enter content for Topic "${topic.title}" in Module "${module.title}"`)
+          return false
+        }
+        
+        // Allow topics without cards for now
+        for (const card of topic.cards) {
+          if (!card.content.trim()) {
+            alert(`Please add content to all cards in Topic "${topic.title}"`)
+            return false
+          }
+        }
+      }
+    }
+    
+    return true
+  }
+
+  const checkToken = async () => {
+    const token = localStorage.getItem('token')
+    console.log('Current token:', token)
+    
+    if (!token) {
+      alert('No token found in localStorage')
+      return
+    }
+    
+    try {
+      // Test if we can make an authenticated request
+      const response = await fetch('http://localhost:8000/api/auth/me', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+      
+      if (response.ok) {
+        const userData = await response.json()
+        console.log('User data:', userData)
+        alert(`Token is valid! User: ${userData.name} (${userData.role})`)
+      } else {
+        const errorData = await response.json()
+        console.error('Token validation failed:', errorData)
+        alert(`Token validation failed: ${errorData.detail || 'Unknown error'}`)
+      }
+    } catch (error) {
+      console.error('Token check error:', error)
+      alert(`Token check error: ${error.message}`)
+    }
+  }
+
+  const testSave = async () => {
+    console.log('Test save clicked')
+    console.log('Current token:', localStorage.getItem('token'))
+    
+    setSaving(true)
+    try {
+      // First, let's test if we can make a simple API call
+      console.log('Testing API connection...')
+      
+      const testPayload = {
+        title: 'Test Course ' + Date.now(),
+        description: 'Test Description',
+        xp_reward: 100,
+        modules: [{
+          title: 'Test Module',
+          order: 1,  // Make sure this is an integer
+          topics: [{
+            title: 'Test Topic',
+            xp_reward: 50,
+            cards: [{
+              type: 'theory',
+              content: 'Test theory card',
+              xp_reward: 10,
+              explanation: ''
+            }]
+          }]
+        }]
+      }
+      
+      console.log('Test payload:', JSON.stringify(testPayload, null, 2))
+      
+      // Test the API call with detailed logging
+      const response = await adminAPI.createCourse(testPayload)
+      console.log('Test API response:', response)
+      
+      alert('Test course saved successfully!')
+      navigate('/courses')
+    } catch (error) {
+      console.error('Test save error:', error)
+      console.error('Error status:', error.response?.status)
+      console.error('Error data:', error.response?.data)
+      console.error('Error headers:', error.response?.headers)
+      
+      let errorMessage = 'Unknown error'
+      if (error.response?.status === 401) {
+        errorMessage = 'Authentication failed - please check your admin token'
+      } else if (error.response?.status === 403) {
+        errorMessage = 'Access denied - admin role required'
+      } else if (error.response?.status === 422) {
+        // Handle validation errors
+        const errorData = error.response.data
+        if (errorData.detail) {
+          if (Array.isArray(errorData.detail)) {
+            errorMessage = errorData.detail.map(err => `${err.loc?.join('.')}: ${err.msg}`).join('\n')
+          } else {
+            errorMessage = errorData.detail
+          }
+        } else {
+          errorMessage = 'Validation error - check the data format'
+        }
+      } else if (error.response?.data?.detail) {
+        errorMessage = error.response.data.detail
+      } else if (error.message) {
+        errorMessage = error.message
+      }
+      
+      console.error('Full error response:', error.response?.data)
+      alert(`Test save error (${error.response?.status}): ${errorMessage}`)
+    } finally {
+      setSaving(false)
+    }
+  }
+
   const saveCourse = async () => {
-    const payload = {
-      title: course.title,
-      description: course.description,
-      xp_reward: Number(course.xp_reward) || 0,
-      modules: course.modules.map(m => ({
-        title: m.title,
-        order: m.order,
-        topics: m.topics.map(t => ({
-          title: t.title,
-          xp_reward: t.xp_reward,
-          cards: t.cards.map(c => ({
-            type: c.type,
-            content: c.content,
-            xp_reward: c.xp_reward,
-            explanation: c.explanation,
-            ...(c.type === 'mcq' && {
-              choices: c.choices,
-              correct_choice_index: c.correct_choice_index
-            }),
-            ...(c.type === 'code' && {
-              starter_code: c.starter_code,
-              test_cases: c.test_cases
-            }),
-            ...(c.type === 'fill-in-blank' && {
-              blanks: c.blanks,
-              correct_answers: c.correct_answers
-            })
+    console.log('Save course clicked, current course state:', course)
+    
+    if (!validateCourse()) {
+      console.log('Validation failed')
+      return
+    }
+    
+    setSaving(true)
+    try {
+      const payload = {
+        title: course.title,
+        description: course.description,
+        xp_reward: Number(course.xp_reward) || 0,
+        modules: course.modules.map(m => ({
+          title: m.title,
+          order: parseInt(m.order) || 0,
+          topics: m.topics.map(t => ({
+            title: t.title,
+            content: t.content || '',
+            xp_reward: parseInt(t.xp_reward) || 50,
+            cards: t.cards.map(c => ({
+              type: c.type,
+              content: c.content,
+              xp_reward: parseInt(c.xp_reward) || 10,
+              explanation: c.explanation,
+              ...(c.type === 'mcq' && {
+                choices: c.choices,
+                correct_choice_index: parseInt(c.correct_choice_index) || 0
+              }),
+              ...(c.type === 'code' && {
+                starter_code: c.starter_code,
+                test_cases: c.test_cases
+              }),
+              ...(c.type === 'fill-in-blank' && {
+                blanks: c.blanks,
+                correct_answers: c.correct_answers
+              })
+            }))
           }))
         }))
-      }))
+      }
+      
+      console.log('Course data being sent:', JSON.stringify(payload, null, 2))
+      console.log('API URL:', adminAPI.createCourse.toString())
+      
+      const response = await adminAPI.createCourse(payload)
+      console.log('API response:', response)
+      
+      alert('Course saved successfully!')
+      navigate('/courses')
+    } catch (error) {
+      console.error('Full error object:', error)
+      console.error('Error response:', error.response)
+      console.error('Error message:', error.message)
+      console.error('Error config:', error.config)
+      
+      let errorMessage = 'Unknown error'
+      if (error.response?.status === 401) {
+        errorMessage = 'Authentication failed - please check your admin token'
+      } else if (error.response?.status === 403) {
+        errorMessage = 'Access denied - admin role required'
+      } else if (error.response?.status === 422) {
+        // Handle validation errors
+        const errorData = error.response.data
+        if (errorData.detail) {
+          if (Array.isArray(errorData.detail)) {
+            errorMessage = errorData.detail.map(err => `${err.loc?.join('.')}: ${err.msg}`).join('\n')
+          } else {
+            errorMessage = errorData.detail
+          }
+        } else {
+          errorMessage = 'Validation error - check the data format'
+        }
+      } else if (error.response?.data?.detail) {
+        errorMessage = error.response.data.detail
+      } else if (error.message) {
+        errorMessage = error.message
+      }
+      
+      console.error('Full error response:', error.response?.data)
+      alert(`Error (${error.response?.status}): ${errorMessage}`)
+    } finally {
+      setSaving(false)
     }
-    await adminAPI.createCourse(payload)
-    navigate('/courses')
   }
 
   const getCardIcon = (type) => {
@@ -481,6 +688,16 @@ const CreateCoursePage = () => {
                           placeholder="XP Reward" 
                           value={topic.xp_reward} 
                           onChange={e => updateTopic(module.id, topic.id, 'xp_reward', parseInt(e.target.value) || 50)} 
+                        />
+                      </div>
+                      
+                      <div className="mb-4">
+                        <textarea 
+                          className="w-full bg-slate-800 rounded-lg px-3 py-2 text-white placeholder-slate-400" 
+                          placeholder="Topic Content/Description" 
+                          rows={3}
+                          value={topic.content || ''} 
+                          onChange={e => updateTopic(module.id, topic.id, 'content', e.target.value)} 
                         />
                       </div>
 
@@ -695,10 +912,30 @@ const CreateCoursePage = () => {
           Cancel
         </button>
         <button 
-          className="px-6 py-3 bg-green-600 hover:bg-green-700 rounded-lg text-white" 
-          onClick={saveCourse}
+          className="px-6 py-3 bg-blue-600 hover:bg-blue-700 rounded-lg text-white" 
+          onClick={testSave}
         >
-          Save Course
+          Test Save (No Validation)
+        </button>
+        <button 
+          className="px-6 py-3 bg-yellow-600 hover:bg-yellow-700 rounded-lg text-white" 
+          onClick={checkToken}
+        >
+          Check Token
+        </button>
+        <button 
+          className="px-6 py-3 bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg text-white flex items-center gap-2" 
+          onClick={saveCourse}
+          disabled={saving}
+        >
+          {saving ? (
+            <>
+              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+              Saving...
+            </>
+          ) : (
+            'Save Course'
+          )}
         </button>
       </div>
     </div>

@@ -23,13 +23,10 @@ export const adminAPI = {
 
   // Courses
   createCourse: (data) => api.post('/api/admin/courses', data),
+  getCourse: (id) => api.get(`/api/admin/courses/${id}`),
   updateCourse: (id, data) => api.put(`/api/admin/courses/${id}`, data),
   deleteCourse: (id) => api.delete(`/api/admin/courses/${id}`),
 
-  // Quizzes
-  createQuiz: (data) => api.post('/api/admin/quizzes', data),
-  updateQuiz: (id, data) => api.put(`/api/admin/quizzes/${id}`, data),
-  deleteQuiz: (id) => api.delete(`/api/admin/quizzes/${id}`),
 }
 
 export default api

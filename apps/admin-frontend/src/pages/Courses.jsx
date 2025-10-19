@@ -33,7 +33,8 @@ const Courses = () => {
             <div className="font-semibold">{c.title}</div>
             <div className="text-slate-400 text-sm">{c.description}</div>
             <div className="text-slate-400 text-sm">XP: {c.xp_reward}</div>
-            <div className="mt-2">
+            <div className="mt-2 flex gap-2">
+              <Link className="px-3 py-1 bg-yellow-600 rounded" to={`/courses/${c.id}/edit`}>Edit</Link>
               <button className="px-3 py-1 bg-red-600 rounded" onClick={() => remove(c.id)}>Delete</button>
             </div>
           </div>

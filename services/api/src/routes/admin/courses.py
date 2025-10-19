@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional, Dict, Any
 from fastapi import Depends, HTTPException, status
 from bson import ObjectId
 from pydantic import BaseModel
@@ -17,13 +17,34 @@ def slugify(title: str) -> str:
     return slug
 
 
+class CardRequest(BaseModel):
+    type: str  # "theory", "mcq", "code", "fill-in-blank"
+    content: str
+    xp_reward: int = 10
+    explanation: Optional[str] = None
+    
+    # MCQ specific fields
+    choices: Optional[List[str]] = None
+    correct_choice_index: Optional[int] = None
+    
+    # Code specific fields
+    starter_code: Optional[str] = None
+    test_cases: Optional[List[Dict[str, Any]]] = None
+    
+    # Fill-in-blank specific fields
+    blanks: Optional[List[str]] = None
+    correct_answers: Optional[List[str]] = None
+
+
 class TopicRequest(BaseModel):
     title: str
-    content: str
+    xp_reward: int = 50
+    cards: List[CardRequest] = []
 
 
 class ModuleRequest(BaseModel):
     title: str
+    order: int
     topics: List[TopicRequest] = []
 
 
@@ -44,22 +65,48 @@ async def create_course(request: CreateCourseRequest, _: User = Depends(require_
     if existing:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Course with this title already exists")
 
-    # Build nested modules/topics with ids
+    # Build nested modules/topics/cards with ids
     modules = []
-    for order_index, module in enumerate(request.modules, start=1):
+    for module in request.modules:
         module_id = str(uuid.uuid4())
         topics = []
         for topic in module.topics:
+            topic_id = str(uuid.uuid4())
+            cards = []
+            for card in topic.cards:
+                card_id = str(uuid.uuid4())
+                card_doc = {
+                    "card_id": card_id,
+                    "type": card.type,
+                    "content": card.content,
+                    "xp_reward": card.xp_reward,
+                    "explanation": card.explanation,
+                }
+                
+                # Add type-specific fields
+                if card.type == "mcq" and card.choices:
+                    card_doc["choices"] = card.choices
+                    card_doc["correct_choice_index"] = card.correct_choice_index
+                elif card.type == "code":
+                    card_doc["starter_code"] = card.starter_code
+                    card_doc["test_cases"] = card.test_cases or []
+                elif card.type == "fill-in-blank":
+                    card_doc["blanks"] = card.blanks or []
+                    card_doc["correct_answers"] = card.correct_answers or []
+                
+                cards.append(card_doc)
+            
             topics.append({
-                "topic_id": str(uuid.uuid4()),
+                "topic_id": topic_id,
                 "title": topic.title,
-                "content_url": None,
-                "content": topic.content,
+                "xp_reward": topic.xp_reward,
+                "cards": cards,
             })
+        
         modules.append({
             "module_id": module_id,
             "title": module.title,
-            "order": order_index,
+            "order": module.order,
             "topics": topics,
         })
 
@@ -88,6 +135,17 @@ async def update_course(course_id: str, payload: dict, _: User = Depends(require
     if res.matched_count == 0:
         raise HTTPException(status_code=404, detail="Course not found")
     doc = courses.find_one({"_id": ObjectId(course_id)})
+    doc["id"] = str(doc["_id"]) 
+    del doc["_id"]
+    return doc
+
+
+@admin_router.get("/courses/{course_id}", response_model=dict)
+async def get_course(course_id: str, _: User = Depends(require_admin_user)):
+    courses = get_collection("courses")
+    doc = courses.find_one({"_id": ObjectId(course_id)})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Course not found")
     doc["id"] = str(doc["_id"]) 
     del doc["_id"]
     return doc

@@ -6,6 +6,7 @@ import Layout from './components/Layout';
 import Login from './pages/Login';
 import Courses from './pages/Courses';
 import CourseDetail from './pages/CourseDetail';
+import ModuleHubPage from './pages/ModuleHubPage';
 import Quiz from './pages/Quiz';
 import QuizResults from './pages/QuizResults';
 import Dashboard from './pages/Dashboard';
@@ -27,6 +28,16 @@ function App() {
             
             {/* Public Course Detail */}
             <Route path="/courses/:slug" element={<CourseDetail />} />
+            
+            {/* Module Hub */}
+            <Route 
+              path="/courses/:slug/modules/:moduleId" 
+              element={
+                <ProtectedRoute>
+                  <ModuleHubPage />
+                </ProtectedRoute>
+              } 
+            />
             
             {/* Protected Routes */}
             <Route 
@@ -62,7 +73,7 @@ function App() {
               } 
             />
             <Route 
-              path="/courses/:slug/:moduleId/:topicId" 
+              path="/courses/:slug/modules/:moduleId/topics/:topicId" 
               element={
                 <ProtectedRoute>
                   <Lesson />

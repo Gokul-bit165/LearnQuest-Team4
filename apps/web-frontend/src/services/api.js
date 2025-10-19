@@ -63,8 +63,15 @@ export const usersAPI = {
 
 // Lessons API
 export const lessonsAPI = {
-  checkAnswer: (cardId, answer) => api.post('/api/lessons/check-answer', { card_id: cardId, answer }),
-  completeLesson: (topicId) => api.post(`/api/lessons/complete/${topicId}`),
+  getTopic: (topicId) => api.get(`/api/lessons/${topicId}`),
+  checkAnswer: (cardId, userAnswer) => {
+    const payload = typeof userAnswer === 'object' && userAnswer !== null && 'value' in userAnswer
+      ? { card_id: cardId, user_answer: userAnswer.value, mode: userAnswer.mode }
+      : { card_id: cardId, user_answer: userAnswer };
+    return api.post('/api/lessons/check-answer', payload);
+  },
+  completeTopic: (topicId) => api.post(`/api/lessons/complete/${topicId}`),
+  getUserProgress: () => api.get('/api/lessons/user-progress'),
 };
 
 // AI API

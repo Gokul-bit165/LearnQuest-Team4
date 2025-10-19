@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import api, { authAPI } from '../services/api';
+import api, { authAPI, lessonsAPI } from '../services/api';
 
 const AuthContext = createContext();
 
@@ -32,7 +32,22 @@ export const AuthProvider = ({ children }) => {
       if (token) {
         try {
           const response = await authAPI.getMe();
-          setUser(response.data);
+          const userData = response.data;
+          
+          // Fetch additional progress data
+          try {
+            const progressResponse = await lessonsAPI.getUserProgress();
+            const progressData = progressResponse.data;
+            
+            // Merge progress data with user data
+            setUser({
+              ...userData,
+              ...progressData
+            });
+          } catch (progressError) {
+            console.warn('Could not fetch progress data:', progressError);
+            setUser(userData);
+          }
         } catch (error) {
           console.error('Auth check failed:', error);
           localStorage.removeItem('token');
@@ -71,12 +86,29 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
   };
 
+  const refreshUserProgress = async () => {
+    if (token && user) {
+      try {
+        const progressResponse = await lessonsAPI.getUserProgress();
+        const progressData = progressResponse.data;
+        
+        setUser(prevUser => ({
+          ...prevUser,
+          ...progressData
+        }));
+      } catch (error) {
+        console.warn('Could not refresh progress data:', error);
+      }
+    }
+  };
+
   const value = {
     user,
     token,
     loading,
     login,
     logout,
+    refreshUserProgress,
     isAuthenticated: !!user
   };
 

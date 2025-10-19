@@ -56,3 +56,24 @@ class Course(BaseModel):
     class Config:
         populate_by_name = True
 
+
+# Request/Response models for lesson interactions
+class CheckAnswerRequest(BaseModel):
+    card_id: str
+    # Accept int for MCQ index, str for code/theory, list for fill-in-blank, or dict if needed
+    user_answer: Union[int, str, List[str], Dict[str, Any]]
+    mode: Optional[str] = None  # 'run' for dry-run (no XP), default submit
+
+
+class CheckAnswerResponse(BaseModel):
+    correct: bool
+    xp_reward: int
+    explanation: Optional[str] = None
+    correct_answer: Optional[Union[str, List[str]]] = None
+
+
+class CompleteTopicResponse(BaseModel):
+    success: bool
+    xp_reward: int
+    streak_count: int
+    message: str
