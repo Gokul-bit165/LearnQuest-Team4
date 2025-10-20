@@ -21,16 +21,28 @@ DB_NAME = os.getenv("MONGO_DB", "learnquest")
 # Password hashing
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
+# Fix for bcrypt version issue in Docker
+try:
+    import bcrypt
+    if not hasattr(bcrypt, '__about__'):
+        bcrypt.__about__ = type('obj', (object,), {'__version__': '5.0.0'})()
+except ImportError:
+    pass
+
 def get_database():
     """Connect to MongoDB and return database instance"""
     client = MongoClient(MONGO_URL)
     return client[DB_NAME]
 
 def hash_password(password: str) -> str:
-    """Hash a password using bcrypt"""
+    """Hash a password using bcrypt (same method as auth system)"""
+    import bcrypt
     # Truncate password to 72 bytes to avoid bcrypt limitation
     truncated_password = password[:72]
-    return pwd_context.hash(truncated_password)
+    # Use bcrypt directly to match the auth system
+    salt = bcrypt.gensalt()
+    hashed = bcrypt.hashpw(truncated_password.encode('utf-8'), salt)
+    return hashed.decode('utf-8')
 
 def create_sample_user(db):
     """Create a sample user with hashed password"""
@@ -48,7 +60,7 @@ def create_sample_user(db):
     user_data = {
         "name": "John Student",
         "email": "student@learnquest.com",
-        "password_hash": hash_password("password123"),
+        "password": hash_password("pass123"),
         "role": "admin",
         "avatar_url": None,
         "auth_provider": "email",

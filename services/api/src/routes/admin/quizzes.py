@@ -4,10 +4,12 @@ from bson import ObjectId
 from ...database import get_collection
 from ...models.user import User
 from ...auth import require_admin_user
-from . import router as admin_router
+from fastapi import APIRouter
+
+router = APIRouter()
 
 
-@admin_router.post("/quizzes", response_model=dict)
+@router.post("/quizzes", response_model=dict)
 async def create_quiz(payload: dict, _: User = Depends(require_admin_user)):
     quizzes = get_collection("quizzes")
     res = quizzes.insert_one(payload)
@@ -17,7 +19,7 @@ async def create_quiz(payload: dict, _: User = Depends(require_admin_user)):
     return doc
 
 
-@admin_router.put("/quizzes/{quiz_id}", response_model=dict)
+@router.put("/quizzes/{quiz_id}", response_model=dict)
 async def update_quiz(quiz_id: str, payload: dict, _: User = Depends(require_admin_user)):
     quizzes = get_collection("quizzes")
     res = quizzes.update_one({"_id": ObjectId(quiz_id)}, {"$set": payload})
@@ -29,7 +31,7 @@ async def update_quiz(quiz_id: str, payload: dict, _: User = Depends(require_adm
     return doc
 
 
-@admin_router.delete("/quizzes/{quiz_id}", status_code=204)
+@router.delete("/quizzes/{quiz_id}", status_code=204)
 async def delete_quiz(quiz_id: str, _: User = Depends(require_admin_user)):
     quizzes = get_collection("quizzes")
     res = quizzes.delete_one({"_id": ObjectId(quiz_id)})

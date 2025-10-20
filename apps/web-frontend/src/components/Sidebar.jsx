@@ -9,7 +9,8 @@ import {
   Star,
   Zap,
   Sparkles,
-  Flame
+  Flame,
+  Code
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -21,6 +22,7 @@ const Sidebar = () => {
     { name: 'Dashboard', href: '/dashboard', icon: Home },
     { name: 'AI Coach', href: '/coach', icon: Sparkles },
     { name: 'Courses', href: '/courses', icon: BookOpen },
+    { name: 'Practice', href: '/practice', icon: Code },
   ];
 
   const isActive = (path) => location.pathname === path;

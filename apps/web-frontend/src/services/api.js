@@ -81,4 +81,23 @@ export const aiAPI = {
   health: () => api.get('/api/ai/health'),
 };
 
+// Problems API
+export const problemsAPI = {
+  getProblems: (filters = {}) => {
+    const params = new URLSearchParams();
+    if (filters.difficulty) params.append('difficulty', filters.difficulty);
+    if (filters.tag) params.append('tag', filters.tag);
+    return api.get(`/api/problems?${params.toString()}`);
+  },
+  getProblem: (problemId) => api.get(`/api/problems/${problemId}`),
+  submitSolution: (problemId, solution) => api.post(`/api/problems/submit/${problemId}`, {
+    user_code: solution.code,
+    language_id: solution.language_id
+  }),
+  runCode: (problemId, solution) => api.post(`/api/problems/run/${problemId}`, {
+    user_code: solution.code,
+    language_id: solution.language_id
+  }),
+};
+
 export default api;

@@ -8,7 +8,9 @@ import re
 from ...database import get_collection
 from ...models.user import User
 from ...auth import require_admin_user
-from . import router as admin_router
+from fastapi import APIRouter
+
+router = APIRouter(tags=["admin-courses"])
 
 
 def slugify(title: str) -> str:
@@ -30,6 +32,9 @@ class CardRequest(BaseModel):
     # Code specific fields
     starter_code: Optional[str] = None
     test_cases: Optional[List[Dict[str, Any]]] = None
+    is_practice_problem: bool = False  # Whether this code card should appear in Practice Zone
+    difficulty: Optional[str] = "Medium"  # Easy, Medium, Hard
+    tags: Optional[List[str]] = []  # Tags for filtering
     
     # Fill-in-blank specific fields
     blanks: Optional[List[str]] = None
@@ -55,7 +60,21 @@ class CreateCourseRequest(BaseModel):
     modules: List[ModuleRequest] = []
 
 
-@admin_router.post("/courses", response_model=dict, status_code=status.HTTP_201_CREATED)
+@router.get("/", response_model=List[dict])
+async def list_courses(_: User = Depends(require_admin_user)):
+    """Get all courses for admin management"""
+    courses = get_collection("courses")
+    course_list = list(courses.find().sort("title", 1))
+    
+    # Convert ObjectId to string for JSON serialization
+    for course in course_list:
+        course["id"] = str(course["_id"])
+        del course["_id"]
+    
+    return course_list
+
+
+@router.post("/", response_model=dict, status_code=status.HTTP_201_CREATED)
 async def create_course(request: CreateCourseRequest, _: User = Depends(require_admin_user)):
     courses = get_collection("courses")
 
@@ -90,6 +109,9 @@ async def create_course(request: CreateCourseRequest, _: User = Depends(require_
                 elif card.type == "code":
                     card_doc["starter_code"] = card.starter_code
                     card_doc["test_cases"] = card.test_cases or []
+                    card_doc["is_practice_problem"] = card.is_practice_problem
+                    card_doc["difficulty"] = card.difficulty or "Medium"
+                    card_doc["tags"] = card.tags or []
                 elif card.type == "fill-in-blank":
                     card_doc["blanks"] = card.blanks or []
                     card_doc["correct_answers"] = card.correct_answers or []
@@ -118,7 +140,7 @@ async def create_course(request: CreateCourseRequest, _: User = Depends(require_
         "xp_reward": request.xp_reward,
         "modules": modules,
         "created_at": now,
-        "updated_at": now,
+        "updated_at": now
     }
 
     res = courses.insert_one(course_doc)
@@ -128,7 +150,7 @@ async def create_course(request: CreateCourseRequest, _: User = Depends(require_
     return doc
 
 
-@admin_router.put("/courses/{course_id}", response_model=dict)
+@router.put("/{course_id}", response_model=dict)
 async def update_course(course_id: str, payload: dict, _: User = Depends(require_admin_user)):
     courses = get_collection("courses")
     res = courses.update_one({"_id": ObjectId(course_id)}, {"$set": payload})
@@ -140,7 +162,7 @@ async def update_course(course_id: str, payload: dict, _: User = Depends(require
     return doc
 
 
-@admin_router.get("/courses/{course_id}", response_model=dict)
+@router.get("/{course_id}", response_model=dict)
 async def get_course(course_id: str, _: User = Depends(require_admin_user)):
     courses = get_collection("courses")
     doc = courses.find_one({"_id": ObjectId(course_id)})
@@ -151,7 +173,7 @@ async def get_course(course_id: str, _: User = Depends(require_admin_user)):
     return doc
 
 
-@admin_router.delete("/courses/{course_id}", status_code=204)
+@router.delete("/{course_id}", status_code=204)
 async def delete_course(course_id: str, _: User = Depends(require_admin_user)):
     courses = get_collection("courses")
     res = courses.delete_one({"_id": ObjectId(course_id)})

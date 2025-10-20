@@ -99,7 +99,7 @@ const LessonPage = () => {
           handleContinue();
           return;
         case 'mcq':
-          answer = selectedChoice;
+          answer = selectedChoice; // This is already the index (0, 1, 2, etc.)
           break;
         case 'code':
           answer = codeAnswer;
@@ -529,7 +529,19 @@ const LessonPage = () => {
           </button>
 
           <div className="flex gap-4">
-            {!checkResult && (
+            {/* Theory cards only show Continue button */}
+            {currentCard.type === 'theory' && !checkResult && (
+              <button
+                onClick={handleContinue}
+                className="px-8 py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 rounded-xl text-white flex items-center gap-3 font-semibold transition-all duration-200 transform hover:scale-105 shadow-lg"
+              >
+                <ArrowRight className="w-5 h-5" />
+                Continue
+              </button>
+            )}
+
+            {/* Interactive cards show Check Answer button */}
+            {currentCard.type !== 'theory' && !checkResult && (
               <button
                 onClick={handleCheckAnswer}
                 disabled={isChecking || (currentCard.type === 'mcq' && selectedChoice === null)}
@@ -543,12 +555,13 @@ const LessonPage = () => {
                 ) : (
                   <>
                     <CheckCircle className="w-5 h-5" />
-                    {currentCard.type === 'theory' ? 'Continue' : 'Check Answer'}
+                    Check Answer
                   </>
                 )}
               </button>
             )}
 
+            {/* Show Continue button after checking answer */}
             {checkResult && (
               <button
                 onClick={handleContinue}

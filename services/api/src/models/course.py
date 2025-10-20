@@ -27,6 +27,7 @@ class Card(BaseModel):
     # Common fields
     explanation: Optional[str] = None  # Explanation shown after answer
     xp_reward: int = 10  # XP awarded for correct answer
+    is_practice_problem: bool = False  # Whether this code card should appear in Practice Zone
 
 
 class Topic(BaseModel):
@@ -77,3 +78,50 @@ class CompleteTopicResponse(BaseModel):
     xp_reward: int
     streak_count: int
     message: str
+
+
+# Practice Zone models
+class ProblemSummary(BaseModel):
+    problem_id: str
+    title: str
+    difficulty: str
+    tags: List[str]
+    xp_reward: int
+    is_practice_problem: bool = False
+
+
+class TestCase(BaseModel):
+    input: str
+    expected_output: str
+    is_hidden: bool = False
+
+
+class ProblemDetail(BaseModel):
+    problem_id: str
+    title: str
+    content: str  # Problem description
+    starter_code: str
+    difficulty: str
+    tags: List[str]
+    xp_reward: int
+    public_test_cases: List[TestCase]
+
+
+class CodeSubmission(BaseModel):
+    user_code: str
+    language_id: int = 71  # Default to Python
+
+
+class TestResult(BaseModel):
+    test_case_number: int
+    passed: bool
+    output: Optional[str] = None
+    expected_output: Optional[str] = None
+    error: Optional[str] = None
+    is_hidden: bool = False
+
+
+class SubmissionResult(BaseModel):
+    overall_passed: bool
+    results: List[TestResult]
+    xp_reward: int = 0

@@ -13,6 +13,8 @@ import Dashboard from './pages/Dashboard';
 import Tutor from './pages/Tutor';
 import CoachPage from './pages/CoachPage';
 import Lesson from './pages/Lesson';
+import PracticePage from './pages/PracticePage';
+import ProblemSolverPage from './pages/ProblemSolverPage';
 import './App.css';
 
 function App() {
@@ -85,6 +87,22 @@ function App() {
               element={
                 <ProtectedRoute>
                   <Tutor />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/practice" 
+              element={
+                <ProtectedRoute>
+                  <PracticePage />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/practice/:problemId" 
+              element={
+                <ProtectedRoute>
+                  <ProblemSolverPage />
                 </ProtectedRoute>
               } 
             />

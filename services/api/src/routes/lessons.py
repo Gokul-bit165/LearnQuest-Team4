@@ -106,25 +106,29 @@ async def check_answer(
                 user_index = int(request.user_answer)
             except ValueError:
                 user_index = None
+        
         if user_index is not None:
             if "correct_choice_index" in card and card.get("correct_choice_index") is not None:
                 correct_index = int(card.get("correct_choice_index", 0))
                 # Primary check: index match
                 correct = user_index == correct_index
                 # Fallback: compare chosen text to expected text if index types mismatch upstream
-                if not correct and card.get("choices"):
+                if not correct and card.get("choices") and user_index < len(card["choices"]):
                     try:
                         chosen_text = str(card["choices"][user_index]).strip()
                         expected_text = str(card["choices"][correct_index]).strip()
                         correct = chosen_text == expected_text
-                    except Exception:
+                    except (IndexError, KeyError):
                         pass
             else:
                 # If authoring data lacks correct index, do not block user
                 correct = True
+        else:
+            correct = False
+            
         correct_answer = (
             card.get("choices", [])[card.get("correct_choice_index", 0)]
-            if card.get("choices") and card.get("correct_choice_index") is not None
+            if card.get("choices") and card.get("correct_choice_index") is not None and card.get("correct_choice_index") < len(card.get("choices", []))
             else None
         )
         
@@ -137,7 +141,7 @@ async def check_answer(
             if not test_cases:
                 # Basic validation if no test cases
                 correct = len(user_code) > 10
-        correct_answer = "Code solution"
+                correct_answer = "Code solution"
             else:
                 # Execute code against test cases using Judge0
                 judge0_url = os.getenv("JUDGE0_URL", "http://judge0:2358")
@@ -161,12 +165,12 @@ async def check_answer(
                             resp.raise_for_status()
                             data = resp.json()
                             
-                            stdout = (data.get("stdout") or "").rstrip("\n")
+                            stdout = (data.get("stdout") or "").strip()
                             stderr = data.get("stderr")
                             compile_output = data.get("compile_output")
-                            expected = (tc.get("expected_output", "") or "").rstrip("\n")
+                            expected = (tc.get("expected_output", "") or "").strip()
                             
-                            # Check if test passed
+                            # Check if test passed - normalize both strings before comparison
                             passed = (stderr is None) and (compile_output is None) and (stdout == expected)
                             if passed:
                                 passed_count += 1
