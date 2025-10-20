@@ -25,9 +25,16 @@ security = HTTPBearer()
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verify a password against its hash"""
+    # Check if it's a fallback hash first
+    if hashed_password.startswith("fallback_hash_"):
+        # For fallback hashes, do a simple comparison
+        expected_fallback = f"fallback_hash_{plain_password[:20]}"
+        print(f"Checking fallback hash: {hashed_password} vs {expected_fallback}")
+        return hashed_password == expected_fallback
+    
+    # Use bcrypt for proper hashes
     try:
         import bcrypt
-        # Use bcrypt directly to avoid passlib issues
         return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
     except Exception as e:
         print(f"Password verification error: {e}")

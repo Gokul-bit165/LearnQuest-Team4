@@ -15,11 +15,11 @@ api.interceptors.request.use((config) => {
 
 export const adminAPI = {
   // Users
-  listUsers: () => api.get('/api/admin/users/users'),
-  getUser: (id) => api.get(`/api/admin/users/users/${id}`),
-  createUser: (data) => api.post('/api/admin/users/users', data),
-  updateUser: (id, data) => api.put(`/api/admin/users/users/${id}`, data),
-  deleteUser: (id) => api.delete(`/api/admin/users/users/${id}`),
+  listUsers: () => api.get('/api/admin/users/'),
+  getUser: (id) => api.get(`/api/admin/users/${id}`),
+  createUser: (data) => api.post('/api/admin/users/', data),
+  updateUser: (id, data) => api.put(`/api/admin/users/${id}`, data),
+  deleteUser: (id) => api.delete(`/api/admin/users/${id}`),
 
   // Courses
   createCourse: (data) => api.post('/api/admin/courses', data),
