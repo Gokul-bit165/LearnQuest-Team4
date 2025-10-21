@@ -66,11 +66,20 @@ class CheckAnswerRequest(BaseModel):
     mode: Optional[str] = None  # 'run' for dry-run (no XP), default submit
 
 
+class TestCaseResult(BaseModel):
+    test_case: int
+    input: str
+    expected: str
+    actual: str
+    passed: bool
+    error: Optional[str] = None
+
 class CheckAnswerResponse(BaseModel):
     correct: bool
     xp_reward: int
     explanation: Optional[str] = None
     correct_answer: Optional[Union[str, List[str]]] = None
+    test_results: Optional[List[TestCaseResult]] = None
 
 
 class CompleteTopicResponse(BaseModel):

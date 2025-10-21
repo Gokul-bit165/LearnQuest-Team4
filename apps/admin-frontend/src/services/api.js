@@ -26,6 +26,13 @@ export const adminAPI = {
   getCourse: (id) => api.get(`/api/admin/courses/${id}`),
   updateCourse: (id, data) => api.put(`/api/admin/courses/${id}`, data),
   deleteCourse: (id) => api.delete(`/api/admin/courses/${id}`),
+  uploadCourseJson: (file) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    return api.post('/api/admin/courses/import-json', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    })
+  },
 
   // Practice Zone
   getProblems: () => api.get('/api/admin/problems/'),

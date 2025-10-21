@@ -156,10 +156,11 @@ async def check_answer(
             judge0_url = os.getenv("JUDGE0_URL", "http://judge0:2358")
             passed_count = 0
             total_tests = len(test_cases)
+            test_results = []
             
             try:
                 async with httpx.AsyncClient(timeout=30) as client:
-                    for tc in test_cases:
+                    for i, tc in enumerate(test_cases):
                         payload = {
                             "language_id": language_id,
                             "source_code": user_code,
@@ -182,6 +183,16 @@ async def check_answer(
                         passed = (stderr is None) and (compile_output is None) and (stdout == expected)
                         if passed:
                             passed_count += 1
+                        
+                        # Store test result details
+                        test_results.append({
+                            "test_case": i + 1,
+                            "input": tc.get("input", ""),
+                            "expected": expected,
+                            "actual": stdout,
+                            "passed": passed,
+                            "error": stderr or compile_output
+                        })
                     
                     # Consider correct if all test cases pass
                     correct = passed_count == total_tests
@@ -223,7 +234,12 @@ async def check_answer(
         correct_answer = card.get("correct_answers", [])
     
     # Award XP if correct and not a dry-run (mode == 'run' means no XP, just feedback)
-    mode = getattr(request, 'mode', None)
+    mode = None
+    if isinstance(request.user_answer, dict):
+        mode = request.user_answer.get("mode")
+    else:
+        mode = getattr(request, 'mode', None)
+    
     if correct and mode != 'run':
         xp_reward = card.get("xp_reward", 10)
         users.update_one(
@@ -245,11 +261,18 @@ async def check_answer(
         if explanation:
             explanation = f"[UPDATED] {explanation}"
     
+    # Convert test results to TestCaseResult objects if they exist
+    test_results_objects = None
+    if 'test_results' in locals() and test_results:
+        from ..models.course import TestCaseResult
+        test_results_objects = [TestCaseResult(**result) for result in test_results]
+    
     return CheckAnswerResponse(
         correct=correct,
         xp_reward=xp_reward,
         explanation=explanation,
-        correct_answer=correct_answer
+        correct_answer=correct_answer,
+        test_results=test_results_objects
     )
 
 

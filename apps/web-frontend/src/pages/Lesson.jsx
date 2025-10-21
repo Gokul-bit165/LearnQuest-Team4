@@ -125,7 +125,10 @@ const LessonPage = () => {
 
       const response = await lessonsAPI.checkAnswer(currentCard.card_id, answer);
       const result = response.data;
-      setCheckResult(result);
+      setCheckResult({
+        ...result,
+        test_results: result.test_results || []
+      });
       setShowExplanation(true);
 
       // Show XP animation if correct
@@ -164,17 +167,24 @@ const LessonPage = () => {
     
     try {
       const selectedLang = languageOptions.find(lang => lang.value === selectedLanguage);
-      // Use string format for now since dict format has issues
-      const response = await lessonsAPI.checkAnswer(currentCard.card_id, codeAnswer);
+      // Use dict format with mode: 'run' for proper run mode handling
+      const response = await lessonsAPI.checkAnswer(currentCard.card_id, {
+        value: codeAnswer,
+        mode: 'run',
+        language_id: selectedLang.id
+      });
       
       const result = response.data;
       // For run mode, consider it successful if we got an explanation (output)
       // Also handle the case where the API returns "Invalid code format" but we have code
-      const isSuccessful = (result.explanation && result.explanation.trim().length > 0) || 
-                          (result.correct_answer && result.correct_answer.includes("Passed"));
+      // Check for various success indicators
+      const hasOutput = result.explanation && result.explanation.trim().length > 0;
+      const hasCorrectAnswer = result.correct_answer && result.correct_answer.trim().length > 0;
+      const isSuccessful = hasOutput || hasCorrectAnswer || result.correct;
       setRunResult({
         correct: isSuccessful,
-        explanation: result.explanation || result.correct_answer || 'Code executed successfully'
+        explanation: result.explanation || result.correct_answer || 'Code executed successfully',
+        test_results: result.test_results || []
       });
     } catch (err) {
       console.error('Error running code:', err);
@@ -466,7 +476,7 @@ const LessonPage = () => {
                 </div>
               </div>
               
-              {/* Run Button for Code Challenges */}
+              {/* Run and Submit Buttons for Code Challenges */}
               <div className="flex gap-3">
                 <button
                   onClick={handleRunCode}
@@ -482,6 +492,24 @@ const LessonPage = () => {
                     <>
                       <Play className="w-4 h-4" />
                       Run Code
+                    </>
+                  )}
+                </button>
+                
+                <button
+                  onClick={handleCheckAnswer}
+                  disabled={isChecking || !codeAnswer.trim()}
+                  className="px-6 py-2 bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg text-white flex items-center gap-2 font-medium"
+                >
+                  {isChecking ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      Submitting...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle className="w-4 h-4" />
+                      Submit Solution
                     </>
                   )}
                 </button>
@@ -561,6 +589,64 @@ const LessonPage = () => {
                       </div>
                     </div>
                   )}
+
+                  {/* Test Case Results */}
+                  {runResult.test_results && runResult.test_results.length > 0 && (
+                    <div className="mb-4 p-4 rounded-lg bg-slate-800 border border-slate-700">
+                      <div className="text-slate-300 font-medium mb-4">Test Case Results:</div>
+                      <div className="space-y-3">
+                        {runResult.test_results.map((test, index) => (
+                          <div key={index} className={`p-3 rounded-lg border ${
+                            test.passed 
+                              ? 'bg-green-900/20 border-green-500/50' 
+                              : 'bg-red-900/20 border-red-500/50'
+                          }`}>
+                            <div className="flex items-center gap-2 mb-2">
+                              {test.passed ? (
+                                <CheckCircle className="w-4 h-4 text-green-400" />
+                              ) : (
+                                <XCircle className="w-4 h-4 text-red-400" />
+                              )}
+                              <span className={`font-medium ${
+                                test.passed ? 'text-green-300' : 'text-red-300'
+                              }`}>
+                                Test Case {test.test_case} - {test.passed ? 'PASSED' : 'FAILED'}
+                              </span>
+                            </div>
+                            
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                              <div>
+                                <span className="text-slate-400">Input:</span>
+                                <div className="bg-slate-900 rounded p-2 mt-1 font-mono text-white">
+                                  {test.input}
+                                </div>
+                              </div>
+                              <div>
+                                <span className="text-slate-400">Expected:</span>
+                                <div className="bg-slate-900 rounded p-2 mt-1 font-mono text-green-300">
+                                  {test.expected}
+                                </div>
+                              </div>
+                              <div>
+                                <span className="text-slate-400">Actual:</span>
+                                <div className="bg-slate-900 rounded p-2 mt-1 font-mono text-white">
+                                  {test.actual}
+                                </div>
+                              </div>
+                              {test.error && (
+                                <div>
+                                  <span className="text-slate-400">Error:</span>
+                                  <div className="bg-slate-900 rounded p-2 mt-1 font-mono text-red-300">
+                                    {test.error}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -628,6 +714,64 @@ const LessonPage = () => {
                 <div className="text-slate-300 font-medium mb-2">Result:</div>
                 <div className="bg-slate-900 rounded p-3 font-mono text-sm text-white whitespace-pre-wrap">
                   {checkResult.explanation}
+                </div>
+              </div>
+            )}
+
+            {/* Test Case Results for Submissions */}
+            {checkResult.test_results && checkResult.test_results.length > 0 && (
+              <div className="mb-4 p-4 rounded-lg bg-slate-800 border border-slate-700">
+                <div className="text-slate-300 font-medium mb-4">Test Case Results:</div>
+                <div className="space-y-3">
+                  {checkResult.test_results.map((test, index) => (
+                    <div key={index} className={`p-3 rounded-lg border ${
+                      test.passed 
+                        ? 'bg-green-900/20 border-green-500/50' 
+                        : 'bg-red-900/20 border-red-500/50'
+                    }`}>
+                      <div className="flex items-center gap-2 mb-2">
+                        {test.passed ? (
+                          <CheckCircle className="w-4 h-4 text-green-400" />
+                        ) : (
+                          <XCircle className="w-4 h-4 text-red-400" />
+                        )}
+                        <span className={`font-medium ${
+                          test.passed ? 'text-green-300' : 'text-red-300'
+                        }`}>
+                          Test Case {test.test_case} - {test.passed ? 'PASSED' : 'FAILED'}
+                        </span>
+                      </div>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                        <div>
+                          <span className="text-slate-400">Input:</span>
+                          <div className="bg-slate-900 rounded p-2 mt-1 font-mono text-white">
+                            {test.input}
+                          </div>
+                        </div>
+                        <div>
+                          <span className="text-slate-400">Expected:</span>
+                          <div className="bg-slate-900 rounded p-2 mt-1 font-mono text-green-300">
+                            {test.expected}
+                          </div>
+                        </div>
+                        <div>
+                          <span className="text-slate-400">Actual:</span>
+                          <div className="bg-slate-900 rounded p-2 mt-1 font-mono text-white">
+                            {test.actual}
+                          </div>
+                        </div>
+                        {test.error && (
+                          <div>
+                            <span className="text-slate-400">Error:</span>
+                            <div className="bg-slate-900 rounded p-2 mt-1 font-mono text-red-300">
+                              {test.error}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             )}

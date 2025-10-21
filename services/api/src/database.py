@@ -7,7 +7,7 @@ from pymongo import MongoClient
 from pymongo.database import Database
 
 # MongoDB configuration
-MONGO_URL = os.getenv("MONGO_URL", "mongodb://db:27017")
+MONGO_URL = os.getenv("MONGO_URL", "mongodb://localhost:27017")
 DB_NAME = os.getenv("MONGO_DB", "learnquest")
 
 # Global database instance

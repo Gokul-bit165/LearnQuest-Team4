@@ -4,6 +4,7 @@ import { adminAPI } from '../services/api'
 
 const Courses = () => {
   const [courses, setCourses] = useState([])
+  const [uploading, setUploading] = useState(false)
 
   const load = async () => {
     // Reuse public endpoint for listing via web app base if needed; admin only for mutations
@@ -14,17 +15,52 @@ const Courses = () => {
 
   useEffect(() => { load() }, [])
 
-
   const remove = async (id) => {
     await adminAPI.deleteCourse(id)
     await load()
+  }
+
+  const handleFileUpload = async (event) => {
+    const file = event.target.files[0]
+    if (!file) return
+
+    if (!file.name.endsWith('.json')) {
+      alert('Please select a JSON file')
+      return
+    }
+
+    setUploading(true)
+    try {
+      await adminAPI.uploadCourseJson(file)
+      alert('Course uploaded successfully!')
+      await load()
+    } catch (error) {
+      console.error('Upload error:', error)
+      alert('Failed to upload course: ' + (error.response?.data?.detail || error.message))
+    } finally {
+      setUploading(false)
+      // Reset file input
+      event.target.value = ''
+    }
   }
 
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
         <h1 className="text-2xl font-bold">Courses</h1>
-        <Link className="px-3 py-2 bg-blue-600 rounded inline-block" to="/courses/new">Create New Course</Link>
+        <div className="flex gap-3">
+          <label className="px-3 py-2 bg-green-600 rounded inline-block cursor-pointer hover:bg-green-700">
+            {uploading ? 'Uploading...' : 'Upload JSON'}
+            <input 
+              type="file" 
+              accept=".json" 
+              onChange={handleFileUpload}
+              className="hidden"
+              disabled={uploading}
+            />
+          </label>
+          <Link className="px-3 py-2 bg-blue-600 rounded inline-block hover:bg-blue-700" to="/courses/new">Create New Course</Link>
+        </div>
       </div>
 
       <div className="grid gap-3">

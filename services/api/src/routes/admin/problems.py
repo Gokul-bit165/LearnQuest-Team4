@@ -3,10 +3,10 @@ from typing import List, Optional
 from bson import ObjectId
 from datetime import datetime
 
-from src.auth import get_current_user
-from src.models.course import ProblemSummary, ProblemDetail, CodeSubmission, TestResult, SubmissionResult, TestCase
-from src.models.user import User
-from src.database import get_collection
+from ...auth import get_current_user
+from ...models.course import ProblemSummary, ProblemDetail, CodeSubmission, TestResult, SubmissionResult, TestCase
+from ...models.user import User
+from ...database import get_collection
 
 router = APIRouter()
 
