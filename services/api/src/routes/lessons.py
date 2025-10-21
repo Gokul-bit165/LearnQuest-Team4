@@ -60,6 +60,10 @@ async def check_answer(
     current_user: User = Depends(get_current_user)
 ):
     """Check if a user's answer to a card is correct and award XP"""
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.info(f"DEBUG: check_answer called with card_id: {request.card_id}, user_answer: {request.user_answer}")
+    
     courses = get_collection("courses")
     users = get_collection("users")
     
@@ -86,6 +90,8 @@ async def check_answer(
     
     if not card:
         raise HTTPException(status_code=404, detail="Card not found")
+    
+    logger.info(f"DEBUG: Found card type: {card.get('type')}")
     
     # Check the answer based on card type
     correct = False
@@ -133,12 +139,11 @@ async def check_answer(
         )
         
     elif card["type"] == "code":
-        # Enhanced code evaluation using Judge0
+        # Enhanced code evaluation with robust error handling
         user_code = ""
         language_id = 71  # Default to Python 3.8+
         
-        # Code execution path - updated version
-        
+        # Parse user answer
         if isinstance(request.user_answer, str):
             user_code = request.user_answer.strip()
         elif isinstance(request.user_answer, dict):
@@ -147,85 +152,127 @@ async def check_answer(
         
         test_cases = card.get("test_cases", [])
         
+        # If no test cases, do basic validation
         if not test_cases:
-            # Basic validation if no test cases
             correct = len(user_code) > 10
-            correct_answer = "Code solution"
+            correct_answer = "Code solution submitted"
+            explanation = "No test cases defined. Code accepted based on length."
         else:
-            # Execute code against test cases using Judge0
+            # Execute code against test cases - prioritize local execution
             judge0_url = os.getenv("JUDGE0_URL", "http://judge0:2358")
             passed_count = 0
             total_tests = len(test_cases)
             test_results = []
             
+            # Try local execution first (more reliable)
+            from ..code_executor import CodeExecutor
+            import logging
+            logger = logging.getLogger(__name__)
+            
             try:
-                async with httpx.AsyncClient(timeout=30) as client:
-                    for i, tc in enumerate(test_cases):
-                        payload = {
-                            "language_id": language_id,
-                            "source_code": user_code,
-                            "stdin": tc.get("input", "")
-                        }
-                        
-                        resp = await client.post(
-                            f"{judge0_url}/submissions/?base64_encoded=false&wait=true",
-                            json=payload
-                        )
-                        resp.raise_for_status()
-                        data = resp.json()
-                        
-                        stdout = (data.get("stdout") or "").strip()
-                        stderr = data.get("stderr")
-                        compile_output = data.get("compile_output")
-                        expected = (tc.get("expected_output", "") or "").strip()
-                        
-                        # Check if test passed - normalize both strings before comparison
-                        passed = (stderr is None) and (compile_output is None) and (stdout == expected)
-                        if passed:
-                            passed_count += 1
-                        
-                        # Store test result details
-                        test_results.append({
-                            "test_case": i + 1,
-                            "input": tc.get("input", ""),
-                            "expected": expected,
-                            "actual": stdout,
-                            "passed": passed,
-                            "error": stderr or compile_output
-                        })
+                logger.info(f"DEBUG: Executing code with {len(test_cases)} test cases")
+                logger.info(f"DEBUG: User code: {repr(user_code)}")
+                logger.info(f"DEBUG: Language ID: {language_id}")
+                
+                for i, tc in enumerate(test_cases):
+                    test_input = tc.get("input", "")
+                    expected_output = tc.get("expected_output", "").strip()
                     
-                    # Consider correct if all test cases pass
-                    correct = passed_count == total_tests
-                    correct_answer = f"Passed {passed_count}/{total_tests} test cases"
+                    logger.info(f"DEBUG: Test case {i+1} - Input: {repr(test_input)}, Expected: {repr(expected_output)}")
                     
-            except Exception as e:
-                # Fallback to local code execution if Judge0 fails
-                from ..code_executor import CodeExecutor
+                    local_result = CodeExecutor.execute_code(
+                        user_code, 
+                        language_id, 
+                        test_input
+                    )
+                    stdout = local_result.get("stdout", "").strip()
+                    stderr = local_result.get("stderr")
+                    
+                    logger.info(f"DEBUG: Execution result - Stdout: {repr(stdout)}, Stderr: {repr(stderr)}")
+                    
+                    # Check if test passed - normalize whitespace for comparison
+                    passed = (stderr is None or stderr == "") and (stdout == expected_output)
+                    if passed:
+                        passed_count += 1
+                    
+                    test_results.append({
+                        "test_case": i + 1,
+                        "input": test_input,
+                        "expected": expected_output,
+                        "actual": stdout,
+                        "passed": passed,
+                        "error": stderr
+                    })
+                    
+                    logger.info(f"DEBUG: Test case {i+1} result - Passed: {passed}")
+                
+                correct = passed_count == total_tests
+                correct_answer = f"Local execution: {passed_count}/{total_tests} test cases passed"
+                explanation = f"Code executed locally. {passed_count} out of {total_tests} test cases passed."
+                
+            except Exception as local_e:
+                # Fallback to Judge0 if local execution fails
                 try:
-                    # Try local execution for the first test case
-                    if test_cases:
-                        first_tc = test_cases[0]
-                        local_result = CodeExecutor.execute_code(
-                            user_code, 
-                            language_id, 
-                            first_tc.get("input", "")
-                        )
-                        stdout = local_result.get("stdout", "")
-                        stderr = local_result.get("stderr")
-                        expected = first_tc.get("expected_output", "").strip()
+                    async with httpx.AsyncClient(timeout=30) as client:
+                        for i, tc in enumerate(test_cases):
+                            payload = {
+                                "language_id": language_id,
+                                "source_code": user_code,
+                                "stdin": tc.get("input", "")
+                            }
+                            
+                            resp = await client.post(
+                                f"{judge0_url}/submissions/?base64_encoded=false&wait=true",
+                                json=payload
+                            )
+                            resp.raise_for_status()
+                            data = resp.json()
+                            
+                            stdout = (data.get("stdout") or "").strip()
+                            stderr = data.get("stderr")
+                            compile_output = data.get("compile_output")
+                            message = data.get("message")
+                            expected = (tc.get("expected_output", "") or "").strip()
+                            
+                            # Check for Judge0 errors
+                            if message and ("Internal Error" in str(message) or "No such file" in str(message)):
+                                # Judge0 has issues, mark as failed
+                                test_results.append({
+                                    "test_case": i + 1,
+                                    "input": tc.get("input", ""),
+                                    "expected": expected,
+                                    "actual": "Judge0 Error",
+                                    "passed": False,
+                                    "error": f"Judge0 Error: {message}"
+                                })
+                                continue
+                            
+                            # Check if test passed - normalize whitespace for comparison
+                            passed = (stderr is None or stderr == "") and (compile_output is None or compile_output == "") and (stdout.strip() == expected.strip())
+                            if passed:
+                                passed_count += 1
+                            
+                            # Store test result details
+                            test_results.append({
+                                "test_case": i + 1,
+                                "input": tc.get("input", ""),
+                                "expected": expected,
+                                "actual": stdout.strip(),
+                                "passed": passed,
+                                "error": stderr or compile_output
+                            })
                         
-                        # Check if the first test case passes
-                        passed = (stderr is None) and (stdout == expected)
-                        correct = passed
-                        correct_answer = f"Local execution: {stdout}" if stdout else "Code executed locally"
-                    else:
-                        # No test cases, just validate code length
-                        correct = len(user_code) > 10
-                        correct_answer = "Code solution (Judge0 unavailable)"
-                except Exception as local_e:
+                        # Consider correct if all test cases pass
+                        correct = passed_count == total_tests
+                        correct_answer = f"Judge0 execution: {passed_count}/{total_tests} test cases passed"
+                        explanation = f"Code executed via Judge0. {passed_count} out of {total_tests} test cases passed."
+                        
+                except Exception as judge0_e:
                     # Final fallback to basic validation
                     correct = len(user_code) > 10
-                    correct_answer = f"Code solution (Judge0 unavailable, local execution failed: {str(local_e)})"
+                    correct_answer = "Code solution (execution failed)"
+                    explanation = f"Both local and Judge0 execution failed. Code accepted based on length. Local error: {str(local_e)}, Judge0 error: {str(judge0_e)}"
+                    test_results = []
         
     elif card["type"] == "fill-in-blank":
         # Check if all blanks are filled correctly

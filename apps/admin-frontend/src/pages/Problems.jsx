@@ -7,6 +7,8 @@ const Problems = () => {
   const [error, setError] = useState('')
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState(null)
+  const [courses, setCourses] = useState([])
+  const [topics, setTopics] = useState([])
   const emptyForm = {
     prompt: '',
     code_starter: '',
@@ -14,6 +16,8 @@ const Problems = () => {
     tags: '',
     xp_reward: 10,
     is_practice_problem: true,
+    course_id: '',
+    topic_id: '',
     test_cases: [{ input: '', expected_output: '', is_hidden: false }]
   }
   const [form, setForm] = useState(emptyForm)
@@ -30,7 +34,38 @@ const Problems = () => {
     }
   }
 
-  useEffect(() => { load() }, [])
+  const loadCourses = async () => {
+    try {
+      const res = await adminAPI.getCourses()
+      setCourses(res.data)
+    } catch (e) {
+      console.error('Failed to load courses:', e)
+    }
+  }
+
+  const loadTopics = async (courseId) => {
+    if (!courseId) {
+      setTopics([])
+      return
+    }
+    try {
+      const res = await adminAPI.getTopicsForCourse(courseId)
+      setTopics(res.data)
+    } catch (e) {
+      console.error('Failed to load topics:', e)
+      setTopics([])
+    }
+  }
+
+  useEffect(() => { 
+    load()
+    loadCourses()
+  }, [])
+
+  const handleCourseChange = (courseId) => {
+    setForm({ ...form, course_id: courseId, topic_id: '' })
+    loadTopics(courseId)
+  }
 
   const startCreate = () => {
     setEditingId(null)
@@ -50,8 +85,16 @@ const Problems = () => {
         tags: (p.tags || []).join(','),
         xp_reward: p.xp_reward || 10,
         is_practice_problem: true,
+        course_id: p.course_id || '',
+        topic_id: p.topic_id || '',
         test_cases: (p.public_test_cases || []).map(tc => ({ input: tc.input || '', expected_output: tc.expected_output || '', is_hidden: !!tc.is_hidden }))
       })
+      
+      // Load topics if course_id exists
+      if (p.course_id) {
+        loadTopics(p.course_id)
+      }
+      
       setShowForm(true)
     } catch (e) {
       setError('Failed to load problem')
@@ -66,6 +109,8 @@ const Problems = () => {
       tags: form.tags.split(',').map(t => t.trim()).filter(Boolean),
       xp_reward: Number(form.xp_reward) || 10,
       is_practice_problem: !!form.is_practice_problem,
+      course_id: form.course_id,
+      topic_id: form.topic_id,
       test_cases: form.test_cases.map(tc => ({ input: tc.input, expected_output: tc.expected_output, is_hidden: !!tc.is_hidden }))
     }
     if (editingId) {
@@ -134,6 +179,34 @@ const Problems = () => {
               <input className="w-full bg-slate-700 rounded px-3 py-2" placeholder="Title" value={form.prompt} onChange={e => setForm({ ...form, prompt: e.target.value })} />
               <textarea className="w-full bg-slate-700 rounded px-3 py-2 h-28" placeholder="Description" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} />
               <textarea className="w-full bg-slate-700 rounded px-3 py-2 h-28" placeholder="Starter Code" value={form.code_starter} onChange={e => setForm({ ...form, code_starter: e.target.value })} />
+              
+              {/* Course and Topic Selection */}
+              <div className="grid grid-cols-2 gap-3">
+                <select 
+                  className="bg-slate-700 rounded px-3 py-2" 
+                  value={form.course_id} 
+                  onChange={e => handleCourseChange(e.target.value)}
+                >
+                  <option value="">Select Course</option>
+                  {courses.map(course => (
+                    <option key={course.id} value={course.id}>{course.title}</option>
+                  ))}
+                </select>
+                <select 
+                  className="bg-slate-700 rounded px-3 py-2" 
+                  value={form.topic_id} 
+                  onChange={e => setForm({ ...form, topic_id: e.target.value })}
+                  disabled={!form.course_id}
+                >
+                  <option value="">Select Topic</option>
+                  {topics.map(topic => (
+                    <option key={topic.topic_id} value={topic.topic_id}>
+                      {topic.title} ({topic.module_title})
+                    </option>
+                  ))}
+                </select>
+              </div>
+              
               <div className="grid grid-cols-3 gap-3">
                 <select className="bg-slate-700 rounded px-3 py-2" value={form.difficulty} onChange={e => setForm({ ...form, difficulty: e.target.value })}>
                   <option value="easy">easy</option>

@@ -13,6 +13,7 @@ class Question(BaseModel):
     id: Optional[str] = Field(default=None, alias="_id")
     type: str  # "mcq" or "code"
     course_id: str
+    topic_id: str
     quiz_id: Optional[str] = None
     prompt: str
     choices: Optional[List[str]] = None  # For MCQ questions

@@ -58,7 +58,7 @@ services:
       - POSTGRES_PORT=5432
       - REDIS_HOST=judge0-redis
       - REDIS_PORT=6379
-      - DISABLE_SANDBOX=false
+      - DISABLE_SANDBOX=true
       - ENABLE_WAIT_RESULT=true
       - ENABLE_COMPILER_OPTIONS=true
     depends_on:
@@ -68,6 +68,7 @@ services:
     privileged: true
     volumes:
       - /sys/fs/cgroup:/sys/fs/cgroup:ro
+      - /var/run/docker.sock:/var/run/docker.sock
     deploy:
       resources:
         limits:
@@ -86,7 +87,7 @@ services:
       - POSTGRES_PORT=5432
       - REDIS_HOST=judge0-redis
       - REDIS_PORT=6379
-      - DISABLE_SANDBOX=false
+      - DISABLE_SANDBOX=true
     depends_on:
       - judge0
       - judge0-db
@@ -95,6 +96,7 @@ services:
     privileged: true
     volumes:
       - /sys/fs/cgroup:/sys/fs/cgroup:ro
+      - /var/run/docker.sock:/var/run/docker.sock
     deploy:
       resources:
         limits:

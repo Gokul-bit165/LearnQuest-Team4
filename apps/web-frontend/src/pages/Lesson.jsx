@@ -43,16 +43,24 @@ const LessonPage = () => {
     fetchTopicData();
   }, [topicId]);
 
+  // Update code answer when switching to a code card
+  useEffect(() => {
+    const currentCard = getCurrentCard();
+    if (currentCard && currentCard.type === 'code') {
+      setCodeAnswer(currentCard.starter_code || '');
+    }
+  }, [currentCardIndex, topic]);
+
   const fetchTopicData = async () => {
     try {
       const response = await lessonsAPI.getTopic(topicId);
       const topicData = response.data;
       setTopic(topicData);
       
-      // Initialize code answer with starter code
-      const firstCodeCard = topicData.cards.find(c => c.type === 'code');
-      if (firstCodeCard) {
-        setCodeAnswer(firstCodeCard.starter_code || '');
+      // Initialize code answer with starter code for the first card
+      const firstCard = topicData.cards[0];
+      if (firstCard && firstCard.type === 'code') {
+        setCodeAnswer(firstCard.starter_code || '');
       }
       
       // Initialize fill answers
@@ -167,30 +175,30 @@ const LessonPage = () => {
     
     try {
       const selectedLang = languageOptions.find(lang => lang.value === selectedLanguage);
-      // Use dict format with mode: 'run' for proper run mode handling
+      // Use the same API endpoint but with a different payload structure
       const response = await lessonsAPI.checkAnswer(currentCard.card_id, {
         value: codeAnswer,
-        mode: 'run',
         language_id: selectedLang.id
       });
       
       const result = response.data;
-      // For run mode, consider it successful if we got an explanation (output)
-      // Also handle the case where the API returns "Invalid code format" but we have code
-      // Check for various success indicators
+      console.log('Run result:', result); // Debug log
+      
+      // Check if we have test results to determine success
+      const hasTestResults = result.test_results && result.test_results.length > 0;
       const hasOutput = result.explanation && result.explanation.trim().length > 0;
-      const hasCorrectAnswer = result.correct_answer && result.correct_answer.trim().length > 0;
-      const isSuccessful = hasOutput || hasCorrectAnswer || result.correct;
+      const isSuccessful = result.correct || (hasTestResults && result.test_results.some(t => t.passed));
+      
       setRunResult({
         correct: isSuccessful,
-        explanation: result.explanation || result.correct_answer || 'Code executed successfully',
+        explanation: result.explanation || result.correct_answer || (isSuccessful ? 'Code executed successfully' : 'Code execution failed'),
         test_results: result.test_results || []
       });
     } catch (err) {
       console.error('Error running code:', err);
       setRunResult({
         correct: false,
-        explanation: 'Failed to run code. Please try again.'
+        explanation: `Failed to run code: ${err.response?.data?.detail || err.message}`
       });
     } finally {
       setIsRunning(false);
@@ -425,6 +433,12 @@ const LessonPage = () => {
           {/* Code Card */}
           {currentCard.type === 'code' && (
             <div className="space-y-6">
+              {/* Debug info */}
+              {process.env.NODE_ENV === 'development' && (
+                <div className="text-xs text-slate-500 mb-2">
+                  Debug: Code card loaded, answer length: {codeAnswer.length}
+                </div>
+              )}
               {/* Language Selection */}
               <div className="flex items-center gap-4">
                 <label className="text-sm font-medium text-slate-300">Language:</label>
@@ -443,12 +457,15 @@ const LessonPage = () => {
 
               <div>
                 <label className="block text-lg font-medium text-slate-300 mb-4">Your Code Solution:</label>
-                <div className="border border-slate-600 rounded-xl overflow-hidden">
+                <div className="border border-slate-600 rounded-xl overflow-hidden bg-slate-900">
                   <Editor
                     height="400px"
                     language={selectedLanguage}
                     value={codeAnswer}
-                    onChange={(value) => setCodeAnswer(value || '')}
+                    onChange={(value) => {
+                      console.log('Code changed:', value); // Debug log
+                      setCodeAnswer(value || '');
+                    }}
                     theme="vs-dark"
                     options={{
                       fontSize: 16,
@@ -472,6 +489,9 @@ const LessonPage = () => {
                       cursorBlinking: 'blink',
                       cursorSmoothCaretAnimation: true,
                     }}
+                    onMount={(editor, monaco) => {
+                      console.log('Editor mounted'); // Debug log
+                    }}
                   />
                 </div>
               </div>
@@ -481,7 +501,7 @@ const LessonPage = () => {
                 <button
                   onClick={handleRunCode}
                   disabled={isRunning || !codeAnswer.trim()}
-                  className="px-6 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg text-white flex items-center gap-2 font-medium"
+                  className="px-6 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg text-white flex items-center gap-2 font-medium transition-colors"
                 >
                   {isRunning ? (
                     <>
@@ -499,7 +519,7 @@ const LessonPage = () => {
                 <button
                   onClick={handleCheckAnswer}
                   disabled={isChecking || !codeAnswer.trim()}
-                  className="px-6 py-2 bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg text-white flex items-center gap-2 font-medium"
+                  className="px-6 py-2 bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg text-white flex items-center gap-2 font-medium transition-colors"
                 >
                   {isChecking ? (
                     <>
@@ -515,6 +535,78 @@ const LessonPage = () => {
                 </button>
               </div>
               
+              {/* Run Result Display */}
+              {runResult && (
+                <div className={`mt-4 p-4 rounded-lg border ${
+                  runResult.correct 
+                    ? 'bg-green-900/20 border-green-500 text-green-300' 
+                    : 'bg-red-900/20 border-red-500 text-red-300'
+                }`}>
+                  <div className="flex items-center gap-2 mb-2">
+                    {runResult.correct ? (
+                      <CheckCircle className="w-5 h-5 text-green-400" />
+                    ) : (
+                      <XCircle className="w-5 h-5 text-red-400" />
+                    )}
+                    <span className="font-medium">
+                      {runResult.correct ? 'Code Executed Successfully' : 'Code Execution Failed'}
+                    </span>
+                  </div>
+                  <div className="text-sm">
+                    <p className="mb-2">{runResult.explanation}</p>
+                    {runResult.test_results && runResult.test_results.length > 0 && (
+                      <div className="mt-3">
+                        <h4 className="font-medium mb-2">Test Results:</h4>
+                        <div className="space-y-2">
+                          {runResult.test_results.map((result, index) => (
+                            <div key={index} className={`p-2 rounded text-xs ${
+                              result.passed ? 'bg-green-800/30' : 'bg-red-800/30'
+                            }`}>
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className="font-medium">Test {result.test_case}:</span>
+                                {result.passed ? (
+                                  <CheckCircle className="w-3 h-3 text-green-400" />
+                                ) : (
+                                  <XCircle className="w-3 h-3 text-red-400" />
+                                )}
+                              </div>
+                              <div className="grid grid-cols-2 gap-2 text-xs">
+                                <div>
+                                  <span className="text-slate-400">Input:</span>
+                                  <div className="font-mono bg-slate-800 p-1 rounded mt-1">
+                                    {result.input || '(no input)'}
+                                  </div>
+                                </div>
+                                <div>
+                                  <span className="text-slate-400">Expected:</span>
+                                  <div className="font-mono bg-slate-800 p-1 rounded mt-1">
+                                    {result.expected || '(no expected output)'}
+                                  </div>
+                                </div>
+                                <div className="col-span-2">
+                                  <span className="text-slate-400">Actual:</span>
+                                  <div className="font-mono bg-slate-800 p-1 rounded mt-1">
+                                    {result.actual || '(no output)'}
+                                  </div>
+                                </div>
+                                {result.error && (
+                                  <div className="col-span-2">
+                                    <span className="text-red-400">Error:</span>
+                                    <div className="font-mono bg-red-900/30 p-1 rounded mt-1 text-red-300">
+                                      {result.error}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+              
               {currentCard.test_cases && currentCard.test_cases.length > 0 && (
                 <div>
                   <h3 className="text-lg font-medium text-slate-300 mb-4">Test Cases:</h3>
@@ -522,17 +614,17 @@ const LessonPage = () => {
                     {currentCard.test_cases.map((testCase, index) => (
                       <div key={index} className="bg-slate-700 rounded-xl p-4 border border-slate-600">
                         <div className="text-sm text-slate-400 mb-2">Test Case {index + 1}</div>
-                  <div className="space-y-2">
+                        <div className="space-y-2">
                           <div>
                             <span className="text-slate-300 font-medium">Input:</span>
                             <div className="bg-slate-800 rounded-lg p-2 mt-1 font-mono text-sm text-white">
-                              {testCase.input}
+                              {testCase.input || '(no input)'}
                             </div>
                           </div>
                           <div>
                             <span className="text-slate-300 font-medium">Expected Output:</span>
                             <div className="bg-slate-800 rounded-lg p-2 mt-1 font-mono text-sm text-green-400">
-                              {testCase.expected_output}
+                              {testCase.expected_output || '(no expected output)'}
                             </div>
                           </div>
                         </div>

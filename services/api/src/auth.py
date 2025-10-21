@@ -32,6 +32,12 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
         print(f"Checking fallback hash: {hashed_password} vs {expected_fallback}")
         return hashed_password == expected_fallback
     
+    # Check if it's a SHA256 hash (for manually created users)
+    if len(hashed_password) == 64:  # SHA256 produces 64-character hex strings
+        import hashlib
+        expected_hash = hashlib.sha256(plain_password.encode()).hexdigest()
+        return hashed_password == expected_hash
+    
     # Use bcrypt for proper hashes
     try:
         import bcrypt

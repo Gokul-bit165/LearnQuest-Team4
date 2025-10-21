@@ -105,21 +105,91 @@ class CodeExecutor:
             }
     
     @staticmethod
+    def execute_cpp_code(code: str, stdin_input: str = "") -> Dict[str, Any]:
+        """
+        Execute C++ code locally
+        """
+        try:
+            # Create temporary files for source and executable
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.cpp', delete=False) as f:
+                f.write(code)
+                source_file = f.name
+            
+            executable_file = source_file.replace('.cpp', '.exe')
+            
+            try:
+                # Compile the code
+                compile_result = subprocess.run(
+                    ['g++', '-o', executable_file, source_file],
+                    capture_output=True,
+                    text=True,
+                    timeout=10
+                )
+                
+                if compile_result.returncode != 0:
+                    return {
+                        "stdout": "",
+                        "stderr": compile_result.stderr.strip(),
+                        "compile_output": compile_result.stderr.strip(),
+                        "return_code": compile_result.returncode,
+                        "success": False
+                    }
+                
+                # Execute the compiled code
+                result = subprocess.run(
+                    [executable_file],
+                    input=stdin_input,
+                    capture_output=True,
+                    text=True,
+                    timeout=10
+                )
+                
+                return {
+                    "stdout": result.stdout.strip(),
+                    "stderr": result.stderr.strip() if result.stderr else None,
+                    "compile_output": None,
+                    "return_code": result.returncode,
+                    "success": result.returncode == 0
+                }
+            finally:
+                # Clean up temporary files
+                try:
+                    os.unlink(source_file)
+                    if os.path.exists(executable_file):
+                        os.unlink(executable_file)
+                except:
+                    pass
+                
+        except subprocess.TimeoutExpired:
+            return {
+                "stdout": "",
+                "stderr": "Execution timeout (10 seconds)",
+                "compile_output": None,
+                "return_code": -1,
+                "success": False
+            }
+        except Exception as e:
+            return {
+                "stdout": "",
+                "stderr": f"Execution error: {str(e)}",
+                "compile_output": None,
+                "return_code": -1,
+                "success": False
+            }
+    
+    @staticmethod
     def execute_code(code: str, language_id: int, stdin_input: str = "") -> Dict[str, Any]:
         """
         Execute code based on language_id
-        Language IDs: 71=Python, 63=JavaScript
+        Language IDs: 71=Python, 63=JavaScript, 54=C++, 50=C, 62=Java
         """
         if language_id == 71:  # Python
             return CodeExecutor.execute_python_code(code, stdin_input)
         elif language_id == 63:  # JavaScript
             return CodeExecutor.execute_javascript_code(code, stdin_input)
+        elif language_id == 54:  # C++
+            return CodeExecutor.execute_cpp_code(code, stdin_input)
         else:
-            return {
-                "stdout": "",
-                "stderr": f"Unsupported language ID: {language_id}",
-                "compile_output": None,
-                "return_code": -1,
-                "success": False
-            }
+            # For unsupported languages, try Python as fallback
+            return CodeExecutor.execute_python_code(code, stdin_input)
 

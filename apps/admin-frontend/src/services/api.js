@@ -22,10 +22,12 @@ export const adminAPI = {
   deleteUser: (id) => api.delete(`/api/admin/users/${id}`),
 
   // Courses
+  getCourses: () => api.get('/api/admin/courses/'),
   createCourse: (data) => api.post('/api/admin/courses', data),
   getCourse: (id) => api.get(`/api/admin/courses/${id}`),
   updateCourse: (id, data) => api.put(`/api/admin/courses/${id}`, data),
   deleteCourse: (id) => api.delete(`/api/admin/courses/${id}`),
+  getTopicsForCourse: (courseId) => api.get(`/api/admin/courses/${courseId}/topics`),
   uploadCourseJson: (file) => {
     const formData = new FormData()
     formData.append('file', file)

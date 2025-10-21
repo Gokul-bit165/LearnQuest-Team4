@@ -44,6 +44,7 @@ class CardRequest(BaseModel):
 
 class TopicRequest(BaseModel):
     title: str
+    content: str = ""
     xp_reward: int = 50
     cards: List[CardRequest] = []
 
@@ -73,6 +74,28 @@ async def list_courses(_: User = Depends(require_admin_user)):
         del course["_id"]
     
     return course_list
+
+
+@router.get("/{course_id}/topics", response_model=List[dict])
+async def get_topics_for_course(course_id: str, _: User = Depends(require_admin_user)):
+    """Get all topics for a specific course"""
+    courses = get_collection("courses")
+    course = courses.find_one({"_id": ObjectId(course_id)})
+    
+    if not course:
+        raise HTTPException(status_code=404, detail="Course not found")
+    
+    topics = []
+    for module in course.get("modules", []):
+        for topic in module.get("topics", []):
+            topics.append({
+                "topic_id": topic.get("topic_id"),
+                "title": topic.get("title"),
+                "module_title": module.get("title"),
+                "module_id": module.get("module_id")
+            })
+    
+    return topics
 
 
 @router.post("/import-json", response_model=dict, status_code=status.HTTP_201_CREATED)
@@ -251,6 +274,12 @@ async def create_course(request: CreateCourseRequest, _: User = Depends(require_
 
 @router.put("/{course_id}", response_model=dict)
 async def update_course(course_id: str, request: CreateCourseRequest, _: User = Depends(require_admin_user)):
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.info(f"DEBUG: update_course called with course_id: {course_id}")
+    logger.info(f"DEBUG: request title: {request.title}")
+    logger.info(f"DEBUG: modules count: {len(request.modules)}")
+    
     courses = get_collection("courses")
     
     # Check if course exists
