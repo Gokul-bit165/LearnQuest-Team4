@@ -3,6 +3,7 @@ from typing import List, Optional
 from bson import ObjectId
 import httpx
 import os
+from ..code_executor import CodeExecutor
 from ..database import get_collection
 from ..auth import get_current_user
 from ..models.user import User
@@ -149,7 +150,23 @@ async def submit_code_problem(
                     stdout = (data.get("stdout") or "").strip()
                     stderr = data.get("stderr")
                     compile_output = data.get("compile_output")
+                    message = data.get("message")  # Judge0 error message
                     expected = (tc.get("expected_output", "") or "").strip()
+                    
+                    # Check if there's a Judge0 error - if so, use local executor as fallback
+                    if message and "Internal Error" in str(data.get("status", {}).get("description", "")):
+                        # Fallback to local execution
+                        local_result = CodeExecutor.execute_code(
+                            submission.user_code, 
+                            language_id, 
+                            tc.get("input", "")
+                        )
+                        stdout = local_result.get("stdout", "")
+                        stderr = local_result.get("stderr")
+                        compile_output = local_result.get("compile_output")
+                        error_msg = stderr or compile_output
+                    else:
+                        error_msg = stderr or compile_output
                     
                     # Check if test passed
                     passed = (stderr is None) and (compile_output is None) and (stdout == expected)
@@ -161,7 +178,8 @@ async def submit_code_problem(
                         passed=passed,
                         output=stdout,
                         expected_output=expected,
-                        error=stderr or compile_output,
+                        error=error_msg,
+                        input=tc.get("input", ""),
                         is_hidden=tc.get("is_hidden", False)
                     ))
                     
@@ -172,6 +190,7 @@ async def submit_code_problem(
                         passed=False,
                         output=None,
                         expected_output=tc.get("expected_output"),
+                        input=tc.get("input", ""),
                         error=f"Judge0 error: {str(e)}",
                         is_hidden=tc.get("is_hidden", False)
                     ))
@@ -239,6 +258,7 @@ async def run_code_problem(
                 }
                 
                 try:
+                    # Try Judge0 first
                     resp = await client.post(
                         f"{judge0_url}/submissions/?base64_encoded=false&wait=true",
                         json=payload
@@ -249,7 +269,23 @@ async def run_code_problem(
                     stdout = (data.get("stdout") or "").strip()
                     stderr = data.get("stderr")
                     compile_output = data.get("compile_output")
+                    message = data.get("message")  # Judge0 error message
                     expected = (tc.get("expected_output", "") or "").strip()
+                    
+                    # Check if there's a Judge0 error - if so, use local executor as fallback
+                    if message and "Internal Error" in str(data.get("status", {}).get("description", "")):
+                        # Fallback to local execution
+                        local_result = CodeExecutor.execute_code(
+                            submission.user_code, 
+                            language_id, 
+                            tc.get("input", "")
+                        )
+                        stdout = local_result.get("stdout", "")
+                        stderr = local_result.get("stderr")
+                        compile_output = local_result.get("compile_output")
+                        error_msg = stderr or compile_output
+                    else:
+                        error_msg = stderr or compile_output
                     
                     # Check if test passed
                     passed = (stderr is None) and (compile_output is None) and (stdout == expected)
@@ -261,7 +297,8 @@ async def run_code_problem(
                         passed=passed,
                         output=stdout,
                         expected_output=expected,
-                        error=stderr or compile_output,
+                        error=error_msg,
+                        input=tc.get("input", ""),
                         is_hidden=False  # All are public in run mode
                     ))
                     
@@ -272,6 +309,7 @@ async def run_code_problem(
                         passed=False,
                         output=None,
                         expected_output=tc.get("expected_output"),
+                        input=tc.get("input", ""),
                         error=f"Judge0 error: {str(e)}",
                         is_hidden=False
                     ))

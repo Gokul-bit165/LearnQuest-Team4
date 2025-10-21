@@ -65,6 +65,15 @@ services:
       - judge0-db
       - judge0-redis
     restart: unless-stopped
+    privileged: true
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:ro
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
 
   judge0-worker:
     image: judge0/judge0:1.13.0
@@ -83,6 +92,15 @@ services:
       - judge0-db
       - judge0-redis
     restart: unless-stopped
+    privileged: true
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:ro
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
 
   seed:
     image: python:3.10-slim

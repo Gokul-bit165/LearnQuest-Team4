@@ -6,7 +6,7 @@ import Users from './pages/Users'
 import Courses from './pages/Courses'
 import CreateCoursePage from './pages/CreateCoursePage'
 import EditCoursePage from './pages/EditCoursePage'
-import PracticeZone from './pages/PracticeZone'
+import Problems from './pages/Problems'
 
 function App() {
   // Capture token from URL on first load and store in localStorage
@@ -33,7 +33,7 @@ function App() {
         <Route path="/courses" element={<Courses />} />
         <Route path="/courses/new" element={<CreateCoursePage />} />
         <Route path="/courses/:courseId/edit" element={<EditCoursePage />} />
-        <Route path="/practice" element={<PracticeZone />} />
+        <Route path="/problems" element={<Problems />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Layout>

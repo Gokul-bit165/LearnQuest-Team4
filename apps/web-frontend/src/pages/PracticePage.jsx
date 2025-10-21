@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Code, Clock, Star, Filter, Search, ChevronRight, Zap, Trophy, Flame } from 'lucide-react';
 import { problemsAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
+import Layout from '../components/Layout';
 
 const PracticePage = () => {
   const { user } = useAuth();
@@ -48,11 +49,16 @@ const PracticePage = () => {
     // Filter by search term
     if (filters.search) {
       const searchTerm = filters.search.toLowerCase();
-      filtered = filtered.filter(problem =>
-        problem.title.toLowerCase().includes(searchTerm) ||
-        problem.tags.some(tag => tag.toLowerCase().includes(searchTerm)) ||
-        problem.course_title.toLowerCase().includes(searchTerm)
-      );
+      filtered = filtered.filter(problem => {
+        const title = (problem.title || '').toLowerCase();
+        const tags = Array.isArray(problem.tags) ? problem.tags : [];
+        const courseTitle = (problem.course_title || '').toLowerCase();
+        return (
+          title.includes(searchTerm) ||
+          tags.some(tag => (tag || '').toLowerCase().includes(searchTerm)) ||
+          courseTitle.includes(searchTerm)
+        );
+      });
     }
 
     setFilteredProblems(filtered);
@@ -116,6 +122,7 @@ const PracticePage = () => {
   }
 
   return (
+    <Layout>
     <div className="min-h-screen bg-slate-900">
       {/* Header */}
       <div className="bg-gradient-to-r from-blue-900/20 to-purple-900/20 border-b border-slate-700">
@@ -239,9 +246,11 @@ const PracticePage = () => {
                       </span>
                     </div>
                     
-                    <p className="text-slate-400 text-sm mb-4">
-                      From: <span className="text-blue-400">{problem.course_title}</span>
-                    </p>
+                    {problem.course_title && (
+                      <p className="text-slate-400 text-sm mb-4">
+                        From: <span className="text-blue-400">{problem.course_title}</span>
+                      </p>
+                    )}
 
                     {problem.tags && problem.tags.length > 0 && (
                       <div className="flex flex-wrap gap-2 mb-4">
@@ -298,6 +307,7 @@ const PracticePage = () => {
         )}
       </div>
     </div>
+    </Layout>
   );
 };
 

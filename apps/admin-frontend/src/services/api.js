@@ -28,13 +28,8 @@ export const adminAPI = {
   deleteCourse: (id) => api.delete(`/api/admin/courses/${id}`),
 
   // Practice Zone
-  getProblems: (filters = {}) => {
-    const params = new URLSearchParams();
-    if (filters.difficulty) params.append('difficulty', filters.difficulty);
-    if (filters.tag) params.append('tag', filters.tag);
-    return api.get(`/api/problems?${params.toString()}`);
-  },
-  getProblem: (id) => api.get(`/api/problems/${id}`),
+  getProblems: () => api.get('/api/admin/problems/'),
+  getProblem: (id) => api.get(`/api/admin/problems/${id}`),
   createProblem: (data) => api.post('/api/admin/problems/', data),
   updateProblem: (id, data) => api.put(`/api/admin/problems/${id}`, data),
   deleteProblem: (id) => api.delete(`/api/admin/problems/${id}`),

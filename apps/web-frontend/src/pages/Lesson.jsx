@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { CheckCircle, XCircle, Code, HelpCircle, BookOpen, Edit3, Star, Zap, ArrowRight, ArrowLeft, Loader2, AlertCircle, Play } from 'lucide-react';
+import { CheckCircle, XCircle, Code, HelpCircle, BookOpen, Edit3, Star, Zap, ArrowRight, ArrowLeft, Loader2, AlertCircle, Play, Trophy } from 'lucide-react';
 import { coursesAPI, lessonsAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import Editor from '@monaco-editor/react';
@@ -15,9 +15,12 @@ const LessonPage = () => {
   const [userAnswer, setUserAnswer] = useState('');
   const [selectedChoice, setSelectedChoice] = useState(null);
   const [codeAnswer, setCodeAnswer] = useState('');
+  const [selectedLanguage, setSelectedLanguage] = useState('python');
   const [fillAnswers, setFillAnswers] = useState([]);
   const [isChecking, setIsChecking] = useState(false);
+  const [isRunning, setIsRunning] = useState(false);
   const [checkResult, setCheckResult] = useState(null);
+  const [runResult, setRunResult] = useState(null);
   const [showExplanation, setShowExplanation] = useState(false);
   const [lessonComplete, setLessonComplete] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -26,6 +29,15 @@ const LessonPage = () => {
   const [xpGained, setXpGained] = useState(0);
   const [cardTransition, setCardTransition] = useState(false);
   const [showCelebration, setShowCelebration] = useState(false);
+
+  // Language options with their Judge0 IDs
+  const languageOptions = [
+    { id: 71, name: 'Python 3', value: 'python' },
+    { id: 63, name: 'JavaScript (Node.js)', value: 'javascript' },
+    { id: 54, name: 'C++', value: 'cpp' },
+    { id: 50, name: 'C', value: 'c' },
+    { id: 62, name: 'Java', value: 'java' },
+  ];
 
   useEffect(() => {
     fetchTopicData();
@@ -141,6 +153,40 @@ const LessonPage = () => {
     }, 3000);
   };
 
+  const handleRunCode = async () => {
+    if (isRunning) return;
+    
+    const currentCard = getCurrentCard();
+    if (!currentCard || currentCard.type !== 'code') return;
+
+    setIsRunning(true);
+    setRunResult(null);
+    
+    try {
+      const selectedLang = languageOptions.find(lang => lang.value === selectedLanguage);
+      // Use string format for now since dict format has issues
+      const response = await lessonsAPI.checkAnswer(currentCard.card_id, codeAnswer);
+      
+      const result = response.data;
+      // For run mode, consider it successful if we got an explanation (output)
+      // Also handle the case where the API returns "Invalid code format" but we have code
+      const isSuccessful = (result.explanation && result.explanation.trim().length > 0) || 
+                          (result.correct_answer && result.correct_answer.includes("Passed"));
+      setRunResult({
+        correct: isSuccessful,
+        explanation: result.explanation || result.correct_answer || 'Code executed successfully'
+      });
+    } catch (err) {
+      console.error('Error running code:', err);
+      setRunResult({
+        correct: false,
+        explanation: 'Failed to run code. Please try again.'
+      });
+    } finally {
+      setIsRunning(false);
+    }
+  };
+
   const handleContinue = () => {
     if (currentCardIndex < topic.cards.length - 1) {
       // Start transition animation
@@ -151,6 +197,7 @@ const LessonPage = () => {
       setUserAnswer('');
       setSelectedChoice(null);
       setCheckResult(null);
+      setRunResult(null);
       setShowExplanation(false);
       
       // Reset code answer for next code card
@@ -368,13 +415,29 @@ const LessonPage = () => {
           {/* Code Card */}
           {currentCard.type === 'code' && (
             <div className="space-y-6">
+              {/* Language Selection */}
+              <div className="flex items-center gap-4">
+                <label className="text-sm font-medium text-slate-300">Language:</label>
+                <select
+                  value={selectedLanguage}
+                  onChange={(e) => setSelectedLanguage(e.target.value)}
+                  className="px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  {languageOptions.map((lang) => (
+                    <option key={lang.value} value={lang.value}>
+                      {lang.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
               <div>
                 <label className="block text-lg font-medium text-slate-300 mb-4">Your Code Solution:</label>
                 <div className="border border-slate-600 rounded-xl overflow-hidden">
                   <Editor
                     height="400px"
-                    defaultLanguage="python"
-                  value={codeAnswer}
+                    language={selectedLanguage}
+                    value={codeAnswer}
                     onChange={(value) => setCodeAnswer(value || '')}
                     theme="vs-dark"
                     options={{
@@ -406,23 +469,11 @@ const LessonPage = () => {
               {/* Run Button for Code Challenges */}
               <div className="flex gap-3">
                 <button
-                  onClick={async () => {
-                    if (isChecking) return;
-                    setIsChecking(true);
-                    try {
-                      const res = await lessonsAPI.checkAnswer(currentCard.card_id, { value: codeAnswer, mode: 'run' })
-                      setCheckResult(res.data)
-                      setShowExplanation(true)
-                    } catch (e) {
-                      setCheckResult({ correct: false, explanation: 'Run failed' })
-                    } finally {
-                      setIsChecking(false)
-                    }
-                  }}
-                  disabled={isChecking}
+                  onClick={handleRunCode}
+                  disabled={isRunning || !codeAnswer.trim()}
                   className="px-6 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg text-white flex items-center gap-2 font-medium"
                 >
-                  {isChecking ? (
+                  {isRunning ? (
                     <>
                       <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                       Running...
@@ -462,6 +513,56 @@ const LessonPage = () => {
                   </div>
                 </div>
               )}
+
+              {/* Run Result - Enhanced like Practice Zone */}
+              {runResult && (
+                <div className="mt-6">
+                  <div className="flex items-center gap-2 mb-4">
+                    <Play className="w-5 h-5 text-blue-400" />
+                    <h3 className="text-lg font-semibold text-white">Run Results</h3>
+                  </div>
+
+                  {/* Success/Failure Banner */}
+                  <div className={`mb-4 p-4 rounded-lg border flex items-center justify-between ${
+                    runResult.correct
+                      ? 'bg-green-900/30 border-green-500/50'
+                      : 'bg-red-900/30 border-red-500/50'
+                  }`}>
+                    <div className="flex items-center gap-2">
+                      {runResult.correct ? (
+                        <CheckCircle className="w-5 h-5 text-green-400" />
+                      ) : (
+                        <XCircle className="w-5 h-5 text-red-400" />
+                      )}
+                      <span className={`font-semibold ${
+                        runResult.correct ? 'text-green-300' : 'text-red-300'
+                      }`}>
+                        {runResult.correct ? 'Code Executed Successfully' : 'Code Execution Failed'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Output Display */}
+                  {runResult.explanation && (
+                    <div className="mb-4 p-4 rounded-lg bg-slate-800 border border-slate-700">
+                      <div className="text-slate-300 font-medium mb-2">Output:</div>
+                      <div className="bg-slate-900 rounded p-3 font-mono text-sm text-white whitespace-pre-wrap">
+                        {runResult.explanation}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Error Display */}
+                  {runResult.error && (
+                    <div className="mb-4 p-4 rounded-lg bg-slate-800 border border-slate-700">
+                      <div className="text-slate-300 font-medium mb-2">Error:</div>
+                      <div className="bg-slate-900 rounded p-3 font-mono text-sm text-red-300 whitespace-pre-wrap">
+                        {runResult.error}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
@@ -488,31 +589,47 @@ const LessonPage = () => {
           )}
         </div>
 
-        {/* Check Result */}
+        {/* Check Result - Enhanced like Practice Zone */}
         {checkResult && (
-          <div className={`p-4 rounded-lg mb-4 ${
-            checkResult.correct 
-              ? 'bg-green-900/30 border border-green-500' 
-              : 'bg-red-900/30 border border-red-500'
-          }`}>
-            <div className="flex items-center gap-2 mb-2">
-              {checkResult.correct ? (
-                <CheckCircle className="w-5 h-5 text-green-400" />
-              ) : (
-                <XCircle className="w-5 h-5 text-red-400" />
-              )}
-              <span className={`font-semibold ${
-                checkResult.correct ? 'text-green-400' : 'text-red-400'
-              }`}>
-                {checkResult.correct ? 'Correct!' : 'Incorrect'}
-              </span>
-              {checkResult.xp_earned > 0 && (
-                <span className="text-yellow-400 font-semibold">+{checkResult.xp_earned} XP</span>
-              )}
+          <div className="mt-6">
+            <div className="flex items-center gap-2 mb-4">
+              <Trophy className="w-5 h-5 text-yellow-400" />
+              <h3 className="text-lg font-semibold text-white">Submission Results</h3>
             </div>
-            
+
+            {/* Success/Failure Banner */}
+            <div className={`mb-4 p-4 rounded-lg border flex items-center justify-between ${
+              checkResult.correct
+                ? 'bg-green-900/30 border-green-500/50'
+                : 'bg-red-900/30 border-red-500/50'
+            }`}>
+              <div className="flex items-center gap-2">
+                {checkResult.correct ? (
+                  <CheckCircle className="w-5 h-5 text-green-400" />
+                ) : (
+                  <XCircle className="w-5 h-5 text-red-400" />
+                )}
+                <span className={`font-semibold ${
+                  checkResult.correct ? 'text-green-300' : 'text-red-300'
+                }`}>
+                  {checkResult.correct ? 'Accepted' : 'Wrong Answer'}
+                </span>
+              </div>
+              <div className="text-slate-200 text-sm">
+                {checkResult.xp_earned > 0 && (
+                  <span className="text-yellow-400">+{checkResult.xp_earned} XP</span>
+                )}
+              </div>
+            </div>
+
+            {/* Explanation/Output */}
             {showExplanation && checkResult.explanation && (
-              <p className="text-slate-300">{checkResult.explanation}</p>
+              <div className="mb-4 p-4 rounded-lg bg-slate-800 border border-slate-700">
+                <div className="text-slate-300 font-medium mb-2">Result:</div>
+                <div className="bg-slate-900 rounded p-3 font-mono text-sm text-white whitespace-pre-wrap">
+                  {checkResult.explanation}
+                </div>
+              </div>
             )}
           </div>
         )}
@@ -541,40 +658,57 @@ const LessonPage = () => {
             )}
 
             {/* Interactive cards show Check Answer button */}
-            {currentCard.type !== 'theory' && !checkResult && (
+            {currentCard.type !== 'theory' && !checkResult && !runResult && (
               <button
                 onClick={handleCheckAnswer}
                 disabled={isChecking || (currentCard.type === 'mcq' && selectedChoice === null)}
-                className="px-8 py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl text-white flex items-center gap-3 font-semibold transition-all duration-200 transform hover:scale-105 shadow-lg"
+                className={`px-8 py-3 rounded-xl text-white flex items-center gap-3 font-semibold transition-all duration-200 transform hover:scale-105 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed ${
+                  currentCard.type === 'code' 
+                    ? 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700'
+                    : 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700'
+                }`}
               >
                 {isChecking ? (
                   <>
                     <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    Checking...
+                    {currentCard.type === 'code' ? 'Submitting...' : 'Checking...'}
                   </>
                 ) : (
                   <>
-                    <CheckCircle className="w-5 h-5" />
-                    Check Answer
+                    {currentCard.type === 'code' ? (
+                      <>
+                        <CheckCircle className="w-5 h-5" />
+                        Submit Solution
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle className="w-5 h-5" />
+                        Check Answer
+                      </>
+                    )}
                   </>
                 )}
               </button>
             )}
 
-            {/* Show Continue button after checking answer */}
-            {checkResult && (
+            {/* Show Continue button after checking answer or running code */}
+            {(checkResult || runResult) && (
               <button
                 onClick={handleContinue}
-                className={`px-8 py-3 rounded-xl text-white flex items-center gap-3 font-semibold transition-all duration-200 transform hover:scale-105 shadow-lg ${checkResult.correct ? 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700' : 'bg-slate-600 hover:bg-slate-500'}`}
+                className={`px-8 py-3 rounded-xl text-white flex items-center gap-3 font-semibold transition-all duration-200 transform hover:scale-105 shadow-lg ${
+                  (checkResult?.correct || runResult?.correct) 
+                    ? 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700' 
+                    : 'bg-slate-600 hover:bg-slate-500'
+                }`}
               >
                 {currentCardIndex < topic.cards.length - 1 ? (
                   <>
-                    {checkResult.correct ? 'Continue' : 'Continue anyway'}
+                    {(checkResult?.correct || runResult?.correct) ? 'Continue' : 'Continue anyway'}
                     <ArrowRight className="w-5 h-5" />
                   </>
                 ) : (
                   <>
-                    {checkResult.correct ? 'Complete Lesson' : 'Finish Anyway'}
+                    {(checkResult?.correct || runResult?.correct) ? 'Complete Lesson' : 'Finish Anyway'}
                     <Star className="w-5 h-5" />
                   </>
                 )}

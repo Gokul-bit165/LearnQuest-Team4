@@ -118,10 +118,17 @@ class TestResult(BaseModel):
     output: Optional[str] = None
     expected_output: Optional[str] = None
     error: Optional[str] = None
+    input: Optional[str] = None
     is_hidden: bool = False
+    
+    class Config:
+        exclude_none = False
 
 
 class SubmissionResult(BaseModel):
     overall_passed: bool
     results: List[TestResult]
     xp_reward: int = 0
+    
+    class Config:
+        exclude_none = False

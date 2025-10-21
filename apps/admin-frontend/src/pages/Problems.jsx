@@ -1,0 +1,177 @@
+import React, { useEffect, useState } from 'react'
+import { adminAPI } from '../services/api'
+
+const Problems = () => {
+  const [problems, setProblems] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [showForm, setShowForm] = useState(false)
+  const [editingId, setEditingId] = useState(null)
+  const emptyForm = {
+    prompt: '',
+    code_starter: '',
+    difficulty: 'medium',
+    tags: '',
+    xp_reward: 10,
+    is_practice_problem: true,
+    test_cases: [{ input: '', expected_output: '', is_hidden: false }]
+  }
+  const [form, setForm] = useState(emptyForm)
+
+  const load = async () => {
+    setLoading(true)
+    try {
+      const res = await adminAPI.getProblems()
+      setProblems(res.data)
+    } catch (e) {
+      setError('Failed to load problems')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => { load() }, [])
+
+  const startCreate = () => {
+    setEditingId(null)
+    setForm(emptyForm)
+    setShowForm(true)
+  }
+
+  const startEdit = async (id) => {
+    setEditingId(id)
+    try {
+      const res = await adminAPI.getProblem(id)
+      const p = res.data
+      setForm({
+        prompt: p.title || p.content || '',
+        code_starter: p.starter_code || '',
+        difficulty: p.difficulty || 'medium',
+        tags: (p.tags || []).join(','),
+        xp_reward: p.xp_reward || 10,
+        is_practice_problem: true,
+        test_cases: (p.public_test_cases || []).map(tc => ({ input: tc.input || '', expected_output: tc.expected_output || '', is_hidden: !!tc.is_hidden }))
+      })
+      setShowForm(true)
+    } catch (e) {
+      setError('Failed to load problem')
+    }
+  }
+
+  const save = async () => {
+    const payload = {
+      prompt: form.prompt,
+      code_starter: form.code_starter,
+      difficulty: form.difficulty,
+      tags: form.tags.split(',').map(t => t.trim()).filter(Boolean),
+      xp_reward: Number(form.xp_reward) || 10,
+      is_practice_problem: !!form.is_practice_problem,
+      test_cases: form.test_cases.map(tc => ({ input: tc.input, expected_output: tc.expected_output, is_hidden: !!tc.is_hidden }))
+    }
+    if (editingId) {
+      await adminAPI.updateProblem(editingId, payload)
+    } else {
+      await adminAPI.createProblem(payload)
+    }
+    setShowForm(false)
+    await load()
+  }
+
+  const remove = async (id) => {
+    await adminAPI.deleteProblem(id)
+    await load()
+  }
+
+  const addTestCase = () => setForm({ ...form, test_cases: [...form.test_cases, { input: '', expected_output: '', is_hidden: false }] })
+  const updateTestCase = (idx, patch) => setForm({ ...form, test_cases: form.test_cases.map((tc, i) => i === idx ? { ...tc, ...patch } : tc) })
+  const deleteTestCase = (idx) => setForm({ ...form, test_cases: form.test_cases.filter((_, i) => i !== idx) })
+
+  if (loading) return <div>Loading...</div>
+  if (error) return <div className="text-red-400">{error}</div>
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-4">
+        <h1 className="text-2xl font-bold">Practice Problems</h1>
+        <button className="px-3 py-2 bg-blue-600 rounded" onClick={startCreate}>Create Problem</button>
+      </div>
+
+      <div className="overflow-x-auto mb-8">
+        <table className="min-w-full border border-slate-800">
+          <thead className="bg-slate-800">
+            <tr>
+              <th className="px-3 py-2 text-left">Title</th>
+              <th className="px-3 py-2 text-left">Difficulty</th>
+              <th className="px-3 py-2 text-left">Tags</th>
+              <th className="px-3 py-2 text-left">XP</th>
+              <th className="px-3 py-2 text-left">Practice</th>
+              <th className="px-3 py-2">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {problems.map(p => (
+              <tr key={p.problem_id} className="border-t border-slate-800">
+                <td className="px-3 py-2">{p.title}</td>
+                <td className="px-3 py-2">{p.difficulty}</td>
+                <td className="px-3 py-2">{(p.tags || []).join(', ')}</td>
+                <td className="px-3 py-2">{p.xp_reward || 10}</td>
+                <td className="px-3 py-2">{String(p.is_practice_problem ?? true)}</td>
+                <td className="px-3 py-2 text-right">
+                  <button className="px-3 py-1 bg-blue-600 rounded mr-2" onClick={() => startEdit(p.problem_id)}>Edit</button>
+                  <button className="px-3 py-1 bg-red-600 rounded" onClick={() => remove(p.problem_id)}>Delete</button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {showForm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center">
+          <div className="bg-slate-800 border border-slate-700 rounded p-6 w-full max-w-3xl">
+            <h2 className="text-xl font-bold mb-4">{editingId ? 'Edit Problem' : 'Create Problem'}</h2>
+            <div className="space-y-3">
+              <input className="w-full bg-slate-700 rounded px-3 py-2" placeholder="Title" value={form.prompt} onChange={e => setForm({ ...form, prompt: e.target.value })} />
+              <textarea className="w-full bg-slate-700 rounded px-3 py-2 h-28" placeholder="Description" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} />
+              <textarea className="w-full bg-slate-700 rounded px-3 py-2 h-28" placeholder="Starter Code" value={form.code_starter} onChange={e => setForm({ ...form, code_starter: e.target.value })} />
+              <div className="grid grid-cols-3 gap-3">
+                <select className="bg-slate-700 rounded px-3 py-2" value={form.difficulty} onChange={e => setForm({ ...form, difficulty: e.target.value })}>
+                  <option value="easy">easy</option>
+                  <option value="medium">medium</option>
+                  <option value="hard">hard</option>
+                </select>
+                <input className="bg-slate-700 rounded px-3 py-2" placeholder="Tags (comma separated)" value={form.tags} onChange={e => setForm({ ...form, tags: e.target.value })} />
+                <input type="number" className="bg-slate-700 rounded px-3 py-2" placeholder="XP Reward" value={form.xp_reward} onChange={e => setForm({ ...form, xp_reward: Number(e.target.value) })} />
+              </div>
+
+              <div className="mt-4">
+                <div className="font-semibold mb-2">Test Cases</div>
+                {form.test_cases.map((tc, idx) => (
+                  <div key={idx} className="border border-slate-700 rounded p-3 mb-3">
+                    <div className="grid grid-cols-2 gap-3">
+                      <textarea className="bg-slate-700 rounded px-3 py-2 h-20" placeholder="Input" value={tc.input} onChange={e => updateTestCase(idx, { input: e.target.value })} />
+                      <textarea className="bg-slate-700 rounded px-3 py-2 h-20" placeholder="Expected Output" value={tc.expected_output} onChange={e => updateTestCase(idx, { expected_output: e.target.value })} />
+                    </div>
+                    <div className="flex items-center justify-between mt-2">
+                      <label className="text-sm"><input type="checkbox" className="mr-2" checked={tc.is_hidden} onChange={e => updateTestCase(idx, { is_hidden: e.target.checked })} /> Hidden</label>
+                      <button className="text-red-400" onClick={() => deleteTestCase(idx)}>Delete</button>
+                    </div>
+                  </div>
+                ))}
+                <button className="px-3 py-1 bg-slate-700 rounded" onClick={addTestCase}>Add Test Case</button>
+              </div>
+            </div>
+            <div className="mt-4 flex justify-end gap-2">
+              <button className="px-3 py-2 bg-slate-600 rounded" onClick={() => setShowForm(false)}>Cancel</button>
+              <button className="px-3 py-2 bg-blue-600 rounded" onClick={save}>{editingId ? 'Save' : 'Create'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+export default Problems
+
+

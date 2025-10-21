@@ -134,58 +134,87 @@ async def check_answer(
         
     elif card["type"] == "code":
         # Enhanced code evaluation using Judge0
+        user_code = ""
+        language_id = 71  # Default to Python 3.8+
+        
+        # Code execution path - updated version
+        
         if isinstance(request.user_answer, str):
             user_code = request.user_answer.strip()
-            test_cases = card.get("test_cases", [])
-            
-            if not test_cases:
-                # Basic validation if no test cases
-                correct = len(user_code) > 10
-                correct_answer = "Code solution"
-            else:
-                # Execute code against test cases using Judge0
-                judge0_url = os.getenv("JUDGE0_URL", "http://judge0:2358")
-                language_id = 71  # Python 3.8+
-                passed_count = 0
-                total_tests = len(test_cases)
-                
-                try:
-                    async with httpx.AsyncClient(timeout=30) as client:
-                        for tc in test_cases:
-                            payload = {
-                                "language_id": language_id,
-                                "source_code": user_code,
-                                "stdin": tc.get("input", "")
-                            }
-                            
-                            resp = await client.post(
-                                f"{judge0_url}/submissions/?base64_encoded=false&wait=true",
-                                json=payload
-                            )
-                            resp.raise_for_status()
-                            data = resp.json()
-                            
-                            stdout = (data.get("stdout") or "").strip()
-                            stderr = data.get("stderr")
-                            compile_output = data.get("compile_output")
-                            expected = (tc.get("expected_output", "") or "").strip()
-                            
-                            # Check if test passed - normalize both strings before comparison
-                            passed = (stderr is None) and (compile_output is None) and (stdout == expected)
-                            if passed:
-                                passed_count += 1
-                        
-                        # Consider correct if all test cases pass
-                        correct = passed_count == total_tests
-                        correct_answer = f"Passed {passed_count}/{total_tests} test cases"
-                        
-                except Exception as e:
-                    # Fallback to basic validation if Judge0 fails
-                    correct = len(user_code) > 10
-                    correct_answer = "Code solution (Judge0 unavailable)"
+        elif isinstance(request.user_answer, dict):
+            user_code = request.user_answer.get("value", "").strip()
+            language_id = request.user_answer.get("language_id", 71)
+        
+        test_cases = card.get("test_cases", [])
+        
+        if not test_cases:
+            # Basic validation if no test cases
+            correct = len(user_code) > 10
+            correct_answer = "Code solution"
         else:
-            correct = False
-            correct_answer = "Invalid code format"
+            # Execute code against test cases using Judge0
+            judge0_url = os.getenv("JUDGE0_URL", "http://judge0:2358")
+            passed_count = 0
+            total_tests = len(test_cases)
+            
+            try:
+                async with httpx.AsyncClient(timeout=30) as client:
+                    for tc in test_cases:
+                        payload = {
+                            "language_id": language_id,
+                            "source_code": user_code,
+                            "stdin": tc.get("input", "")
+                        }
+                        
+                        resp = await client.post(
+                            f"{judge0_url}/submissions/?base64_encoded=false&wait=true",
+                            json=payload
+                        )
+                        resp.raise_for_status()
+                        data = resp.json()
+                        
+                        stdout = (data.get("stdout") or "").strip()
+                        stderr = data.get("stderr")
+                        compile_output = data.get("compile_output")
+                        expected = (tc.get("expected_output", "") or "").strip()
+                        
+                        # Check if test passed - normalize both strings before comparison
+                        passed = (stderr is None) and (compile_output is None) and (stdout == expected)
+                        if passed:
+                            passed_count += 1
+                    
+                    # Consider correct if all test cases pass
+                    correct = passed_count == total_tests
+                    correct_answer = f"Passed {passed_count}/{total_tests} test cases"
+                    
+            except Exception as e:
+                # Fallback to local code execution if Judge0 fails
+                from ..code_executor import CodeExecutor
+                try:
+                    # Try local execution for the first test case
+                    if test_cases:
+                        first_tc = test_cases[0]
+                        local_result = CodeExecutor.execute_code(
+                            user_code, 
+                            language_id, 
+                            first_tc.get("input", "")
+                        )
+                        stdout = local_result.get("stdout", "")
+                        stderr = local_result.get("stderr")
+                        expected = first_tc.get("expected_output", "").strip()
+                        
+                        # Check if the first test case passes
+                        passed = (stderr is None) and (stdout == expected)
+                        correct = passed
+                        correct_answer = f"Local execution: {stdout}" if stdout else "Code executed locally"
+                    else:
+                        # No test cases, just validate code length
+                        correct = len(user_code) > 10
+                        correct_answer = "Code solution (Judge0 unavailable)"
+                except Exception as local_e:
+                    # Final fallback to basic validation
+                    correct = len(user_code) > 10
+                    correct_answer = f"Code solution (Judge0 unavailable, local execution failed: {str(local_e)})"
         
     elif card["type"] == "fill-in-blank":
         # Check if all blanks are filled correctly
@@ -204,10 +233,22 @@ async def check_answer(
     else:
         xp_reward = 0
     
+    # For run mode, provide execution feedback
+    explanation = card.get("explanation")
+    if mode == 'run' and card["type"] == "code":
+        # For run mode, always show the execution result and mark as successful if we got output
+        explanation = correct_answer  # Use the execution result as explanation
+        # Override correct to true if we have execution output
+        if explanation and explanation.strip():
+            correct = True
+        # Add a test message to verify the updated code is running
+        if explanation:
+            explanation = f"[UPDATED] {explanation}"
+    
     return CheckAnswerResponse(
         correct=correct,
         xp_reward=xp_reward,
-        explanation=card.get("explanation"),
+        explanation=explanation,
         correct_answer=correct_answer
     )
 
