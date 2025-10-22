@@ -43,6 +43,13 @@ export const adminAPI = {
   updateProblem: (id, data) => api.put(`/api/admin/problems/${id}`, data),
   deleteProblem: (id) => api.delete(`/api/admin/problems/${id}`),
   toggleProblemStatus: (id, isActive) => api.patch(`/api/admin/problems/${id}/toggle`, { is_practice_problem: isActive }),
+  uploadProblemsJson: (file) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    return api.post('/api/admin/problems/import-json', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    })
+  },
 
 }
 

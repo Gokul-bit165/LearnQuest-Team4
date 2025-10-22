@@ -15,6 +15,7 @@ import CoachPage from './pages/CoachPage';
 import Lesson from './pages/Lesson';
 import PracticePage from './pages/PracticePage';
 import ProblemSolverPage from './pages/ProblemSolverPage';
+import Leaderboard from './pages/Leaderboard';
 import './App.css';
 
 function App() {
@@ -106,6 +107,15 @@ function App() {
                 </ProtectedRoute>
               } 
             />
+            <Route 
+              path="/leaderboard" 
+              element={
+                <ProtectedRoute>
+                  <Leaderboard />
+                </ProtectedRoute>
+              } 
+            />
+            
           </Routes>
         </div>
       </Router>

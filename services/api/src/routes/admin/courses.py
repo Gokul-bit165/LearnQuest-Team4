@@ -144,34 +144,48 @@ async def upload_course_json(file: UploadFile = File(...), _: User = Depends(req
                 
                 for card_data in topic_data.get('cards', []):
                     card_id = str(uuid.uuid4())
-                    card_doc = {
-                        "card_id": card_id,
-                        "type": "fill-in-blank" if card_data.get('type') == "fill_blank" else card_data.get('type', 'theory'),
-                        "content": card_data.get('content', ''),
-                        "xp_reward": card_data.get('xp_reward', 10),
-                        "explanation": card_data.get('explanation', ''),
-                    }
                     
-                    # Add type-specific fields
-                    if card_data.get('type') == "mcq" and card_data.get('choices'):
-                        card_doc["choices"] = card_data['choices']
-                        card_doc["correct_choice_index"] = card_data.get('correct_choice_index', 0)
-                    elif card_data.get('type') == "code":
-                        card_doc["starter_code"] = card_data.get('starter_code', '')
-                        card_doc["test_cases"] = card_data.get('test_cases', [])
-                        card_doc["is_practice_problem"] = card_data.get('is_practice_problem', False)
-                        card_doc["difficulty"] = card_data.get('difficulty', "Medium")
-                        card_doc["tags"] = card_data.get('tags', [])
-                    elif card_doc["type"] == "fill-in-blank":
-                        # Handle both old format (fill_blank with answer) and new format (fill-in-blank with correct_answers)
-                        if card_data.get('type') == "fill_blank" and card_data.get('answer'):
-                            # Old format: single answer field
-                            card_doc["correct_answers"] = [card_data['answer']]
-                            card_doc["blanks"] = ["blank"]  # Default blank identifier
-                        else:
-                            # New format: correct_answers and blanks arrays
-                            card_doc["blanks"] = card_data.get('blanks', [])
-                            card_doc["correct_answers"] = card_data.get('correct_answers', [])
+                    # Handle both string format (legacy) and object format
+                    if isinstance(card_data, str):
+                        # Legacy format: card is just a string
+                        card_doc = {
+                            "card_id": card_id,
+                            "type": "theory",
+                            "content": card_data,
+                            "xp_reward": 10,
+                            "explanation": "",
+                        }
+                    else:
+                        # Object format: card has properties
+                        card_doc = {
+                            "card_id": card_id,
+                            "type": "fill-in-blank" if card_data.get('type') == "fill_blank" else card_data.get('type', 'theory'),
+                            "content": card_data.get('content', ''),
+                            "xp_reward": card_data.get('xp_reward', 10),
+                            "explanation": card_data.get('explanation', ''),
+                        }
+                    
+                    # Add type-specific fields (only for object format)
+                    if not isinstance(card_data, str):
+                        if card_data.get('type') == "mcq" and card_data.get('choices'):
+                            card_doc["choices"] = card_data['choices']
+                            card_doc["correct_choice_index"] = card_data.get('correct_choice_index', 0)
+                        elif card_data.get('type') == "code":
+                            card_doc["starter_code"] = card_data.get('starter_code', '')
+                            card_doc["test_cases"] = card_data.get('test_cases', [])
+                            card_doc["is_practice_problem"] = card_data.get('is_practice_problem', False)
+                            card_doc["difficulty"] = card_data.get('difficulty', "Medium")
+                            card_doc["tags"] = card_data.get('tags', [])
+                        elif card_doc["type"] == "fill-in-blank":
+                            # Handle both old format (fill_blank with answer) and new format (fill-in-blank with correct_answers)
+                            if card_data.get('type') == "fill_blank" and card_data.get('answer'):
+                                # Old format: single answer field
+                                card_doc["correct_answers"] = [card_data['answer']]
+                                card_doc["blanks"] = ["blank"]  # Default blank identifier
+                            else:
+                                # New format: correct_answers and blanks arrays
+                                card_doc["blanks"] = card_data.get('blanks', [])
+                                card_doc["correct_answers"] = card_data.get('correct_answers', [])
                     
                     cards.append(card_doc)
                 

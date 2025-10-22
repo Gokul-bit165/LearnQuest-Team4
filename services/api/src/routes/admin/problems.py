@@ -1,7 +1,8 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, File, UploadFile, status
 from typing import List, Optional
 from bson import ObjectId
 from datetime import datetime
+import json
 
 from ...auth import get_current_user
 from ...models.course import ProblemSummary, ProblemDetail, CodeSubmission, TestResult, SubmissionResult, TestCase
@@ -216,3 +217,65 @@ async def toggle_problem_status(
     )
     
     return {"message": "Problem status updated successfully"}
+
+
+@router.post("/import-json", response_model=dict, status_code=status.HTTP_201_CREATED)
+async def import_problems_json(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user)
+):
+    """Bulk import practice problems from a JSON file."""
+    if not file.filename.endswith('.json'):
+        raise HTTPException(status_code=400, detail="File must be a JSON file")
+
+    try:
+        content = await file.read()
+        data = json.loads(content.decode('utf-8'))
+
+        # Accept either an array of problems or an object with { problems: [...] }
+        problems = data.get('problems') if isinstance(data, dict) else data
+        if not isinstance(problems, list):
+            raise HTTPException(status_code=400, detail="JSON must be an array of problems or contain a 'problems' array")
+
+        questions = get_collection("questions")
+        created = 0
+
+        for p in problems:
+            prompt = p.get("prompt") or p.get("title")
+            code_starter = p.get("code_starter") or p.get("starter_code") or ""
+            test_cases = p.get("test_cases") or []
+            if not prompt or not isinstance(test_cases, list):
+                # Skip invalid entries
+                continue
+
+            doc = {
+                "type": "code",
+                "prompt": prompt,
+                "code_starter": code_starter,
+                "test_cases": [
+                    {
+                        "input": tc.get("input", ""),
+                        "expected_output": tc.get("expected_output", ""),
+                        "is_hidden": bool(tc.get("is_hidden", False))
+                    } for tc in test_cases
+                ],
+                "difficulty": p.get("difficulty", "medium"),
+                "tags": p.get("tags", []),
+                "xp_reward": p.get("xp_reward", 10),
+                "explanation": p.get("explanation", ""),
+                "is_practice_problem": bool(p.get("is_practice_problem", True)),
+                "course_id": p.get("course_id"),
+                "topic_id": p.get("topic_id"),
+                "created_at": datetime.utcnow(),
+                "updated_at": datetime.utcnow(),
+            }
+
+            questions.insert_one(doc)
+            created += 1
+
+        return {"created": created}
+
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="Invalid JSON format")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error importing problems: {str(e)}")

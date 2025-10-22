@@ -138,7 +138,30 @@ const Problems = () => {
     <div>
       <div className="flex items-center justify-between mb-4">
         <h1 className="text-2xl font-bold">Practice Problems</h1>
-        <button className="px-3 py-2 bg-blue-600 rounded" onClick={startCreate}>Create Problem</button>
+        <div className="flex items-center gap-2">
+          <label className="px-3 py-2 bg-green-600 rounded cursor-pointer">
+            Upload JSON
+            <input
+              type="file"
+              accept=".json"
+              className="hidden"
+              onChange={async (e) => {
+                const file = e.target.files?.[0]
+                if (!file) return
+                try {
+                  await adminAPI.uploadProblemsJson(file)
+                  alert('Problems uploaded successfully')
+                  await load()
+                } catch (err) {
+                  alert('Failed to upload: ' + (err.response?.data?.detail || err.message))
+                } finally {
+                  e.target.value = ''
+                }
+              }}
+            />
+          </label>
+          <button className="px-3 py-2 bg-blue-600 rounded" onClick={startCreate}>Create Problem</button>
+        </div>
       </div>
 
       <div className="overflow-x-auto mb-8">

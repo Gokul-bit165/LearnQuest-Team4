@@ -59,6 +59,7 @@ export const quizzesAPI = {
 export const usersAPI = {
   getProfile: () => api.get('/api/users/me'),
   getDashboard: () => api.get('/api/users/me/dashboard'),
+  getLeaderboard: (timeFilter = 'all') => api.get(`/api/users/leaderboard?time=${timeFilter}`),
 };
 
 // Lessons API

@@ -23,6 +23,7 @@ const Sidebar = () => {
     { name: 'AI Coach', href: '/coach', icon: Sparkles },
     { name: 'Courses', href: '/courses', icon: BookOpen },
     { name: 'Practice', href: '/practice', icon: Code },
+    { name: 'Leaderboard', href: '/leaderboard', icon: Trophy },
   ];
 
   const isActive = (path) => location.pathname === path;

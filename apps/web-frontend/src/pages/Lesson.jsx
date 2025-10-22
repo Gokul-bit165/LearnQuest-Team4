@@ -4,6 +4,7 @@ import { CheckCircle, XCircle, Code, HelpCircle, BookOpen, Edit3, Star, Zap, Arr
 import { coursesAPI, lessonsAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import Editor from '@monaco-editor/react';
+import LessonComplete from '../components/LessonComplete';
 
 const LessonPage = () => {
   const { slug, moduleId, topicId } = useParams();
@@ -28,7 +29,6 @@ const LessonPage = () => {
   const [showXPAnimation, setShowXPAnimation] = useState(false);
   const [xpGained, setXpGained] = useState(0);
   const [cardTransition, setCardTransition] = useState(false);
-  const [showCelebration, setShowCelebration] = useState(false);
 
   // Language options with their Judge0 IDs
   const languageOptions = [
@@ -240,10 +240,6 @@ const LessonPage = () => {
       
       if (result.success) {
         setLessonComplete(true);
-        triggerXPAnimation(result.xp_reward);
-        
-        // Show celebration animation
-        setShowCelebration(true);
         
         // Refresh user progress data
         await refreshUserProgress();
@@ -295,46 +291,12 @@ const LessonPage = () => {
 
   if (lessonComplete) {
     return (
-      <div className="min-h-screen bg-slate-900 flex items-center justify-center p-6">
-        <div className="max-w-2xl mx-auto relative">
-          {/* Celebration Animation */}
-          {showCelebration && (
-            <div className="fixed inset-0 pointer-events-none z-50">
-              <div className="absolute top-1/4 left-1/4 animate-bounce">
-                <div className="text-6xl">🎉</div>
-              </div>
-              <div className="absolute top-1/3 right-1/4 animate-bounce delay-300">
-                <div className="text-6xl">✨</div>
-              </div>
-              <div className="absolute bottom-1/3 left-1/3 animate-bounce delay-700">
-                <div className="text-6xl">🎊</div>
-              </div>
-              <div className="absolute bottom-1/4 right-1/3 animate-bounce delay-1000">
-                <div className="text-6xl">🌟</div>
-              </div>
-            </div>
-          )}
-          
-          <div className="bg-gradient-to-br from-green-500 to-blue-600 rounded-2xl p-8 text-center text-white shadow-2xl transform animate-pulse">
-            <CheckCircle className="w-20 h-20 mx-auto mb-6 animate-bounce" />
-            <h1 className="text-4xl font-bold mb-4">Lesson Complete!</h1>
-          <p className="text-xl mb-6">Great job completing "{topic.title}"!</p>
-            <div className="bg-white/20 rounded-xl p-6 mb-8">
-              <div className="flex items-center justify-center space-x-2 mb-2">
-                <Zap className="w-6 h-6 text-yellow-300" />
-                <p className="text-2xl font-bold">You earned {topic.xp_reward} XP!</p>
-              </div>
-              <p className="text-lg opacity-90">Keep up the amazing work!</p>
-          </div>
-            <button
-              onClick={handleBackToModule}
-              className="px-8 py-4 bg-white text-green-600 rounded-xl font-bold text-lg hover:bg-gray-100 transition-all duration-200 transform hover:scale-105 shadow-lg"
-            >
-              Back to Module
-            </button>
-          </div>
-        </div>
-      </div>
+      <LessonComplete
+        isVisible={lessonComplete}
+        lessonTitle={topic.title}
+        xpEarned={topic.xp_reward || 0}
+        onBackToModule={handleBackToModule}
+      />
     );
   }
 

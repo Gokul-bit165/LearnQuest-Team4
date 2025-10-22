@@ -143,4 +143,45 @@ To create your own course:
 }
 ```
 
+## Practice Problems JSON Template
+
+You can bulk import practice problems via the Admin → Practice Problems → Upload JSON button. Provide either an array or an object with a `problems` array.
+
+Required per problem: `prompt`, `code_starter`, `test_cases` (array of `{ input, expected_output, is_hidden? }`).
+
+```json
+{
+  "problems": [
+    {
+      "prompt": "Print 'Hello, World!'",
+      "code_starter": "# write code to print Hello, World!",
+      "test_cases": [
+        { "input": "", "expected_output": "Hello, World!", "is_hidden": false }
+      ],
+      "difficulty": "easy",
+      "tags": ["basics", "io"],
+      "xp_reward": 10,
+      "explanation": "Use print('Hello, World!')",
+      "is_practice_problem": true
+    },
+    {
+      "prompt": "Sum two integers",
+      "code_starter": "a = int(input())\nb = int(input())\n# print the sum",
+      "test_cases": [
+        { "input": "2\n3", "expected_output": "5", "is_hidden": false },
+        { "input": "10\n-4", "expected_output": "6", "is_hidden": true }
+      ],
+      "difficulty": "medium",
+      "tags": ["math"],
+      "xp_reward": 20,
+      "is_practice_problem": true
+    }
+  ]
+}
+```
+
+Notes:
+- Optional fields: `difficulty` (easy|medium|hard), `tags` (array), `xp_reward`, `explanation`, `course_id`, `topic_id`.
+- If `course_id` and `topic_id` are provided, they will be stored on the problem document.
+
 This template is tested and guaranteed to work with your admin panel! 🎉
