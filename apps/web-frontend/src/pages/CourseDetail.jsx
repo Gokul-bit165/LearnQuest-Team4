@@ -20,7 +20,7 @@ import {
 const CourseDetail = () => {
   const { slug } = useParams();
   const navigate = useNavigate();
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, refreshUserProgress } = useAuth();
   
   const [course, setCourse] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -41,6 +41,13 @@ const CourseDetail = () => {
 
     fetchCourse();
   }, [slug]);
+
+  // Keep progress fresh so module unlocks reflect latest completions
+  useEffect(() => {
+    if (isAuthenticated) {
+      refreshUserProgress();
+    }
+  }, [isAuthenticated, slug]);
 
 
   if (loading) {
@@ -160,7 +167,17 @@ const CourseDetail = () => {
               {/* Module Nodes */}
               <div className="relative flex justify-between items-center">
                 {course.modules.map((module, moduleIndex) => {
-                  const isUnlocked = moduleIndex === 0 || (user?.completed_modules && user.completed_modules.includes(module.module_id));
+                  // Fallback unlock: if previous module's all topics are completed, unlock this module
+                  let prevModuleCompleted = false;
+                  if (moduleIndex > 0) {
+                    const prev = course.modules[moduleIndex - 1];
+                    const prevTopics = prev?.topics || [];
+                    const completedTopicsSet = new Set(user?.completed_topics || []);
+                    prevModuleCompleted = prevTopics.length > 0 && prevTopics.every(t => completedTopicsSet.has(t.topic_id));
+                  }
+                  const isUnlocked = moduleIndex === 0 
+                    || (user?.completed_modules && user.completed_modules.includes(module.module_id))
+                    || prevModuleCompleted;
                   const isCompleted = user?.completed_modules && user.completed_modules.includes(module.module_id);
                   const totalTopics = module.topics?.length || 0;
                   const completedTopics = user?.completed_topics ? 

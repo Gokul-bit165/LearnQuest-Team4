@@ -146,7 +146,7 @@ async def upload_course_json(file: UploadFile = File(...), _: User = Depends(req
                     card_id = str(uuid.uuid4())
                     card_doc = {
                         "card_id": card_id,
-                        "type": card_data.get('type', 'theory'),
+                        "type": "fill-in-blank" if card_data.get('type') == "fill_blank" else card_data.get('type', 'theory'),
                         "content": card_data.get('content', ''),
                         "xp_reward": card_data.get('xp_reward', 10),
                         "explanation": card_data.get('explanation', ''),
@@ -162,9 +162,16 @@ async def upload_course_json(file: UploadFile = File(...), _: User = Depends(req
                         card_doc["is_practice_problem"] = card_data.get('is_practice_problem', False)
                         card_doc["difficulty"] = card_data.get('difficulty', "Medium")
                         card_doc["tags"] = card_data.get('tags', [])
-                    elif card_data.get('type') == "fill-in-blank":
-                        card_doc["blanks"] = card_data.get('blanks', [])
-                        card_doc["correct_answers"] = card_data.get('correct_answers', [])
+                    elif card_doc["type"] == "fill-in-blank":
+                        # Handle both old format (fill_blank with answer) and new format (fill-in-blank with correct_answers)
+                        if card_data.get('type') == "fill_blank" and card_data.get('answer'):
+                            # Old format: single answer field
+                            card_doc["correct_answers"] = [card_data['answer']]
+                            card_doc["blanks"] = ["blank"]  # Default blank identifier
+                        else:
+                            # New format: correct_answers and blanks arrays
+                            card_doc["blanks"] = card_data.get('blanks', [])
+                            card_doc["correct_answers"] = card_data.get('correct_answers', [])
                     
                     cards.append(card_doc)
                 
@@ -193,6 +200,10 @@ async def upload_course_json(file: UploadFile = File(...), _: User = Depends(req
     except json.JSONDecodeError:
         raise HTTPException(status_code=400, detail="Invalid JSON format")
     except Exception as e:
+        import traceback
+        error_details = traceback.format_exc()
+        print(f"Error processing file: {str(e)}")
+        print(f"Traceback: {error_details}")
         raise HTTPException(status_code=500, detail=f"Error processing file: {str(e)}")
 
 

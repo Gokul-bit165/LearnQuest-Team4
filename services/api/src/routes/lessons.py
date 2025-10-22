@@ -381,8 +381,17 @@ async def complete_topic(
     
     # Award topic completion XP
     topic_xp = topic.get("xp_reward", 50)
-    
-    # Update user
+
+    # Determine module and topic lists for completion logic
+    module_id = None
+    module_topic_ids = []
+    for m in course_doc["modules"]:
+        ids = [t["topic_id"] for t in m.get("topics", [])]
+        if topic_id in ids:
+            module_id = m.get("module_id")
+        module_topic_ids.append((m.get("module_id"), ids))
+
+    # Update user progress and XP, add completed topic
     users.update_one(
         {"_id": ObjectId(current_user.id)},
         {
@@ -390,9 +399,21 @@ async def complete_topic(
             "$set": {
                 "last_active_date": datetime.utcnow(),
                 "streak_count": new_streak
-            }
+            },
+            "$addToSet": {"completed_topics": topic_id}
         }
     )
+
+    # If all topics in the module are completed, mark module as completed
+    if module_id:
+        user_after = users.find_one({"_id": ObjectId(current_user.id)}, {"completed_topics": 1})
+        completed_topics_set = set(user_after.get("completed_topics", []))
+        module_ids = next((ids for mid, ids in module_topic_ids if mid == module_id), [])
+        if module_ids and all(tid in completed_topics_set for tid in module_ids):
+            users.update_one(
+                {"_id": ObjectId(current_user.id)},
+                {"$addToSet": {"completed_modules": module_id}}
+            )
     
     return CompleteTopicResponse(
         success=True,

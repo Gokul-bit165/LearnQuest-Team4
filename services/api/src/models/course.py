@@ -9,6 +9,7 @@ class CardType(str, Enum):
     MCQ = "mcq"
     CODE = "code"
     FILL_IN_BLANK = "fill-in-blank"
+    FILL_BLANK = "fill_blank"  # Support legacy format
 
 
 class Card(BaseModel):

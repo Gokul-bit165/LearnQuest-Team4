@@ -89,11 +89,16 @@ export const AuthProvider = ({ children }) => {
   const refreshUserProgress = async () => {
     if (token && user) {
       try {
+        // Fetch fresh auth/me to include completed_topics and completed_modules
+        const meResponse = await authAPI.getMe();
+        const meData = meResponse.data;
+        // Optionally also fetch streak/xp from lessons endpoint
         const progressResponse = await lessonsAPI.getUserProgress();
         const progressData = progressResponse.data;
-        
+
         setUser(prevUser => ({
           ...prevUser,
+          ...meData,
           ...progressData
         }));
       } catch (error) {

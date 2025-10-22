@@ -21,7 +21,7 @@ import {
 const ModuleHubPage = () => {
   const { slug, moduleId } = useParams();
   const navigate = useNavigate();
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, refreshUserProgress } = useAuth();
   
   const [course, setCourse] = useState(null);
   const [module, setModule] = useState(null);
@@ -31,6 +31,13 @@ const ModuleHubPage = () => {
   useEffect(() => {
     fetchModuleData();
   }, [slug, moduleId]);
+
+  // Ensure we have fresh progress so locking reflects latest completions
+  useEffect(() => {
+    if (isAuthenticated) {
+      refreshUserProgress();
+    }
+  }, [isAuthenticated, slug, moduleId]);
 
   const fetchModuleData = async () => {
     try {
