@@ -1,0 +1,31 @@
+[
+  {
+    "_id": "68f5ad395520ff540cdd650c",
+    "course_id": "68f5ad395520ff540cdd650a",
+    "title": "Python Basics Quiz",
+    "duration_seconds": 1800,
+    "question_ids": [
+      "68f5ad395520ff540cdd650e",
+      "68f5ad395520ff540cdd650f",
+      "68f5ad395520ff540cdd6510",
+      "68f5ad395520ff540cdd6511",
+      "68f5ad395520ff540cdd6512",
+      "68f5ad395520ff540cdd6513"
+    ],
+    "xp_reward": 50,
+    "created_at": "2025-10-20T03:32:09.201000"
+  },
+  {
+    "_id": "68f5ad395520ff540cdd650d",
+    "course_id": "68f5ad395520ff540cdd650b",
+    "title": "Data Structures Quiz",
+    "duration_seconds": 1800,
+    "question_ids": [
+      "68f5ad395520ff540cdd6514",
+      "68f5ad395520ff540cdd6515",
+      "68f5ad395520ff540cdd6516"
+    ],
+    "xp_reward": 50,
+    "created_at": "2025-10-20T03:32:09.221000"
+  }
+]

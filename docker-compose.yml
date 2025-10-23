@@ -19,14 +19,13 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - MONGO_URL=mongodb://db:27017
-      - MONGO_DB=learnquest
-      - JWT_SECRET_KEY=your-secret-key-change-in-production
-      - CHROMA_HOST=chroma
-      - CHROMA_PORT=8000
-      - OLLAMA_BASE_URL=http://host.docker.internal:11434
+      - MONGO_URL=${MONGO_URL:-mongodb://db:27017}
+      - MONGO_DB=${MONGO_DB:-learnquest}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-your-secret-key-change-in-production}
+      - CHROMA_HOST=${CHROMA_HOST:-chroma}
+      - CHROMA_PORT=${CHROMA_PORT:-8000}
+      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
     depends_on:
-      - db
       - chroma-init
       - seed
     restart: unless-stopped

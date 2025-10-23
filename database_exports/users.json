@@ -1,0 +1,242 @@
+[
+  {
+    "_id": "68f8798b9cef58e637f45108",
+    "name": "John Student",
+    "email": "student@learnquest.com",
+    "password": "$2b$12$54ZQZihV.gtZSb5wifcKsuuSKbAb592LYR2g2UOPtovBthkLlGSAq",
+    "role": "admin",
+    "avatar_url": null,
+    "auth_provider": "email",
+    "xp": 1650,
+    "level": 1,
+    "enrolled_courses": [],
+    "quiz_history": [],
+    "badges": [],
+    "created_at": "2025-10-22T06:28:27.519000",
+    "last_active_date": "2025-10-22T15:33:13.583000",
+    "streak_count": 1,
+    "completed_topics": [
+      "e70ebf9c-3bfd-4a24-94c8-6868da443429",
+      "b4985462-4f71-4a42-8644-d32c622e87ab",
+      "3ec9d666-bbc9-4fc8-b09c-58319b0d69dd",
+      "1d4ea770-53d3-445b-b927-a630fc750c0e",
+      "6767e4f1-8497-4470-becf-e5c4128c33c3",
+      "5ea80148-d49e-4921-b112-12bd81856d81",
+      "2cc5f9f9-3f51-4a62-b0f4-117fd10dd639",
+      "fd44a078-e699-4485-a7c3-8d6e81e289a5",
+      "7e6bf74c-0ae9-4c18-9d06-ea5a76581c76",
+      "c6eb4614-2a3f-42ac-8f81-abf3fd68e14c",
+      "02d05784-27a8-4ae7-94b9-f7d0d9be99da"
+    ],
+    "completed_modules": [
+      "808282b3-032e-4128-b399-e8e6602c5a8b",
+      "8ef29f9f-39e3-4777-b8a4-89e347d104a3",
+      "63757146-6ce7-470a-bcfe-a6de6ad827d4"
+    ]
+  },
+  {
+    "_id": "68f87b2729f86830b07c8773",
+    "name": "gokul",
+    "email": "gokul@gmail.com",
+    "password": "fallback_hash_gokul123",
+    "role": "student",
+    "xp": 470,
+    "level": 1,
+    "badges": [],
+    "enrolled_courses": [],
+    "quiz_history": [],
+    "created_at": "2025-10-22T06:35:19.937000",
+    "completed_topics": [
+      "c783bb8d-e354-460a-9bc9-9bab80fc84e1",
+      "6045afc8-ea15-4980-94b6-81a22354ad7e"
+    ],
+    "last_active_date": "2025-10-22T17:12:18.726000",
+    "streak_count": 1
+  },
+  {
+    "_id": "68f87b2f29f86830b07c8774",
+    "name": "varun",
+    "email": "varun@gmail.com",
+    "password": "fallback_hash_varun123",
+    "role": "student",
+    "xp": 370,
+    "level": 1,
+    "badges": [],
+    "enrolled_courses": [],
+    "quiz_history": [],
+    "created_at": "2025-10-22T06:35:27.282000",
+    "completed_topics": [
+      "c6eb4614-2a3f-42ac-8f81-abf3fd68e14c",
+      "54dc50c6-0930-4685-830d-06a1f6d560da",
+      "e5963381-2a17-4bab-971e-77d19430518f"
+    ],
+    "last_active_date": "2025-10-22T09:36:09.940000",
+    "streak_count": 1,
+    "completed_modules": [
+      "d963ddd2-1f5d-43f8-a59f-ce26e5b9d748"
+    ]
+  },
+  {
+    "_id": "68f87b4f29f86830b07c8775",
+    "name": "admin",
+    "email": "admin@learnquest.com",
+    "password": "fallback_hash_admin123",
+    "role": "admin",
+    "xp": 1240,
+    "level": 1,
+    "badges": [],
+    "enrolled_courses": [],
+    "quiz_history": [],
+    "created_at": "2025-10-22T06:35:59.332000",
+    "last_active_date": "2025-10-23T03:16:53.661000",
+    "streak_count": 2,
+    "completed_topics": [
+      "c783bb8d-e354-460a-9bc9-9bab80fc84e1",
+      "6045afc8-ea15-4980-94b6-81a22354ad7e",
+      "f95edd36-61a6-412f-aa43-4754f597862f"
+    ],
+    "completed_modules": [
+      "559da784-bc77-45ba-b099-46a264208e5f"
+    ]
+  },
+  {
+    "_id": "68f91d89d83efad22158b046",
+    "name": "Test User",
+    "email": "test@example.com",
+    "password_hash": "$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBPj4J/8KzKz2K",
+    "role": "student",
+    "xp": 2500,
+    "level": 3,
+    "badges": [
+      "First Quiz",
+      "Streak Master",
+      "Speed Learner"
+    ],
+    "enrolled_courses": [
+      {
+        "course_id": "course1",
+        "progress_percent": 75,
+        "completed_modules": [
+          "module1",
+          "module2"
+        ]
+      }
+    ],
+    "quiz_history": [
+      {
+        "quiz_id": "quiz_0",
+        "score": 70,
+        "date": "2025-09-22T18:08:09.513000",
+        "wrong_questions": []
+      },
+      {
+        "quiz_id": "quiz_1",
+        "score": 75,
+        "date": "2025-09-24T18:08:09.513000",
+        "wrong_questions": []
+      },
+      {
+        "quiz_id": "quiz_2",
+        "score": 80,
+        "date": "2025-09-26T18:08:09.513000",
+        "wrong_questions": []
+      },
+      {
+        "quiz_id": "quiz_3",
+        "score": 85,
+        "date": "2025-09-28T18:08:09.513000",
+        "wrong_questions": []
+      },
+      {
+        "quiz_id": "quiz_4",
+        "score": 70,
+        "date": "2025-09-30T18:08:09.513000",
+        "wrong_questions": []
+      },
+      {
+        "quiz_id": "quiz_5",
+        "score": 75,
+        "date": "2025-10-02T18:08:09.513000",
+        "wrong_questions": []
+      },
+      {
+        "quiz_id": "quiz_6",
+        "score": 80,
+        "date": "2025-10-04T18:08:09.513000",
+        "wrong_questions": []
+      },
+      {
+        "quiz_id": "quiz_7",
+        "score": 85,
+        "date": "2025-10-06T18:08:09.513000",
+        "wrong_questions": []
+      },
+      {
+        "quiz_id": "quiz_8",
+        "score": 70,
+        "date": "2025-10-08T18:08:09.513000",
+        "wrong_questions": []
+      },
+      {
+        "quiz_id": "quiz_9",
+        "score": 75,
+        "date": "2025-10-10T18:08:09.513000",
+        "wrong_questions": []
+      },
+      {
+        "quiz_id": "quiz_10",
+        "score": 80,
+        "date": "2025-10-12T18:08:09.513000",
+        "wrong_questions": []
+      },
+      {
+        "quiz_id": "quiz_11",
+        "score": 85,
+        "date": "2025-10-14T18:08:09.513000",
+        "wrong_questions": []
+      },
+      {
+        "quiz_id": "quiz_12",
+        "score": 70,
+        "date": "2025-10-16T18:08:09.513000",
+        "wrong_questions": []
+      },
+      {
+        "quiz_id": "quiz_13",
+        "score": 75,
+        "date": "2025-10-18T18:08:09.513000",
+        "wrong_questions": []
+      },
+      {
+        "quiz_id": "quiz_14",
+        "score": 80,
+        "date": "2025-10-20T18:08:09.513000",
+        "wrong_questions": []
+      }
+    ],
+    "completed_topics": [
+      "topic_1",
+      "topic_2",
+      "topic_3",
+      "topic_4",
+      "topic_5",
+      "topic_6",
+      "topic_7",
+      "topic_8",
+      "topic_9",
+      "topic_10",
+      "topic_11",
+      "topic_12",
+      "topic_13",
+      "topic_14",
+      "topic_15"
+    ],
+    "completed_modules": [
+      "module1",
+      "module2"
+    ],
+    "streak_count": 8,
+    "last_active_date": "2025-10-22T18:08:09.513000",
+    "created_at": "2025-10-22T18:08:09.506000"
+  }
+]

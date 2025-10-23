@@ -1,0 +1,11 @@
+{
+  "export_date": "2025-10-23T03:41:30.763192",
+  "database_name": "learnquest",
+  "collections": [
+    "quizzes",
+    "users",
+    "courses",
+    "questions"
+  ],
+  "total_collections": 4
+}
