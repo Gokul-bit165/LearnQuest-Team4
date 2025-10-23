@@ -38,7 +38,7 @@
     "_id": "68f87b2729f86830b07c8773",
     "name": "gokul",
     "email": "gokul@gmail.com",
-    "password": "fallback_hash_gokul123",
+    "password": "$2b$12$edNm169AMGZPabPeqRcf3OnYyvN5qOjZvucpacqm0yTKAuxB5rGuO",
     "role": "student",
     "xp": 470,
     "level": 1,
@@ -57,7 +57,7 @@
     "_id": "68f87b2f29f86830b07c8774",
     "name": "varun",
     "email": "varun@gmail.com",
-    "password": "fallback_hash_varun123",
+    "password": "$2b$12$ElM00pP/v4UT8MGn.f9fluJG5aK.y0aoJL4hdZTk8WTKh.OYoB0D2",
     "role": "student",
     "xp": 370,
     "level": 1,
@@ -80,7 +80,7 @@
     "_id": "68f87b4f29f86830b07c8775",
     "name": "admin",
     "email": "admin@learnquest.com",
-    "password": "fallback_hash_admin123",
+    "password": "$2b$12$XkQidJ0hhQcJ1nKM6A0Xnusuo2HjYjxgwnxTlNh7rRmIcWuWQ1UiS",
     "role": "admin",
     "xp": 1240,
     "level": 1,
@@ -237,6 +237,7 @@
     ],
     "streak_count": 8,
     "last_active_date": "2025-10-22T18:08:09.513000",
-    "created_at": "2025-10-22T18:08:09.506000"
+    "created_at": "2025-10-22T18:08:09.506000",
+    "password": "$2b$12$B5EKxvzP3xG.PptfuyCip.J05Dm1zByJdp/WXG1yOcXAcnZAmsBXS"
   }
 ]
