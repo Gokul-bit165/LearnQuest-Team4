@@ -27,5 +27,145 @@
     ],
     "xp_reward": 50,
     "created_at": "2025-10-20T03:32:09.221000"
+  },
+  {
+    "_id": "68fa7e0457d1f6f59df15648",
+    "course_id": "68f7ba8b531b6a649806df0d",
+    "title": "AI Generated Quiz - Python for Beginners",
+    "duration_seconds": 300,
+    "question_ids": [
+      "68fa7e0457d1f6f59df15643",
+      "68fa7e0457d1f6f59df15644",
+      "68fa7e0457d1f6f59df15645",
+      "68fa7e0457d1f6f59df15646",
+      "68fa7e0457d1f6f59df15647"
+    ],
+    "xp_reward": 50,
+    "created_at": "2025-10-23T19:12:04.836000",
+    "is_ai_generated": true
+  },
+  {
+    "_id": "68fa7f6f57d1f6f59df1564e",
+    "course_id": "68f7ba8b531b6a649806df0d",
+    "title": "AI Generated Quiz - Python for Beginners",
+    "duration_seconds": 300,
+    "question_ids": [
+      "68fa7f6f57d1f6f59df15649",
+      "68fa7f6f57d1f6f59df1564a",
+      "68fa7f6f57d1f6f59df1564b",
+      "68fa7f6f57d1f6f59df1564c",
+      "68fa7f6f57d1f6f59df1564d"
+    ],
+    "xp_reward": 50,
+    "created_at": "2025-10-23T19:18:07.224000",
+    "is_ai_generated": true
+  },
+  {
+    "_id": "68fa7f8957d1f6f59df15654",
+    "course_id": "68f7ba8b531b6a649806df0d",
+    "title": "AI Generated Quiz - Python for Beginners",
+    "duration_seconds": 300,
+    "question_ids": [
+      "68fa7f8957d1f6f59df1564f",
+      "68fa7f8957d1f6f59df15650",
+      "68fa7f8957d1f6f59df15651",
+      "68fa7f8957d1f6f59df15652",
+      "68fa7f8957d1f6f59df15653"
+    ],
+    "xp_reward": 50,
+    "created_at": "2025-10-23T19:18:33.939000",
+    "is_ai_generated": true
+  },
+  {
+    "_id": "68fa7fa657d1f6f59df1565a",
+    "course_id": "68f7ba8b531b6a649806df0d",
+    "title": "AI Generated Quiz - Python for Beginners",
+    "duration_seconds": 300,
+    "question_ids": [
+      "68fa7fa657d1f6f59df15655",
+      "68fa7fa657d1f6f59df15656",
+      "68fa7fa657d1f6f59df15657",
+      "68fa7fa657d1f6f59df15658",
+      "68fa7fa657d1f6f59df15659"
+    ],
+    "xp_reward": 50,
+    "created_at": "2025-10-23T19:19:02.037000",
+    "is_ai_generated": true
+  },
+  {
+    "_id": "68fa823657d1f6f59df15660",
+    "course_id": "68f7ba8b531b6a649806df0d",
+    "title": "AI Generated Quiz - Python for Beginners",
+    "duration_seconds": 300,
+    "question_ids": [
+      "68fa823657d1f6f59df1565b",
+      "68fa823657d1f6f59df1565c",
+      "68fa823657d1f6f59df1565d",
+      "68fa823657d1f6f59df1565e",
+      "68fa823657d1f6f59df1565f"
+    ],
+    "xp_reward": 50,
+    "created_at": "2025-10-23T19:29:58.252000",
+    "is_ai_generated": true
+  },
+  {
+    "_id": "68fa867b57d1f6f59df15666",
+    "course_id": "68f8b5aa929f4cb9a87b5102",
+    "title": "AI Generated Quiz - C Programming Basics: From Syntax to Logic",
+    "duration_seconds": 300,
+    "question_ids": [
+      "68fa867b57d1f6f59df15661",
+      "68fa867b57d1f6f59df15662",
+      "68fa867b57d1f6f59df15663",
+      "68fa867b57d1f6f59df15664",
+      "68fa867b57d1f6f59df15665"
+    ],
+    "xp_reward": 50,
+    "created_at": "2025-10-23T19:48:11.281000",
+    "is_ai_generated": true
+  },
+  {
+    "_id": "68fa86e257d1f6f59df1566c",
+    "course_id": "68f7ba8b531b6a649806df0d",
+    "title": "AI Generated Quiz - Python for Beginners",
+    "duration_seconds": 300,
+    "question_ids": [
+      "68fa86e257d1f6f59df15667",
+      "68fa86e257d1f6f59df15668",
+      "68fa86e257d1f6f59df15669",
+      "68fa86e257d1f6f59df1566a",
+      "68fa86e257d1f6f59df1566b"
+    ],
+    "xp_reward": 50,
+    "created_at": "2025-10-23T19:49:54.114000",
+    "is_ai_generated": true
+  },
+  {
+    "_id": "68fa87ab57d1f6f59df1566e",
+    "course_id": "68f8f8d6264227b77d6caf8c",
+    "title": "AI Generated Quiz - Data Structures for Beginners",
+    "duration_seconds": 300,
+    "question_ids": [
+      "68fa87ab57d1f6f59df1566d"
+    ],
+    "xp_reward": 50,
+    "created_at": "2025-10-23T19:53:15.443000",
+    "is_ai_generated": true
+  },
+  {
+    "_id": "68faf13ab2865f557c59dd5f",
+    "course_id": "68f7ba8b531b6a649806df0d",
+    "title": "AI Generated Quiz - Python for Beginners",
+    "duration_seconds": 300,
+    "question_ids": [
+      "68faf13ab2865f557c59dd5a",
+      "68faf13ab2865f557c59dd5b",
+      "68faf13ab2865f557c59dd5c",
+      "68faf13ab2865f557c59dd5d",
+      "68faf13ab2865f557c59dd5e"
+    ],
+    "xp_reward": 50,
+    "created_at": "2025-10-24T03:23:38.012000",
+    "is_ai_generated": true
   }
 ]

@@ -103,8 +103,8 @@
     "type": "code",
     "course_id": "68f5ad395520ff540cdd650a",
     "quiz_id": "68f5ad395520ff540cdd650c",
-    "prompt": "Implement function solve(n) that prints the factorial of n. Read integer n from input and print result without extra text.",
-    "code_starter": "def solve(n):\n    # your code here\n    return 1\n\nif __name__ == '__main__':\n    import sys\n    data = sys.stdin.read().strip()\n    n = int(data) if data else 0\n    print(solve(n))\n",
+    "prompt": "Updated: Implement function solve(n) that prints the factorial of n",
+    "code_starter": "def solve(n):\n    # your code here\n    return 1\n \nif __name__ == '__main__':\n    import sys\n    data = sys.stdin.read().strip()\n    n = int(data) if data else 0\n    print(solve(n))\n",
     "test_cases": [
       {
         "input": "0\n",
@@ -122,14 +122,17 @@
         "is_hidden": true
       }
     ],
-    "difficulty": "easy",
+    "difficulty": "medium",
     "tags": [
       "functions",
-      "loops"
+      "loops",
+      "updated"
     ],
     "created_at": "2025-10-20T03:32:09.222000",
     "is_practice_problem": true,
-    "updated_at": "2025-10-20T13:54:18.539000"
+    "updated_at": "2025-10-23T19:56:41.717000",
+    "explanation": "",
+    "xp_reward": 15
   },
   {
     "_id": "68f5ad395520ff540cdd6514",
@@ -225,7 +228,7 @@
     "is_practice_problem": true,
     "explanation": "Use a hash map to store numbers and their indices. For each number, check if target - number exists in the map.",
     "created_at": "2025-10-20T04:22:35.393000",
-    "updated_at": "2025-10-21T16:25:06.636000"
+    "updated_at": "2025-10-23T17:03:42.756000"
   },
   {
     "_id": "68f5b90b38b1bbde4a471e14",
@@ -259,7 +262,8 @@
     "xp_reward": 10,
     "is_practice_problem": true,
     "explanation": "Use two pointers, one at the start and one at the end. Swap characters and move pointers towards the center.",
-    "created_at": "2025-10-20T04:22:35.393000"
+    "created_at": "2025-10-20T04:22:35.393000",
+    "updated_at": "2025-10-23T17:04:52.511000"
   },
   {
     "_id": "68f5b90b38b1bbde4a471e15",
@@ -369,7 +373,8 @@
     "xp_reward": 15,
     "is_practice_problem": true,
     "explanation": "In-order traversal: left subtree, root, right subtree. Use recursion or a stack to implement.",
-    "created_at": "2025-10-20T04:22:35.393000"
+    "created_at": "2025-10-20T04:22:35.393000",
+    "updated_at": "2025-10-23T16:06:15.842000"
   },
   {
     "_id": "68f63af0bf8d245ea4988fd1",
@@ -432,5 +437,1101 @@
     ],
     "created_at": "2025-10-20T14:09:28.522000",
     "updated_at": "2025-10-20T15:11:24.807000"
+  },
+  {
+    "_id": "68f9e19b925ee14a5359335a",
+    "type": "code",
+    "title": "Two Sum",
+    "prompt": "Given an array and a target, return indices of numbers that add up to target.",
+    "course_id": "68f90112264227b77d6caf8d",
+    "topic_id": "c2a098e5-2437-4d44-8b1b-708cc8c6c839",
+    "topic_name": "Unbounded Knapsack",
+    "difficulty": "medium",
+    "tags": [
+      "Unbounded Knapsack"
+    ],
+    "code_starter": "def solve():\n    pass\n\nif __name__ == '__main__':\n    print('')\n",
+    "test_cases": [
+      {
+        "input": "4\n2 7 11 15\n9\n",
+        "expected_output": "0 1",
+        "is_hidden": false
+      }
+    ],
+    "created_at": "2025-10-23T08:04:43.107000",
+    "seed_tag": "practice_seed_v1"
+  },
+  {
+    "_id": "68f9e19b925ee14a5359335b",
+    "type": "code",
+    "title": "Valid Palindrome",
+    "prompt": "Check if a string is a palindrome ignoring non-alphanumeric and case.",
+    "course_id": "68f90112264227b77d6caf8d",
+    "topic_id": "38cce617-38a2-45c5-98a5-9d802eb90e0c",
+    "topic_name": "Stacks: Basics and Implementation",
+    "difficulty": "easy",
+    "tags": [
+      "Stacks: Basics and Implementation"
+    ],
+    "code_starter": "def solve():\n    pass\n\nif __name__ == '__main__':\n    print('')\n",
+    "test_cases": [
+      {
+        "input": "A man, a plan, a canal: Panama\n",
+        "expected_output": "true",
+        "is_hidden": false
+      }
+    ],
+    "created_at": "2025-10-23T08:04:43.114000",
+    "seed_tag": "practice_seed_v1",
+    "explanation": "",
+    "is_practice_problem": true,
+    "updated_at": "2025-10-23T16:40:46.236000",
+    "xp_reward": 10
+  },
+  {
+    "_id": "68f9e19b925ee14a5359335c",
+    "type": "code",
+    "title": "Fibonacci",
+    "prompt": "Print n-th Fibonacci number (0-indexed, fib(0)=0,fib(1)=1).",
+    "course_id": "68f8b5aa929f4cb9a87b5102",
+    "topic_id": "f95edd36-61a6-412f-aa43-4754f597862f",
+    "topic_name": "Compilation and Execution Process",
+    "difficulty": "medium",
+    "tags": [
+      "Compilation and Execution Process"
+    ],
+    "code_starter": "def solve():\n    pass\n\nif __name__ == '__main__':\n    print('')\n",
+    "test_cases": [
+      {
+        "input": "5\n",
+        "expected_output": "5",
+        "is_hidden": false
+      }
+    ],
+    "created_at": "2025-10-23T08:04:43.117000",
+    "seed_tag": "practice_seed_v1"
+  },
+  {
+    "_id": "68f9e19b925ee14a5359335d",
+    "type": "code",
+    "title": "Factorial",
+    "prompt": "Compute factorial of n.",
+    "course_id": "68f90112264227b77d6caf8d",
+    "topic_id": "3c922da8-5893-4998-b4ca-f7e3e1deec30",
+    "topic_name": "Circular Linked List",
+    "difficulty": "medium",
+    "tags": [
+      "Circular Linked List"
+    ],
+    "code_starter": "def solve():\n    pass\n\nif __name__ == '__main__':\n    print('')\n",
+    "test_cases": [
+      {
+        "input": "5\n",
+        "expected_output": "120",
+        "is_hidden": false
+      }
+    ],
+    "created_at": "2025-10-23T08:04:43.119000",
+    "seed_tag": "practice_seed_v1"
+  },
+  {
+    "_id": "68f9e19b925ee14a5359335e",
+    "type": "code",
+    "title": "Reverse String",
+    "prompt": "Reverse the given string.",
+    "course_id": "68f90112264227b77d6caf8d",
+    "topic_id": "476dd44c-6dd0-4ca1-81f2-bb007b4faf5a",
+    "topic_name": "Priority Queues",
+    "difficulty": "medium",
+    "tags": [
+      "Priority Queues"
+    ],
+    "code_starter": "def solve():\n    pass\n\nif __name__ == '__main__':\n    print('')\n",
+    "test_cases": [
+      {
+        "input": "hello\n",
+        "expected_output": "olleh",
+        "is_hidden": false
+      }
+    ],
+    "created_at": "2025-10-23T08:04:43.120000",
+    "seed_tag": "practice_seed_v1"
+  },
+  {
+    "_id": "68f9e19b925ee14a5359335f",
+    "type": "code",
+    "title": "Anagram Check",
+    "prompt": "Check if two strings are anagrams.",
+    "course_id": "68f8f8d6264227b77d6caf8c",
+    "topic_id": "3ab6f2b3-56a6-4723-9f63-a737c48600a2",
+    "topic_name": "Binary Trees",
+    "difficulty": "easy",
+    "tags": [
+      "Binary Trees"
+    ],
+    "code_starter": "def solve():\n    pass\n\nif __name__ == '__main__':\n    print('')\n",
+    "test_cases": [
+      {
+        "input": "listen\nsilent\n",
+        "expected_output": "true",
+        "is_hidden": false
+      }
+    ],
+    "created_at": "2025-10-23T08:04:43.122000",
+    "seed_tag": "practice_seed_v1"
+  },
+  {
+    "_id": "68f9e19b925ee14a53593360",
+    "type": "code",
+    "title": "Max Subarray Sum",
+    "prompt": "Kadane's algorithm to find maximum subarray sum.",
+    "course_id": "68f8981d1515e67cdf472464",
+    "topic_id": "b7cac390-9472-465f-9b73-192035dc6aef",
+    "topic_name": "Method Overriding",
+    "difficulty": "medium",
+    "tags": [
+      "Method Overriding"
+    ],
+    "code_starter": "def solve():\n    pass\n\nif __name__ == '__main__':\n    print('')\n",
+    "test_cases": [
+      {
+        "input": "5\n-2 1 -3 4 -1\n",
+        "expected_output": "4",
+        "is_hidden": false
+      }
+    ],
+    "created_at": "2025-10-23T08:04:43.124000",
+    "seed_tag": "practice_seed_v1"
+  },
+  {
+    "_id": "68f9e19b925ee14a53593361",
+    "type": "code",
+    "title": "Count Vowels",
+    "prompt": "Count vowels in a string.",
+    "course_id": "68f90112264227b77d6caf8d",
+    "topic_id": "73fa0ef3-8525-4642-aa96-8f77895e3aee",
+    "topic_name": "Advanced Tree Problems",
+    "difficulty": "medium",
+    "tags": [
+      "Advanced Tree Problems"
+    ],
+    "code_starter": "def solve():\n    pass\n\nif __name__ == '__main__':\n    print('')\n",
+    "test_cases": [
+      {
+        "input": "education\n",
+        "expected_output": "5",
+        "is_hidden": false
+      }
+    ],
+    "created_at": "2025-10-23T08:04:43.126000",
+    "seed_tag": "practice_seed_v1"
+  },
+  {
+    "_id": "68f9e19b925ee14a53593362",
+    "type": "code",
+    "title": "Unique Elements",
+    "prompt": "Return number of unique elements.",
+    "course_id": "68f90112264227b77d6caf8d",
+    "topic_id": "30b0e9c8-9b03-4cdb-98ec-2cceb2126c85",
+    "topic_name": "Introduction to Recursion",
+    "difficulty": "medium",
+    "tags": [
+      "Introduction to Recursion"
+    ],
+    "code_starter": "def solve():\n    pass\n\nif __name__ == '__main__':\n    print('')\n",
+    "test_cases": [
+      {
+        "input": "6\n1 2 2 3 4 4\n",
+        "expected_output": "4",
+        "is_hidden": false
+      }
+    ],
+    "created_at": "2025-10-23T08:04:43.128000",
+    "seed_tag": "practice_seed_v1"
+  },
+  {
+    "_id": "68f9e19b925ee14a53593363",
+    "type": "code",
+    "title": "Matrix Diagonal Sum",
+    "prompt": "Sum of primary diagonal.",
+    "course_id": "68f87f7629f86830b07c877a",
+    "topic_id": "4ae18c05-8f29-4c44-a9fe-5ac00837e448",
+    "topic_name": "Neural Network Fundamentals",
+    "difficulty": "medium",
+    "tags": [
+      "Neural Network Fundamentals"
+    ],
+    "code_starter": "def solve():\n    pass\n\nif __name__ == '__main__':\n    print('')\n",
+    "test_cases": [
+      {
+        "input": "3\n1 2 3\n4 5 6\n7 8 9\n",
+        "expected_output": "15",
+        "is_hidden": false
+      }
+    ],
+    "created_at": "2025-10-23T08:04:43.130000",
+    "seed_tag": "practice_seed_v1"
+  },
+  {
+    "_id": "68f9e19b925ee14a53593364",
+    "type": "code",
+    "title": "Valid Parentheses",
+    "prompt": "Check if parentheses string is valid.",
+    "course_id": "68f8b5aa929f4cb9a87b5102",
+    "topic_id": "d7a54ee9-46d5-4ab5-87af-a44c44fc313a",
+    "topic_name": "Operators in C",
+    "difficulty": "medium",
+    "tags": [
+      "Operators in C"
+    ],
+    "code_starter": "def solve():\n    pass\n\nif __name__ == '__main__':\n    print('')\n",
+    "test_cases": [
+      {
+        "input": "()[]{}\n",
+        "expected_output": "true",
+        "is_hidden": false
+      }
+    ],
+    "created_at": "2025-10-23T08:04:43.131000",
+    "seed_tag": "practice_seed_v1"
+  },
+  {
+    "_id": "68f9e19b925ee14a53593365",
+    "type": "code",
+    "title": "First Non-Repeating",
+    "prompt": "First non-repeating character index.",
+    "course_id": "68f8b5aa929f4cb9a87b5102",
+    "topic_id": "c783bb8d-e354-460a-9bc9-9bab80fc84e1",
+    "topic_name": "What is C?",
+    "difficulty": "easy",
+    "tags": [
+      "What is C?"
+    ],
+    "code_starter": "def solve():\n    pass\n\nif __name__ == '__main__':\n    print('')\n",
+    "test_cases": [
+      {
+        "input": "leetcode\n",
+        "expected_output": "0",
+        "is_hidden": false
+      }
+    ],
+    "created_at": "2025-10-23T08:04:43.134000",
+    "seed_tag": "practice_seed_v1"
+  },
+  {
+    "_id": "68f9e19b925ee14a53593366",
+    "type": "code",
+    "title": "Merge Two Sorted Lists",
+    "prompt": "Merge two sorted lists.",
+    "course_id": "68f8f8d6264227b77d6caf8c",
+    "topic_id": "9c64ea06-e0db-469c-8221-b1c0929c80a6",
+    "topic_name": "Time and Space Complexity",
+    "difficulty": "medium",
+    "tags": [
+      "Time and Space Complexity"
+    ],
+    "code_starter": "def solve():\n    pass\n\nif __name__ == '__main__':\n    print('')\n",
+    "test_cases": [
+      {
+        "input": "3\n1 3 5\n3\n2 4 6\n",
+        "expected_output": "1 2 3 4 5 6",
+        "is_hidden": false
+      }
+    ],
+    "created_at": "2025-10-23T08:04:43.137000",
+    "seed_tag": "practice_seed_v1"
+  },
+  {
+    "_id": "68f9e19b925ee14a53593367",
+    "type": "code",
+    "title": "Binary Search",
+    "prompt": "Find index of target in sorted array.",
+    "course_id": "68f90112264227b77d6caf8d",
+    "topic_id": "75860a64-62b4-4e89-9488-c36d92f29bab",
+    "topic_name": "Heap Operations: Insertion, Extraction, and Heapify",
+    "difficulty": "medium",
+    "tags": [
+      "Heap Operations: Insertion, Extraction, and Heapify"
+    ],
+    "code_starter": "def solve():\n    pass\n\nif __name__ == '__main__':\n    print('')\n",
+    "test_cases": [
+      {
+        "input": "5\n1 3 5 7 9\n7\n",
+        "expected_output": "3",
+        "is_hidden": false
+      }
+    ],
+    "created_at": "2025-10-23T08:04:43.140000",
+    "seed_tag": "practice_seed_v1"
+  },
+  {
+    "_id": "68f9e19b925ee14a53593368",
+    "type": "code",
+    "title": "Two Pointers Sum <= K",
+    "prompt": "Count pairs with sum <= K.",
+    "course_id": "68f90112264227b77d6caf8d",
+    "topic_id": "b8bfac73-8668-4927-ac0b-f39d26fa9a6a",
+    "topic_name": "Backtracking Basics",
+    "difficulty": "medium",
+    "tags": [
+      "Backtracking Basics"
+    ],
+    "code_starter": "def solve():\n    pass\n\nif __name__ == '__main__':\n    print('')\n",
+    "test_cases": [
+      {
+        "input": "4\n1 2 3 4\n5\n",
+        "expected_output": "4",
+        "is_hidden": false
+      }
+    ],
+    "created_at": "2025-10-23T08:04:43.143000",
+    "seed_tag": "practice_seed_v1"
+  },
+  {
+    "_id": "68fa7e0457d1f6f59df15643",
+    "quiz_id": "28574944-a2ab-4f95-b697-8c9807443378",
+    "type": "quiz",
+    "question_text": "What is the output of print(10 // 3)?",
+    "question_type": "mcq",
+    "choices": [
+      "4",
+      "4.0",
+      "3.33",
+      "Error"
+    ],
+    "correct_answer": 0,
+    "explanation": "The // operator performs integer division, which discards the fractional part and rounds down to the nearest whole number.",
+    "topic": "Python Basics",
+    "difficulty": "medium",
+    "order": 1,
+    "created_at": "2025-10-23T19:12:04.836000"
+  },
+  {
+    "_id": "68fa7e0457d1f6f59df15644",
+    "quiz_id": "28574944-a2ab-4f95-b697-8c9807443378",
+    "type": "quiz",
+    "question_text": "What is the purpose of the pass statement in Python?",
+    "question_type": "mcq",
+    "choices": [
+      "To terminate a function",
+      "To skip over a block of code",
+      "To create a new scope",
+      "None of the above"
+    ],
+    "correct_answer": 1,
+    "explanation": "The pass statement is used to indicate that a block of code should be ignored. It's often used in incomplete code or as a placeholder.",
+    "topic": "Python Basics",
+    "difficulty": "medium",
+    "order": 2,
+    "created_at": "2025-10-23T19:12:04.845000"
+  },
+  {
+    "_id": "68fa7e0457d1f6f59df15645",
+    "quiz_id": "28574944-a2ab-4f95-b697-8c9807443378",
+    "type": "quiz",
+    "question_text": "What is the difference between the list methods append() and extend()?",
+    "question_type": "mcq",
+    "choices": [
+      "append adds a single element, while extend adds multiple elements",
+      "extend adds a single element, while append adds multiple elements",
+      "both add single elements",
+      "neither adds any elements"
+    ],
+    "correct_answer": 0,
+    "explanation": "The append() method adds a single element to the end of the list, while the extend() method adds multiple elements.",
+    "topic": "Working with Lists",
+    "difficulty": "medium",
+    "order": 3,
+    "created_at": "2025-10-23T19:12:04.847000"
+  },
+  {
+    "_id": "68fa7e0457d1f6f59df15646",
+    "quiz_id": "28574944-a2ab-4f95-b697-8c9807443378",
+    "type": "quiz",
+    "question_text": "What is the purpose of the self parameter in Python classes?",
+    "question_type": "mcq",
+    "choices": [
+      "To refer to the class itself",
+      "To refer to an instance of the class",
+      "To pass variables between methods",
+      "None of the above"
+    ],
+    "correct_answer": 1,
+    "explanation": "The self parameter is a reference to the current instance of the class and is used to access variables that belong to the class.",
+    "topic": "Object-Oriented Programming",
+    "difficulty": "medium",
+    "order": 4,
+    "created_at": "2025-10-23T19:12:04.849000"
+  },
+  {
+    "_id": "68fa7e0457d1f6f59df15647",
+    "quiz_id": "28574944-a2ab-4f95-b697-8c9807443378",
+    "type": "quiz",
+    "question_text": "What is the difference between the == and is operators in Python?",
+    "question_type": "mcq",
+    "choices": [
+      "== checks for equality, while is checks if both variables are the same object",
+      "== checks if both variables are the same object, while is checks for equality",
+      "is checks for inequality, while == checks if both variables are the same object",
+      "neither checks for equality or object identity"
+    ],
+    "correct_answer": 0,
+    "explanation": "The == operator checks for equality of value, while the is operator checks if both variables refer to the same object in memory.",
+    "topic": "Python Basics",
+    "difficulty": "medium",
+    "order": 5,
+    "created_at": "2025-10-23T19:12:04.849000"
+  },
+  {
+    "_id": "68fa7f6f57d1f6f59df15649",
+    "quiz_id": "27f39441-b7a3-4fe4-92b8-e2c8e76b6c11",
+    "type": "quiz",
+    "question_text": "What is the purpose of the `elif` statement in Python?",
+    "question_type": "mcq",
+    "choices": [
+      "To define a loop",
+      "To handle an exception",
+      "To specify an alternative condition",
+      "To end the program"
+    ],
+    "correct_answer": 2,
+    "explanation": "The `elif` statement is used to specify an alternative condition that will be evaluated if the initial `if` condition is false.",
+    "topic": "Control Structures",
+    "difficulty": "medium",
+    "order": 1,
+    "created_at": "2025-10-23T19:18:07.224000"
+  },
+  {
+    "_id": "68fa7f6f57d1f6f59df1564a",
+    "quiz_id": "27f39441-b7a3-4fe4-92b8-e2c8e76b6c11",
+    "type": "quiz",
+    "question_text": "What is the output of the following Python code: `x = [1, 2, 3]; print(x[1:])`?",
+    "question_type": "mcq",
+    "choices": [
+      "[2, 3]",
+      "[1, 2, 3]",
+      "[1, 2]",
+      "Error"
+    ],
+    "correct_answer": 0,
+    "explanation": "The code slices the list `x` starting from index 1 to the end, producing `[2, 3]`.",
+    "topic": "Python Lists",
+    "difficulty": "medium",
+    "order": 2,
+    "created_at": "2025-10-23T19:18:07.227000"
+  },
+  {
+    "_id": "68fa7f6f57d1f6f59df1564b",
+    "quiz_id": "27f39441-b7a3-4fe4-92b8-e2c8e76b6c11",
+    "type": "quiz",
+    "question_text": "Write a Python function that takes two integers as input and returns their sum.",
+    "question_type": "code",
+    "choices": [],
+    "correct_answer": "def add(a, b): return a + b",
+    "explanation": "This function uses the `return` statement to output the sum of its input parameters.",
+    "topic": "Functions",
+    "difficulty": "medium",
+    "order": 3,
+    "created_at": "2025-10-23T19:18:07.228000"
+  },
+  {
+    "_id": "68fa7f6f57d1f6f59df1564c",
+    "quiz_id": "27f39441-b7a3-4fe4-92b8-e2c8e76b6c11",
+    "type": "quiz",
+    "question_text": "What is the difference between `int()` and `float()` in Python?",
+    "question_type": "mcq",
+    "choices": [
+      "`int()` converts to integer, while `float()` converts to decimal",
+      "`int()` converts to decimal, while `float()` converts to integer",
+      "Both convert to strings",
+      "There is no difference"
+    ],
+    "correct_answer": 0,
+    "explanation": "The `int()` function converts its input to an integer, while the `float()` function attempts to convert its input to a floating-point number.",
+    "topic": "Python Basics",
+    "difficulty": "medium",
+    "order": 4,
+    "created_at": "2025-10-23T19:18:07.229000"
+  },
+  {
+    "_id": "68fa7f6f57d1f6f59df1564d",
+    "quiz_id": "27f39441-b7a3-4fe4-92b8-e2c8e76b6c11",
+    "type": "quiz",
+    "question_text": "What is the purpose of the `pass` statement in Python?",
+    "question_type": "mcq",
+    "choices": [
+      "To skip to the next iteration",
+      "To terminate a program",
+      "To execute a block of code",
+      "None of the above"
+    ],
+    "correct_answer": 2,
+    "explanation": "The `pass` statement is used as a placeholder when a block of code needs to be executed, but no specific action is required.",
+    "topic": "Control Structures",
+    "difficulty": "medium",
+    "order": 5,
+    "created_at": "2025-10-23T19:18:07.229000"
+  },
+  {
+    "_id": "68fa7f8957d1f6f59df1564f",
+    "quiz_id": "65e5050c-8594-453b-bafe-21011d188f16",
+    "type": "quiz",
+    "question_text": "What is the main difference between the `==` and `=` operators in Python?",
+    "question_type": "mcq",
+    "choices": [
+      "Assigning a value",
+      "Comparing values",
+      "Creating a list",
+      "Checking if a variable exists"
+    ],
+    "correct_answer": 1,
+    "explanation": "The `==` operator is used for comparison, while the `=` operator is used for assignment.",
+    "topic": "Python Basics",
+    "difficulty": "medium",
+    "order": 1,
+    "created_at": "2025-10-23T19:18:33.940000"
+  },
+  {
+    "_id": "68fa7f8957d1f6f59df15650",
+    "quiz_id": "65e5050c-8594-453b-bafe-21011d188f16",
+    "type": "quiz",
+    "question_text": "What is the purpose of the `len()` function in Python?",
+    "question_type": "mcq",
+    "choices": [
+      "To check if a variable exists",
+      "To assign a value to a variable",
+      "To find the length of an object",
+      "To convert data types"
+    ],
+    "correct_answer": 2,
+    "explanation": "The `len()` function returns the number of items in an object, such as the length of a string or list.",
+    "topic": "Python Basics",
+    "difficulty": "medium",
+    "order": 2,
+    "created_at": "2025-10-23T19:18:33.941000"
+  },
+  {
+    "_id": "68fa7f8957d1f6f59df15651",
+    "quiz_id": "65e5050c-8594-453b-bafe-21011d188f16",
+    "type": "quiz",
+    "question_text": "What is the output of `print([1, 2, 3] + [4, 5, 6])`?",
+    "question_type": "mcq",
+    "choices": [
+      "[1, 2, 3]",
+      "[4, 5, 6]",
+      "[1, 2, 3, 4, 5, 6]",
+      "Error"
+    ],
+    "correct_answer": 3,
+    "explanation": "List concatenation in Python combines the two lists into a single list.",
+    "topic": "Python Data Structures",
+    "difficulty": "medium",
+    "order": 3,
+    "created_at": "2025-10-23T19:18:33.941000"
+  },
+  {
+    "_id": "68fa7f8957d1f6f59df15652",
+    "quiz_id": "65e5050c-8594-453b-bafe-21011d188f16",
+    "type": "quiz",
+    "question_text": "What is the purpose of the `elif` statement in Python?",
+    "question_type": "mcq",
+    "choices": [
+      "To start a new loop",
+      "To skip to the next iteration",
+      "To check if a condition is true",
+      "To end the program"
+    ],
+    "correct_answer": 2,
+    "explanation": "The `elif` statement is used to check another condition if the initial condition is not met.",
+    "topic": "Python Control Structures",
+    "difficulty": "medium",
+    "order": 4,
+    "created_at": "2025-10-23T19:18:33.942000"
+  },
+  {
+    "_id": "68fa7f8957d1f6f59df15653",
+    "quiz_id": "65e5050c-8594-453b-bafe-21011d188f16",
+    "type": "quiz",
+    "question_text": "What is an example of a mutable object in Python?",
+    "question_type": "code",
+    "choices": [],
+    "correct_answer": [
+      "list"
+    ],
+    "explanation": "A mutable object is one that can be changed after it's created. A list is a common example of a mutable object.",
+    "topic": "Python Basics",
+    "difficulty": "medium",
+    "order": 5,
+    "created_at": "2025-10-23T19:18:33.942000"
+  },
+  {
+    "_id": "68fa7fa657d1f6f59df15655",
+    "quiz_id": "8b1e4466-d69d-4a81-a988-3986585ab43a",
+    "type": "quiz",
+    "question_text": "What is the purpose of the `pass` statement in Python?",
+    "question_type": "mcq",
+    "choices": [
+      "To stop the execution of a program",
+      "To skip to the next iteration",
+      "To indicate that no action should be taken",
+      "To declare a variable"
+    ],
+    "correct_answer": 2,
+    "explanation": "The `pass` statement is used as a placeholder when a block of code is required syntactically, but no actual code needs to be executed.",
+    "topic": "Python Basics",
+    "difficulty": "medium",
+    "order": 1,
+    "created_at": "2025-10-23T19:19:02.038000"
+  },
+  {
+    "_id": "68fa7fa657d1f6f59df15656",
+    "quiz_id": "8b1e4466-d69d-4a81-a988-3986585ab43a",
+    "type": "quiz",
+    "question_text": "What is the difference between `==` and `!=` in Python?",
+    "question_type": "mcq",
+    "choices": [
+      "One checks if two values are equal, while the other checks if they are not",
+      "One checks if two values are not equal, while the other checks if they are"
+    ],
+    "correct_answer": 0,
+    "explanation": "The `==` operator checks if two values are equal, while the `!=` operator checks if they are not.",
+    "topic": "Python Basics",
+    "difficulty": "medium",
+    "order": 2,
+    "created_at": "2025-10-23T19:19:02.039000"
+  },
+  {
+    "_id": "68fa7fa657d1f6f59df15657",
+    "quiz_id": "8b1e4466-d69d-4a81-a988-3986585ab43a",
+    "type": "quiz",
+    "question_text": "What is the output of `x = [1, 2, 3]; print(x[0])`?",
+    "question_type": "code",
+    "choices": [],
+    "correct_answer": "print(1)\n",
+    "explanation": "In Python, list indices start at 0. Therefore, `x[0]` refers to the first element of the list, which is 1.",
+    "topic": "Python Lists",
+    "difficulty": "medium",
+    "order": 3,
+    "created_at": "2025-10-23T19:19:02.039000"
+  },
+  {
+    "_id": "68fa7fa657d1f6f59df15658",
+    "quiz_id": "8b1e4466-d69d-4a81-a988-3986585ab43a",
+    "type": "quiz",
+    "question_text": "What is the purpose of the `elif` statement in Python?",
+    "question_type": "mcq",
+    "choices": [
+      "To execute a block of code if multiple conditions are met",
+      "To execute a block of code if none of the previous conditions are met",
+      "To skip to the next iteration"
+    ],
+    "correct_answer": 0,
+    "explanation": "The `elif` statement is used to specify an alternative condition to check. If the first condition fails, Python checks the second condition, and so on.",
+    "topic": "Python Control Flow",
+    "difficulty": "medium",
+    "order": 4,
+    "created_at": "2025-10-23T19:19:02.040000"
+  },
+  {
+    "_id": "68fa7fa657d1f6f59df15659",
+    "quiz_id": "8b1e4466-d69d-4a81-a988-3986585ab43a",
+    "type": "quiz",
+    "question_text": "What is the output of `def greet(name): print('Hello ' + name); greet('John')`?",
+    "question_type": "code",
+    "choices": [],
+    "correct_answer": "print('Hello John')\n",
+    "explanation": "The function `greet(name)` takes a string as input and prints a greeting message. When the function is called with the argument `'John'`, it prints the greeting message for 'John'.",
+    "topic": "Python Functions",
+    "difficulty": "medium",
+    "order": 5,
+    "created_at": "2025-10-23T19:19:02.040000"
+  },
+  {
+    "_id": "68fa823657d1f6f59df1565b",
+    "quiz_id": "8b388fc5-fd47-4a24-8d86-0e0905bbb8ae",
+    "type": "quiz",
+    "question_text": "What is the purpose of the `pass` statement in Python?",
+    "question_type": "mcq",
+    "choices": [
+      "To skip a line of code",
+      "To pass an argument to a function",
+      "To indicate that no action needs to be taken",
+      "To end a loop"
+    ],
+    "correct_answer": 2,
+    "explanation": "The `pass` statement is used when you need to write a placeholder for a block of code, but don't want the code to execute. It's often used in placeholder functions or classes where you're not implementing any logic.",
+    "topic": "Python Basics",
+    "difficulty": "medium",
+    "order": 1,
+    "created_at": "2025-10-23T19:29:58.252000"
+  },
+  {
+    "_id": "68fa823657d1f6f59df1565c",
+    "quiz_id": "8b388fc5-fd47-4a24-8d86-0e0905bbb8ae",
+    "type": "quiz",
+    "question_text": "What is the difference between `==` and `is` operators in Python?",
+    "question_type": "mcq",
+    "choices": [
+      "The `==` operator checks if two objects are equal, while the `is` operator checks if they are the same object",
+      "The `==` operator checks if two objects are the same, while the `is` operator checks if they are equal",
+      "Both operators check if two objects are the same object and have the same value",
+      "There is no difference between the two operators"
+    ],
+    "correct_answer": 0,
+    "explanation": "The `==` operator checks if two objects have the same value, while the `is` operator checks if they are the same object (i.e., they have the same memory address).",
+    "topic": "Python Basics",
+    "difficulty": "medium",
+    "order": 2,
+    "created_at": "2025-10-23T19:29:58.255000"
+  },
+  {
+    "_id": "68fa823657d1f6f59df1565d",
+    "quiz_id": "8b388fc5-fd47-4a24-8d86-0e0905bbb8ae",
+    "type": "quiz",
+    "question_text": "How do you convert a list to a dictionary in Python?",
+    "question_type": "code",
+    "choices": [],
+    "correct_answer": "dict(zip([1, 2, 3], ['a', 'b', 'c']))",
+    "explanation": "You can use the `zip` function and the `dict` constructor to convert a list of keys and values into a dictionary.",
+    "topic": "Data Structures",
+    "difficulty": "medium",
+    "order": 3,
+    "created_at": "2025-10-23T19:29:58.257000"
+  },
+  {
+    "_id": "68fa823657d1f6f59df1565e",
+    "quiz_id": "8b388fc5-fd47-4a24-8d86-0e0905bbb8ae",
+    "type": "quiz",
+    "question_text": "What is the purpose of the `try-except` block in Python?",
+    "question_type": "mcq",
+    "choices": [
+      "To repeat a block of code until it succeeds",
+      "To catch and handle exceptions raised by code",
+      "To skip over a block of code if an exception occurs",
+      "To end a program if an exception occurs"
+    ],
+    "correct_answer": 1,
+    "explanation": "The `try-except` block is used to catch and handle exceptions that occur in your code. It allows you to write robust and error-free code.",
+    "topic": "Error Handling",
+    "difficulty": "medium",
+    "order": 4,
+    "created_at": "2025-10-23T19:29:58.259000"
+  },
+  {
+    "_id": "68fa823657d1f6f59df1565f",
+    "quiz_id": "8b388fc5-fd47-4a24-8d86-0e0905bbb8ae",
+    "type": "quiz",
+    "question_text": "What is the difference between a list comprehension and a generator expression?",
+    "question_type": "mcq",
+    "choices": [
+      "A list comprehension returns a list, while a generator expression returns an iterator",
+      "A list comprehension creates a new list, while a generator expression appends to an existing list",
+      "Both expressions return iterators",
+      "Both expressions create new lists"
+    ],
+    "correct_answer": 0,
+    "explanation": "List comprehensions create a new list in memory, while generator expressions create an iterator that can be used to generate values on the fly. This makes generator expressions more memory-efficient for large datasets.",
+    "topic": "Data Structures",
+    "difficulty": "medium",
+    "order": 5,
+    "created_at": "2025-10-23T19:29:58.262000"
+  },
+  {
+    "_id": "68fa867b57d1f6f59df15661",
+    "quiz_id": "81047f68-056b-4dfa-9db1-e23da4e83087",
+    "type": "quiz",
+    "question_text": "What is the purpose of the `return` statement in a C function?",
+    "question_type": "mcq",
+    "choices": [
+      "To print output",
+      "To exit the program",
+      "To end the function execution",
+      "To pass data back to the caller"
+    ],
+    "correct_answer": 3,
+    "explanation": "The `return` statement is used to pass data back to the caller of a C function, typically indicating the return value or signaling an error.",
+    "topic": "Functions",
+    "difficulty": "medium",
+    "order": 1,
+    "created_at": "2025-10-23T19:48:11.282000"
+  },
+  {
+    "_id": "68fa867b57d1f6f59df15662",
+    "quiz_id": "81047f68-056b-4dfa-9db1-e23da4e83087",
+    "type": "quiz",
+    "question_text": "How do you declare an array in C?",
+    "question_type": "mcq",
+    "choices": [
+      "int arr[] = {1, 2, 3};",
+      "int* arr = {1, 2, 3};",
+      "int arr[3] = {1, 2, 3};",
+      "int arr = [1, 2, 3];"
+    ],
+    "correct_answer": 2,
+    "explanation": "The correct way to declare an array in C is with the syntax `type name[size] = {value1, value2, ...}`, where `size` is the number of elements and `{value1, value2, ...}` is the initial values.",
+    "topic": "Arrays",
+    "difficulty": "medium",
+    "order": 2,
+    "created_at": "2025-10-23T19:48:11.288000"
+  },
+  {
+    "_id": "68fa867b57d1f6f59df15663",
+    "quiz_id": "81047f68-056b-4dfa-9db1-e23da4e83087",
+    "type": "quiz",
+    "question_text": "What happens when you assign a string literal to a char array in C?",
+    "question_type": "mcq",
+    "choices": [
+      "It gets converted to uppercase",
+      "It gets truncated to fit the array size",
+      "It gets copied into the array",
+      "It gets ignored"
+    ],
+    "correct_answer": 2,
+    "explanation": "When you assign a string literal to a char array in C, it gets copied into the array. This means that if the array is too small, the extra characters will be truncated.",
+    "topic": "Strings",
+    "difficulty": "medium",
+    "order": 3,
+    "created_at": "2025-10-23T19:48:11.290000"
+  },
+  {
+    "_id": "68fa867b57d1f6f59df15664",
+    "quiz_id": "81047f68-056b-4dfa-9db1-e23da4e83087",
+    "type": "quiz",
+    "question_text": "How do you skip the first `n` elements of an array and iterate over the rest in C?",
+    "question_type": "code",
+    "choices": [
+      "for (int i = n; i < size; i++) { ... }",
+      "for (int i = 0; i < size - n; i++) { ... }",
+      "for (int i = n; i <= size; i++) { ... }",
+      "for (int i = size - n; i >= 0; i--) { ... }"
+    ],
+    "correct_answer": 1,
+    "explanation": "The correct way to skip the first `n` elements and iterate over the rest of an array in C is with a for loop that starts from index `n` and goes until the end of the array.",
+    "topic": "Loops",
+    "difficulty": "medium",
+    "order": 4,
+    "created_at": "2025-10-23T19:48:11.291000"
+  },
+  {
+    "_id": "68fa867b57d1f6f59df15665",
+    "quiz_id": "81047f68-056b-4dfa-9db1-e23da4e83087",
+    "type": "quiz",
+    "question_text": "What happens when you use the `%` operator on two integers in C?",
+    "question_type": "mcq",
+    "choices": [
+      "It performs integer division",
+      "It calculates the modulus of the division",
+      "It multiplies the numbers",
+      "It adds the numbers"
+    ],
+    "correct_answer": 1,
+    "explanation": "The `%` operator performs integer division and returns the remainder. This means that if you use it on two integers, it will give you the remainder of the division.",
+    "topic": "Operators",
+    "difficulty": "medium",
+    "order": 5,
+    "created_at": "2025-10-23T19:48:11.294000"
+  },
+  {
+    "_id": "68fa86e257d1f6f59df15667",
+    "quiz_id": "61cc4a71-6545-40cd-a03b-993d34f334a3",
+    "type": "quiz",
+    "question_text": "What is the difference between the 'and' and 'or' operators in conditional statements?",
+    "question_type": "mcq",
+    "choices": [
+      "The 'and' operator short-circuits if the first condition is false, while the 'or' operator continues to evaluate both conditions",
+      "The 'and' operator evaluates both conditions, while the 'or' operator short-circuits if the first condition is true",
+      "Both operators always evaluate both conditions",
+      "There is no difference between the two operators"
+    ],
+    "correct_answer": 0,
+    "explanation": "The 'and' operator short-circuits if the first condition is false, while the 'or' operator continues to evaluate both conditions",
+    "topic": "Python Control Structures",
+    "difficulty": "medium",
+    "order": 1,
+    "created_at": "2025-10-23T19:49:54.114000"
+  },
+  {
+    "_id": "68fa86e257d1f6f59df15668",
+    "quiz_id": "61cc4a71-6545-40cd-a03b-993d34f334a3",
+    "type": "quiz",
+    "question_text": "What is the purpose of the __name__ variable in Python?",
+    "question_type": "mcq",
+    "choices": [
+      "It determines whether a module is being run as the main program or being imported by another module",
+      "It is used to store the result of a function call",
+      "It is an error message variable",
+      "It is not a valid Python variable"
+    ],
+    "correct_answer": 0,
+    "explanation": "The __name__ variable determines whether a module is being run as the main program or being imported by another module",
+    "topic": "Python Modules and Packages",
+    "difficulty": "medium",
+    "order": 2,
+    "created_at": "2025-10-23T19:49:54.119000"
+  },
+  {
+    "_id": "68fa86e257d1f6f59df15669",
+    "quiz_id": "61cc4a71-6545-40cd-a03b-993d34f334a3",
+    "type": "quiz",
+    "question_text": "What is the purpose of the 'pass' statement in Python?",
+    "question_type": "mcq",
+    "choices": [
+      "It passes control to the next iteration of a loop",
+      "It passes control to the next function call",
+      "It does nothing and allows the program to continue executing",
+      "It is an error message"
+    ],
+    "correct_answer": 2,
+    "explanation": "The 'pass' statement does nothing and allows the program to continue executing",
+    "topic": "Python Control Structures",
+    "difficulty": "medium",
+    "order": 3,
+    "created_at": "2025-10-23T19:49:54.122000"
+  },
+  {
+    "_id": "68fa86e257d1f6f59df1566a",
+    "quiz_id": "61cc4a71-6545-40cd-a03b-993d34f334a3",
+    "type": "quiz",
+    "question_text": "What is the purpose of the 'try-except-finally' block in Python?",
+    "question_type": "mcq",
+    "choices": [
+      "It tries to execute a block of code and catches any exceptions that occur",
+      "It executes a block of code but does not catch any exceptions",
+      "It handles any exceptions that occur during execution",
+      "It does nothing with the exceptions"
+    ],
+    "correct_answer": 0,
+    "explanation": "The 'try-except-finally' block tries to execute a block of code and catches any exceptions that occur",
+    "topic": "Python Error Handling",
+    "difficulty": "medium",
+    "order": 4,
+    "created_at": "2025-10-23T19:49:54.123000"
+  },
+  {
+    "_id": "68fa86e257d1f6f59df1566b",
+    "quiz_id": "61cc4a71-6545-40cd-a03b-993d34f334a3",
+    "type": "quiz",
+    "question_text": "How do you create an empty list in Python?",
+    "question_type": "code",
+    "choices": [],
+    "correct_answer": [
+      "my_list = []"
+    ],
+    "explanation": "You can create an empty list by using the square brackets '[]' syntax",
+    "topic": "Python Lists and Tuples",
+    "difficulty": "medium",
+    "order": 5,
+    "created_at": "2025-10-23T19:49:54.125000"
+  },
+  {
+    "_id": "68fa87ab57d1f6f59df1566d",
+    "quiz_id": "f83f5146-1d72-43a7-87e8-07bd1ce0dd19",
+    "type": "quiz",
+    "question_text": "What is a key concept in Data Structures for Beginners?",
+    "question_type": "mcq",
+    "choices": [
+      "Option A",
+      "Option B",
+      "Option C",
+      "Option D"
+    ],
+    "correct_answer": 0,
+    "explanation": "This is the correct answer because...",
+    "topic": "General",
+    "difficulty": "medium",
+    "order": 1,
+    "created_at": "2025-10-23T19:53:15.443000"
+  },
+  {
+    "_id": "68faf13ab2865f557c59dd5a",
+    "quiz_id": "d0cce883-3993-4131-bd6f-4d7b967e5c29",
+    "type": "quiz",
+    "question_text": "What is the purpose of the `if __name__ == '__main__':` block in a Python script?",
+    "question_type": "mcq",
+    "choices": [
+      "To define a function",
+      "To set a variable",
+      "To run the script when it's executed directly",
+      "To handle an exception"
+    ],
+    "correct_answer": 2,
+    "explanation": "The `if __name__ == '__main__':` block is used to ensure that certain code only runs when the script is executed directly (e.g., by running `python myscript.py`), and not when it's imported as a module into another script.",
+    "topic": "Python Basics",
+    "difficulty": "medium",
+    "order": 1,
+    "created_at": "2025-10-24T03:23:38.012000"
+  },
+  {
+    "_id": "68faf13ab2865f557c59dd5b",
+    "quiz_id": "d0cce883-3993-4131-bd6f-4d7b967e5c29",
+    "type": "quiz",
+    "question_text": "What does the following code do: `x = [1, 2, 3]; y = x; y.append(4); print(x)`?",
+    "question_type": "code",
+    "choices": [],
+    "correct_answer": [
+      "[1, 2, 3, 4]"
+    ],
+    "explanation": "The code creates a copy of the list `x` and assigns it to `y`. Then, it appends a new element (4) to `y`. Since lists are mutable in Python, the change is reflected in both `x` and `y`, so printing `x` will show `[1, 2, 3, 4]`.",
+    "topic": "Data Structures",
+    "difficulty": "medium",
+    "order": 2,
+    "created_at": "2025-10-24T03:23:38.037000"
+  },
+  {
+    "_id": "68faf13ab2865f557c59dd5c",
+    "quiz_id": "d0cce883-3993-4131-bd6f-4d7b967e5c29",
+    "type": "quiz",
+    "question_text": "What is the result of `print(10 / 2)`?",
+    "question_type": "mcq",
+    "choices": [
+      "5.0",
+      "5",
+      "2.5",
+      "Error"
+    ],
+    "correct_answer": 0,
+    "explanation": "In Python, the `/` operator performs floating-point division when both operands are integers. Therefore, `10 / 2` evaluates to a float (5.0).",
+    "topic": "Python Basics",
+    "difficulty": "medium",
+    "order": 3,
+    "created_at": "2025-10-24T03:23:38.038000"
+  },
+  {
+    "_id": "68faf13ab2865f557c59dd5d",
+    "quiz_id": "d0cce883-3993-4131-bd6f-4d7b967e5c29",
+    "type": "quiz",
+    "question_text": "What is the purpose of the `pass` statement in Python?",
+    "question_type": "mcq",
+    "choices": [
+      "To skip a loop iteration",
+      "To continue execution after an exception",
+      "To do nothing when executing the code",
+      "To handle an edge case"
+    ],
+    "correct_answer": 2,
+    "explanation": "The `pass` statement is used as a placeholder in Python to indicate that no action should be taken. It's often used temporarily or in situations where you don't want the code to raise an error.",
+    "topic": "Python Basics",
+    "difficulty": "medium",
+    "order": 4,
+    "created_at": "2025-10-24T03:23:38.039000"
+  },
+  {
+    "_id": "68faf13ab2865f557c59dd5e",
+    "quiz_id": "d0cce883-3993-4131-bd6f-4d7b967e5c29",
+    "type": "quiz",
+    "question_text": "What is the output of `print(len({'a': 1, 'b': 2}))`?",
+    "question_type": "mcq",
+    "choices": [
+      "1",
+      "2",
+      "3",
+      "Error"
+    ],
+    "correct_answer": 2,
+    "explanation": "The `len()` function returns the number of items in an object. In this case, it's a dictionary with two key-value pairs, so the output is 2.",
+    "topic": "Data Structures",
+    "difficulty": "medium",
+    "order": 5,
+    "created_at": "2025-10-24T03:23:38.040000"
   }
 ]
