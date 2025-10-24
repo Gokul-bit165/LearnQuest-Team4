@@ -127,6 +127,9 @@ async def explain_concept(
             return await handle_text_query(request.question, top_document, sources)
             
     except Exception as e:
+        print(f"AI explanation error: {str(e)}")
+        import traceback
+        traceback.print_exc()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"AI explanation failed: {str(e)}"
@@ -175,6 +178,9 @@ Your Response:"""
         )
         
     except Exception as e:
+        print(f"Text query processing error: {str(e)}")
+        import traceback
+        traceback.print_exc()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Text query processing failed: {str(e)}"

@@ -13,7 +13,8 @@ import {
   Target,
   Clock,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  BookOpen
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { usersAPI } from '../services/api';
@@ -25,139 +26,7 @@ const Leaderboard = () => {
   const [timeFilter, setTimeFilter] = useState('all'); // all, week, month
   const [expandedUser, setExpandedUser] = useState(null);
 
-  // Mock data for now - replace with actual API call
-  const mockLeaderboard = [
-    {
-      id: 1,
-      name: "Alex Chen",
-      xp: 15420,
-      level: 15,
-      streak: 28,
-      avatar: "AC",
-      rank: 1,
-      completedLessons: 45,
-      badges: ["Speed Learner", "Code Master", "Streak King"],
-      joinDate: "2024-01-15",
-      lastActive: "2 hours ago"
-    },
-    {
-      id: 2,
-      name: "Sarah Johnson",
-      xp: 12850,
-      level: 13,
-      streak: 15,
-      avatar: "SJ",
-      rank: 2,
-      completedLessons: 38,
-      badges: ["Algorithm Expert", "Problem Solver"],
-      joinDate: "2024-02-03",
-      lastActive: "1 hour ago"
-    },
-    {
-      id: 3,
-      name: "Mike Rodriguez",
-      xp: 11200,
-      level: 12,
-      streak: 8,
-      avatar: "MR",
-      rank: 3,
-      completedLessons: 32,
-      badges: ["Data Structures Pro", "Quick Learner"],
-      joinDate: "2024-01-28",
-      lastActive: "30 minutes ago"
-    },
-    {
-      id: 4,
-      name: "Emma Wilson",
-      xp: 9850,
-      level: 11,
-      streak: 22,
-      avatar: "EW",
-      rank: 4,
-      completedLessons: 28,
-      badges: ["Consistent Coder", "Team Player"],
-      joinDate: "2024-02-10",
-      lastActive: "5 minutes ago"
-    },
-    {
-      id: 5,
-      name: "David Kim",
-      xp: 9200,
-      level: 10,
-      streak: 12,
-      avatar: "DK",
-      rank: 5,
-      completedLessons: 25,
-      badges: ["Python Master"],
-      joinDate: "2024-02-15",
-      lastActive: "1 day ago"
-    },
-    {
-      id: 6,
-      name: "Lisa Zhang",
-      xp: 8750,
-      level: 10,
-      streak: 6,
-      avatar: "LZ",
-      rank: 6,
-      completedLessons: 22,
-      badges: ["JavaScript Expert"],
-      joinDate: "2024-02-20",
-      lastActive: "3 hours ago"
-    },
-    {
-      id: 7,
-      name: "James Brown",
-      xp: 8200,
-      level: 9,
-      streak: 18,
-      avatar: "JB",
-      rank: 7,
-      completedLessons: 20,
-      badges: ["Frontend Pro"],
-      joinDate: "2024-02-25",
-      lastActive: "2 days ago"
-    },
-    {
-      id: 8,
-      name: "Anna Garcia",
-      xp: 7800,
-      level: 9,
-      streak: 4,
-      avatar: "AG",
-      rank: 8,
-      completedLessons: 18,
-      badges: ["Backend Developer"],
-      joinDate: "2024-03-01",
-      lastActive: "4 hours ago"
-    },
-    {
-      id: 9,
-      name: "Tom Anderson",
-      xp: 7200,
-      level: 8,
-      streak: 9,
-      avatar: "TA",
-      rank: 9,
-      completedLessons: 16,
-      badges: ["Full Stack"],
-      joinDate: "2024-03-05",
-      lastActive: "6 hours ago"
-    },
-    {
-      id: 10,
-      name: "Maria Lopez",
-      xp: 6800,
-      level: 8,
-      streak: 7,
-      avatar: "ML",
-      rank: 10,
-      completedLessons: 15,
-      badges: ["Mobile Dev"],
-      joinDate: "2024-03-10",
-      lastActive: "1 hour ago"
-    }
-  ];
+  // Real data from API - no more mock data needed
 
   useEffect(() => {
     const fetchLeaderboard = async () => {
@@ -167,8 +36,8 @@ const Leaderboard = () => {
         setLeaderboard(response.data);
       } catch (error) {
         console.error('Error fetching leaderboard:', error);
-        // Fallback to mock data if API fails
-        setLeaderboard(mockLeaderboard);
+        // Show empty state if API fails
+        setLeaderboard([]);
       } finally {
         setLoading(false);
       }
@@ -357,6 +226,10 @@ const Leaderboard = () => {
                           <Flame className="w-4 h-4" />
                           {userData.streak} day streak
                         </span>
+                        <span className="flex items-center gap-1">
+                          <BookOpen className="w-4 h-4" />
+                          {userData.completed_lessons} lessons
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -390,15 +263,23 @@ const Leaderboard = () => {
                         <div className="space-y-2">
                           <div className="flex justify-between text-sm">
                             <span className="text-slate-400">Completed Lessons</span>
-                            <span className="text-white">{userData.completedLessons}</span>
+                            <span className="text-white">{userData.completed_lessons}</span>
+                          </div>
+                          <div className="flex justify-between text-sm">
+                            <span className="text-slate-400">Total Quizzes</span>
+                            <span className="text-white">{userData.total_quizzes}</span>
+                          </div>
+                          <div className="flex justify-between text-sm">
+                            <span className="text-slate-400">Average Score</span>
+                            <span className="text-white">{userData.average_score}%</span>
                           </div>
                           <div className="flex justify-between text-sm">
                             <span className="text-slate-400">Join Date</span>
-                            <span className="text-white">{new Date(userData.joinDate).toLocaleDateString()}</span>
+                            <span className="text-white">{userData.join_date}</span>
                           </div>
                           <div className="flex justify-between text-sm">
                             <span className="text-slate-400">Last Active</span>
-                            <span className="text-white">{userData.lastActive}</span>
+                            <span className="text-white">{userData.last_active}</span>
                           </div>
                         </div>
                       </div>
