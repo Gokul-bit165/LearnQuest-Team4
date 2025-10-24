@@ -1,5 +1,3 @@
-
-
 services:
   web:
     build:
@@ -27,23 +25,28 @@ services:
 
   api:
     build:
-      context: .  # Use the root project folder as the context
-      dockerfile: ./services/api/Dockerfile # Tell it where to find the Dockerfile
+      context: .
+      dockerfile: ./services/api/Dockerfile
     ports:
       - "8000:8000"
+    # This line tells Docker to load the MONGO_URL and JWT_SECRET_KEY from your new file
+    env_file:
+      - ./services/api/.env
     environment:
-      - MONGO_URL=${MONGO_URL:-mongodb://db:27017}
+      # These variables are now provided by the env_file
+      # - MONGO_URL=${MONGO_URL}
+      # - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      
+      # These are safe defaults
       - MONGO_DB=${MONGO_DB:-learnquest}
-      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-your-secret-key-change-in-production}
       - CHROMA_HOST=${CHROMA_HOST:-chroma}
       - CHROMA_PORT=${CHROMA_PORT:-8000}
       - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
     depends_on:
       - chroma-init
-      - seed
     restart: unless-stopped
 
-  # Judge0 dependencies
+  # --- Judge0 Services (Unchanged) ---
   judge0-db:
     image: postgres:13-alpine
     environment:
@@ -116,26 +119,31 @@ services:
         reservations:
           memory: 512M
 
+  # --- Seeder Service (Updated) ---
   seed:
     image: python:3.10-slim
+    # This tells the seeder to also use the MONGO_URL from the .env file
+    env_file:
+      - ./services/api/.env
     volumes:
       - ./scripts:/app/scripts
       - ./services/api/src:/app/services/api/src
     working_dir: /app
     command: >
       sh -c "pip install pymongo passlib[bcrypt] python-jose[cryptography] && python /app/scripts/seed_db.py"
-    depends_on:
-      - db
+    # depends_on: - db (removed for cloud database)
     restart: "no"
 
-  db:
-    image: mongo:7.0
-    ports:
-      - "27017:27017"
-    volumes:
-      - mongo_data:/data/db
-    restart: unless-stopped
+  # --- Local DB Service (Removed for Cloud Database) ---
+  # db:
+  #   image: mongo:7.0
+  #   ports:
+  #     - "27017:27017"
+  #   volumes:
+  #     - mongo_data:/data/db
+  #   restart: unless-stopped
 
+  # --- Chroma Service (Unchanged) ---
   chroma:
     image: chromadb/chroma:latest
     ports:
@@ -160,7 +168,7 @@ services:
     restart: "no"
 
 volumes:
-  mongo_data:
+  # mongo_data: (removed for cloud database)
   judge0_pg_data:
   chroma_data:
 

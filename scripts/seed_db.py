@@ -405,7 +405,12 @@ def main():
         user_id = create_sample_user(db)
         
         # Create sample courses
-        python_course_id, ds_course_id = create_sample_courses(db)
+        course_ids = create_sample_courses(db)
+        if len(course_ids) >= 2:
+            python_course_id, ds_course_id = course_ids[0], course_ids[1]
+        else:
+            print("Not enough courses found, skipping quiz creation")
+            return
         
         # Create sample quiz for Python course
         python_quiz_id = create_sample_quiz(db, python_course_id, "Python Basics")
