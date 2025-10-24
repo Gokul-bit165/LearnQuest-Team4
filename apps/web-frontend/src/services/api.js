@@ -53,6 +53,7 @@ export const quizzesAPI = {
   startQuiz: (quizId) => api.post(`/api/quizzes/${quizId}/start`),
   getQuizQuestions: (sessionId) => api.get(`/api/quizzes/${sessionId}/questions`),
   submitQuiz: (sessionId, answers) => api.post(`/api/quizzes/${sessionId}/submit`, { answers }),
+  generatePracticePlan: (failedProblemIds) => api.post('/api/ai/generate-practice', { failed_problem_ids: failedProblemIds }),
 };
 
 // Users API

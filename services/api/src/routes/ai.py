@@ -7,6 +7,7 @@ import os
 import base64
 import time
 import requests
+import httpx
 from typing import List, Dict, Any, Optional
 from fastapi import APIRouter, HTTPException, Depends, status
 from pydantic import BaseModel
@@ -286,6 +287,7 @@ class CoachRequest(BaseModel):
 
 class CoachResponse(BaseModel):
     response: str
+    recommendations: Optional[Dict[str, Any]] = None
 
 @router.post("/coach", response_model=CoachResponse)
 async def ai_coach(
@@ -310,7 +312,48 @@ async def ai_coach(
                 detail="User profile not found"
             )
         
-        # Create Questie's system prompt with user data
+        # Query recent performance by topic
+        questions_collection = get_collection("questions")
+        recent_wrong_ids = []
+        for item in user_data.get('quiz_history', [])[-3:]:
+            for w in item.get('wrong_questions', []) or []:
+                qid = w.get('q_id') if isinstance(w, dict) else w
+                if qid:
+                    recent_wrong_ids.append(qid)
+
+        # Aggregate per-topic stats (simple heuristic)
+        topic_counts: Dict[str, int] = {}
+        topic_names: Dict[str, str] = {}
+        from bson import ObjectId
+        for qid in recent_wrong_ids:
+            try:
+                qdoc = questions_collection.find_one({"_id": ObjectId(qid)})
+                if qdoc:
+                    topic_id = qdoc.get('topic_id') or qdoc.get('tags', [None])[0]
+                    if topic_id:
+                        topic_counts[topic_id] = topic_counts.get(topic_id, 0) + 1
+                        topic_names[topic_id] = qdoc.get('topic_name', topic_id)
+            except Exception:
+                continue
+
+        # Pull GNN recommendations (best-effort)
+        gnn_recs = {"recommended_problem_ids": [], "scores": []}
+        try:
+            async with httpx.AsyncClient(timeout=5) as client:
+                gnn_resp = await client.post(
+                    "http://api:8000/api/gnn/recommend",
+                    json={
+                        "user_id": current_user.id,
+                        "failed_problem_ids": recent_wrong_ids,
+                        "num_recommendations": 5
+                    }
+                )
+                if gnn_resp.status_code == 200:
+                    gnn_recs = gnn_resp.json()
+        except Exception:
+            pass
+
+        # Create Questie's system prompt with user and analytics
         system_prompt = f"""You are 'Questie,' a friendly and encouraging AI learning coach for the Learn Quest platform. You are like a personal friend and mentor.
 
 Your goal is to motivate the user by asking them questions about their progress, celebrating their achievements (like leveling up or high quiz scores), and helping them decide what to learn next based on their history. Do not answer deep technical questions; instead, gently guide them to the 'AI Tutor' within a specific course for that.
@@ -319,8 +362,13 @@ Here is the user's current status:
 - Name: {user_data.get('name', 'Student')}
 - Level: {user_data.get('level', 1)}
 - XP: {user_data.get('xp', 0)}
-- Recent quiz history: {user_data.get('quiz_history', [])}
+- Recent quiz history (last 3): {user_data.get('quiz_history', [])[-3:]}
 - Enrolled courses: {user_data.get('enrolled_courses', [])}
+
+Here are the user's weaker topics inferred from recent quiz mistakes (topic_id -> mistakes): {topic_counts}.
+Use these topics to guide recommendations and encouragement.
+
+GNN has recommended these problem ids (if any) to help improve: {gnn_recs.get('recommended_problem_ids', [])}.
 
 Use this information to have a personalized and motivational conversation. Be encouraging, ask about their learning goals, celebrate their progress, and suggest next steps. Keep responses conversational and friendly."""
 
@@ -351,7 +399,10 @@ Use this information to have a personalized and motivational conversation. Be en
         
         ai_response = result.get("message", {}).get("content", "I'm here to help you on your learning journey!")
         
-        return CoachResponse(response=ai_response)
+        return CoachResponse(response=ai_response, recommendations={
+            "weaker_topics": [{"topic_id": k, "mistakes": v, "name": topic_names.get(k, k)} for k, v in sorted(topic_counts.items(), key=lambda x: x[1], reverse=True)],
+            "gnn_problem_ids": gnn_recs.get('recommended_problem_ids', [])
+        })
         
     except requests.exceptions.RequestException as e:
         raise HTTPException(
@@ -362,4 +413,155 @@ Use this information to have a personalized and motivational conversation. Be en
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"AI Coach processing failed: {str(e)}"
+        )
+
+# Adaptive Practice Models
+class AdaptivePracticeRequest(BaseModel):
+    failed_problem_ids: List[str]
+
+class AdaptivePracticeResponse(BaseModel):
+    message: str
+    problems: List[Dict[str, Any]]
+
+@router.post("/generate-practice", response_model=AdaptivePracticeResponse)
+async def generate_adaptive_practice(
+    request: AdaptivePracticeRequest,
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Generate adaptive practice plan using GNN recommendations and AI coaching.
+    Combines Graph Neural Network recommendations with personalized AI messages.
+    """
+    try:
+        # Step 1: Get GNN recommendations
+        gnn_request = {
+            "user_id": current_user.id,
+            "failed_problem_ids": request.failed_problem_ids,
+            "num_recommendations": 5
+        }
+        
+        async with httpx.AsyncClient() as client:
+            gnn_response = await client.post(
+                "http://api:8000/api/gnn/recommend",
+                json=gnn_request,
+                timeout=30
+            )
+            
+            if gnn_response.status_code != 200:
+                raise HTTPException(
+                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    detail="GNN recommendation service unavailable"
+                )
+            
+            gnn_data = gnn_response.json()
+            recommended_problem_ids = gnn_data.get("recommended_problem_ids", [])
+        
+        # Step 2: Fetch full problem objects from database
+        from ..database import get_collection
+        from bson import ObjectId
+        
+        problems_collection = get_collection("questions")
+        
+        # Get failed problems
+        failed_problems = []
+        for problem_id in request.failed_problem_ids:
+            try:
+                problem = problems_collection.find_one({"_id": ObjectId(problem_id)})
+                if problem:
+                    failed_problems.append({
+                        "problem_id": str(problem["_id"]),
+                        "title": problem.get("title", "Unknown Problem"),
+                        "difficulty": problem.get("difficulty", "medium"),
+                        "type": problem.get("type", "code")
+                    })
+            except Exception:
+                continue
+        
+        # Get recommended problems
+        recommended_problems = []
+        for problem_id in recommended_problem_ids:
+            try:
+                problem = problems_collection.find_one({"_id": ObjectId(problem_id)})
+                if problem:
+                    recommended_problems.append({
+                        "problem_id": str(problem["_id"]),
+                        "title": problem.get("title", "Unknown Problem"),
+                        "difficulty": problem.get("difficulty", "medium"),
+                        "type": problem.get("type", "code")
+                    })
+            except Exception:
+                continue
+        
+        # Step 3: Generate AI coaching message
+        failed_titles = [p["title"] for p in failed_problems]
+        recommended_titles = [p["title"] for p in recommended_problems]
+        
+        prompt = f"""You are Questie, a friendly AI learning coach for Learn Quest. The student just completed a quiz and struggled with some problems.
+
+Failed Problems: {', '.join(failed_titles)}
+
+Based on their performance, I've recommended these practice problems: {', '.join(recommended_titles)}
+
+Generate an encouraging and personalized message that:
+1. Acknowledges their effort (don't focus on failure)
+2. Explains why these specific problems will help them improve
+3. Motivates them to continue learning
+4. Keeps the tone positive and supportive
+
+Return ONLY a JSON object with this exact format:
+{{"message": "Your encouraging message here"}}
+
+Do not include any other text or formatting."""
+
+        # Call Ollama for AI message
+        payload = {
+            "model": "llama3",
+            "prompt": prompt,
+            "stream": False
+        }
+        
+        response = requests.post(
+            f"{OLLAMA_BASE_URL}/api/generate",
+            json=payload,
+            timeout=30
+        )
+        response.raise_for_status()
+        
+        result = response.json()
+        ai_response = result.get("response", "Great job on completing the quiz! Let's practice some problems to strengthen your skills.")
+        
+        # Try to parse JSON from AI response
+        try:
+            import json
+            # Extract JSON from response (in case there's extra text)
+            start_idx = ai_response.find('{')
+            end_idx = ai_response.rfind('}') + 1
+            if start_idx != -1 and end_idx != -1:
+                json_str = ai_response[start_idx:end_idx]
+                parsed_response = json.loads(json_str)
+                ai_message = parsed_response.get("message", ai_response)
+            else:
+                ai_message = ai_response
+        except:
+            ai_message = ai_response
+        
+        return AdaptivePracticeResponse(
+            message=ai_message,
+            problems=recommended_problems
+        )
+        
+    except httpx.RequestError as e:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"GNN service unavailable: {str(e)}"
+        )
+    except requests.exceptions.RequestException as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"AI service unavailable: {str(e)}"
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Adaptive practice generation failed: {str(e)}"
         )

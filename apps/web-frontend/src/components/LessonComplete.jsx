@@ -6,6 +6,7 @@ const LessonComplete = ({
   lessonTitle = "What are Data Structures?", 
   xpEarned = 120, 
   onBackToModule,
+  onRetakeLesson,
   isVisible = true 
 }) => {
   const [showConfetti, setShowConfetti] = useState(false);
@@ -295,16 +296,30 @@ const LessonComplete = ({
             </motion.p>
           </motion.div>
 
-          {/* Back to Module Button */}
-          <motion.button
-            className="w-full bg-white text-green-600 font-semibold py-3 px-6 rounded-xl hover:bg-green-50 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-green-300 focus:ring-offset-2 focus:ring-offset-transparent"
-            variants={buttonVariants}
-            whileHover="hover"
-            whileTap="tap"
-            onClick={onBackToModule}
-          >
-            Back to Module
-          </motion.button>
+          {/* Action Buttons */}
+          <div className="space-y-3">
+            <motion.button
+              className="w-full bg-white text-green-600 font-semibold py-3 px-6 rounded-xl hover:bg-green-50 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-green-300 focus:ring-offset-2 focus:ring-offset-transparent"
+              variants={buttonVariants}
+              whileHover="hover"
+              whileTap="tap"
+              onClick={onBackToModule}
+            >
+              Back to Module
+            </motion.button>
+            
+            {onRetakeLesson && (
+              <motion.button
+                className="w-full bg-gradient-to-r from-blue-500 to-purple-600 text-white font-semibold py-3 px-6 rounded-xl hover:from-blue-600 hover:to-purple-700 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-300 focus:ring-offset-2 focus:ring-offset-transparent"
+                variants={buttonVariants}
+                whileHover="hover"
+                whileTap="tap"
+                onClick={onRetakeLesson}
+              >
+                Retake Lesson for Better Learning
+              </motion.button>
+            )}
+          </div>
         </motion.div>
       </motion.div>
     </div>

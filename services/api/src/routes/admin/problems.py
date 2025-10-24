@@ -114,6 +114,8 @@ async def create_problem(
         "xp_reward": problem_data.get("xp_reward", 10),
         "explanation": problem_data.get("explanation", ""),
         "is_practice_problem": problem_data.get("is_practice_problem", False),
+        "course_id": problem_data.get("course_id"),  # For GNN relationships
+        "topic_id": problem_data.get("topic_id"),    # For GNN relationships
         "created_at": datetime.utcnow(),
         "updated_at": datetime.utcnow()
     }
@@ -144,16 +146,18 @@ async def update_problem(
     if not existing_problem:
         raise HTTPException(status_code=404, detail="Problem not found")
     
-    # Prepare update data
+    # Prepare update data with safe defaults
     update_data = {
-        "prompt": problem_data.get("prompt", existing_problem["prompt"]),
-        "code_starter": problem_data.get("code_starter", existing_problem["code_starter"]),
-        "test_cases": problem_data.get("test_cases", existing_problem["test_cases"]),
-        "difficulty": problem_data.get("difficulty", existing_problem["difficulty"]),
-        "tags": problem_data.get("tags", existing_problem["tags"]),
-        "xp_reward": problem_data.get("xp_reward", existing_problem["xp_reward"]),
+        "prompt": problem_data.get("prompt", existing_problem.get("prompt", "")),
+        "code_starter": problem_data.get("code_starter", existing_problem.get("code_starter", "")),
+        "test_cases": problem_data.get("test_cases", existing_problem.get("test_cases", [])),
+        "difficulty": problem_data.get("difficulty", existing_problem.get("difficulty", "medium")),
+        "tags": problem_data.get("tags", existing_problem.get("tags", [])),
+        "xp_reward": problem_data.get("xp_reward", existing_problem.get("xp_reward", 10)),
         "explanation": problem_data.get("explanation", existing_problem.get("explanation", "")),
         "is_practice_problem": problem_data.get("is_practice_problem", existing_problem.get("is_practice_problem", False)),
+        "course_id": problem_data.get("course_id", existing_problem.get("course_id")),  # For GNN relationships
+        "topic_id": problem_data.get("topic_id", existing_problem.get("topic_id")),    # For GNN relationships
         "updated_at": datetime.utcnow()
     }
     

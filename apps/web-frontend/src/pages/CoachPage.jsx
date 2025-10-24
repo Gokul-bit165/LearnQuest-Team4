@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Sparkles, Loader2 } from 'lucide-react';
+import { Send, Sparkles, Loader2, Target, BookOpen } from 'lucide-react';
 import { aiAPI } from '../services/api';
 
 const CoachPage = () => {
@@ -11,6 +11,7 @@ const CoachPage = () => {
   ]);
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [recommendations, setRecommendations] = useState(null);
   const messagesEndRef = useRef(null);
 
   const scrollToBottom = () => {
@@ -42,6 +43,9 @@ const CoachPage = () => {
       };
       
       setMessages([...newMessages, assistantMessage]);
+      if (response.data.recommendations) {
+        setRecommendations(response.data.recommendations);
+      }
     } catch (error) {
       console.error('Error sending message to AI Coach:', error);
       const errorMessage = {
@@ -82,6 +86,47 @@ const CoachPage = () => {
           </p>
         </div>
       </div>
+
+      {/* Personalized Recommendations */}
+      {recommendations && (
+        <div className="mb-6 space-y-4">
+          {Array.isArray(recommendations.weaker_topics) && recommendations.weaker_topics.length > 0 && (
+            <div className="bg-slate-800 rounded-lg p-4 border border-slate-700">
+              <div className="flex items-center space-x-2 mb-3">
+                <Target className="w-5 h-5 text-orange-400" />
+                <h3 className="text-white font-semibold">Focus Topics</h3>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {recommendations.weaker_topics.map((t, idx) => (
+                  <div key={idx} className="p-3 rounded-md border border-slate-600 bg-slate-900">
+                    <div className="text-white font-medium">{t.name || t.topic_id}</div>
+                    <div className="text-slate-400 text-sm">Recent mistakes: {t.mistakes}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          {Array.isArray(recommendations.gnn_problem_ids) && recommendations.gnn_problem_ids.length > 0 && (
+            <div className="bg-slate-800 rounded-lg p-4 border border-slate-700">
+              <div className="flex items-center space-x-2 mb-3">
+                <BookOpen className="w-5 h-5 text-blue-400" />
+                <h3 className="text-white font-semibold">Recommended Practice Problems</h3>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {recommendations.gnn_problem_ids.map((pid) => (
+                  <a
+                    key={pid}
+                    href={`/practice/${pid}`}
+                    className="px-3 py-2 rounded-md border border-slate-600 text-slate-200 hover:bg-slate-700"
+                  >
+                    Practice #{pid.slice(-6)}
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto space-y-4 mb-6 pr-2">

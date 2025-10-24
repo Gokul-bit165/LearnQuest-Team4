@@ -1,5 +1,128 @@
 #!/usr/bin/env python3
 """
+Seed 10-15 practice problems linked to existing courses and topics.
+Links each problem with course_id and topic_id so GNN and AI coach can reason about them.
+"""
+
+import os
+import sys
+from datetime import datetime
+import random
+from pymongo import MongoClient
+
+MONGO_URL = os.getenv("MONGO_URL", "mongodb://localhost:27017")
+DB_NAME = os.getenv("MONGO_DB", "learnquest")
+
+def get_db():
+    client = MongoClient(MONGO_URL)
+    return client[DB_NAME]
+
+def pick_topics(db):
+    courses = list(db.courses.find({}))
+    topic_refs = []
+    for c in courses:
+        for m in c.get('modules', []):
+            for t in m.get('topics', []):
+                topic_refs.append({
+                    'course_id': str(c['_id']),
+                    'topic_id': t.get('topic_id'),
+                    'topic_title': t.get('title', 'Topic')
+                })
+    return topic_refs
+
+def main():
+    db = get_db()
+    topic_refs = pick_topics(db)
+    if not topic_refs:
+        print("No topics found. Create courses/modules/topics first.")
+        return
+
+    questions = db.questions
+    existing = questions.count_documents({"seed_tag": "practice_seed_v1"})
+    if existing >= 10:
+        print("Practice problems already seeded.")
+        return
+
+    problem_specs = [
+        ("Two Sum", "Given an array and a target, return indices of numbers that add up to target.", [
+            {"input": "4\n2 7 11 15\n9\n", "expected_output": "0 1", "is_hidden": False},
+        ]),
+        ("Valid Palindrome", "Check if a string is a palindrome ignoring non-alphanumeric and case.", [
+            {"input": "A man, a plan, a canal: Panama\n", "expected_output": "true", "is_hidden": False},
+        ]),
+        ("Fibonacci", "Print n-th Fibonacci number (0-indexed, fib(0)=0,fib(1)=1).", [
+            {"input": "5\n", "expected_output": "5", "is_hidden": False},
+        ]),
+        ("Factorial", "Compute factorial of n.", [
+            {"input": "5\n", "expected_output": "120", "is_hidden": False},
+        ]),
+        ("Reverse String", "Reverse the given string.", [
+            {"input": "hello\n", "expected_output": "olleh", "is_hidden": False},
+        ]),
+        ("Anagram Check", "Check if two strings are anagrams.", [
+            {"input": "listen\nsilent\n", "expected_output": "true", "is_hidden": False},
+        ]),
+        ("Max Subarray Sum", "Kadane's algorithm to find maximum subarray sum.", [
+            {"input": "5\n-2 1 -3 4 -1\n", "expected_output": "4", "is_hidden": False},
+        ]),
+        ("Count Vowels", "Count vowels in a string.", [
+            {"input": "education\n", "expected_output": "5", "is_hidden": False},
+        ]),
+        ("Unique Elements", "Return number of unique elements.", [
+            {"input": "6\n1 2 2 3 4 4\n", "expected_output": "4", "is_hidden": False},
+        ]),
+        ("Matrix Diagonal Sum", "Sum of primary diagonal.", [
+            {"input": "3\n1 2 3\n4 5 6\n7 8 9\n", "expected_output": "15", "is_hidden": False},
+        ]),
+        ("Valid Parentheses", "Check if parentheses string is valid.", [
+            {"input": "()[]{}\n", "expected_output": "true", "is_hidden": False},
+        ]),
+        ("First Non-Repeating", "First non-repeating character index.", [
+            {"input": "leetcode\n", "expected_output": "0", "is_hidden": False},
+        ]),
+        ("Merge Two Sorted Lists", "Merge two sorted lists.", [
+            {"input": "3\n1 3 5\n3\n2 4 6\n", "expected_output": "1 2 3 4 5 6", "is_hidden": False},
+        ]),
+        ("Binary Search", "Find index of target in sorted array.", [
+            {"input": "5\n1 3 5 7 9\n7\n", "expected_output": "3", "is_hidden": False},
+        ]),
+        ("Two Pointers Sum <= K", "Count pairs with sum <= K.", [
+            {"input": "4\n1 2 3 4\n5\n", "expected_output": "4", "is_hidden": False},
+        ]),
+    ]
+
+    titles = [t for t, _, _ in problem_specs]
+    random.shuffle(topic_refs)
+
+    created = 0
+    for idx, (title, prompt, tests) in enumerate(problem_specs):
+        if created >= 15:
+            break
+        topic = topic_refs[idx % len(topic_refs)]
+        doc = {
+            "type": "code",
+            "title": title,
+            "prompt": prompt,
+            "course_id": topic['course_id'],
+            "topic_id": topic['topic_id'],
+            "topic_name": topic.get('topic_title'),
+            "difficulty": random.choice(["easy", "medium"]),
+            "tags": [topic.get('topic_title', 'general')],
+            "code_starter": "def solve():\n    pass\n\nif __name__ == '__main__':\n    print('')\n",
+            "test_cases": tests,
+            "created_at": datetime.utcnow(),
+            "seed_tag": "practice_seed_v1"
+        }
+        questions.insert_one(doc)
+        created += 1
+
+    print(f"Created {created} practice problems linked to courses/topics.")
+
+if __name__ == "__main__":
+    main()
+
+#!/usr/bin/env python3
+"""
 Seed script to add demo practice problems to the Learn Quest platform.
 """
 

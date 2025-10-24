@@ -271,9 +271,14 @@ const Dashboard = () => {
           </p>
         </div>
             <div className="flex items-center gap-4">
-              <button className="p-3 bg-slate-800 hover:bg-slate-700 rounded-xl border border-slate-700 transition-colors">
-                <Bell className="w-5 h-5 text-slate-400" />
-              </button>
+              <Link
+                to="/coach"
+                className="relative p-3 bg-slate-800 hover:bg-slate-700 rounded-xl border border-slate-700 transition-colors group"
+              >
+                <Bell className="w-5 h-5 text-slate-400 group-hover:text-white transition-colors" />
+                <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full animate-pulse"></span>
+                <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full"></span>
+              </Link>
               <button className="p-3 bg-slate-800 hover:bg-slate-700 rounded-xl border border-slate-700 transition-colors">
                 <Settings className="w-5 h-5 text-slate-400" />
               </button>

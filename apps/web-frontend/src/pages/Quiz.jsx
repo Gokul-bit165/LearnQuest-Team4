@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { quizzesAPI } from '../services/api';
 import CodeEditor from '../components/quiz/CodeEditor';
 import Layout from '../components/Layout';
@@ -11,11 +11,13 @@ import {
     Loader2, 
     AlertCircle,
     Trophy,
-    Zap
+    Zap,
+    Target,
+    BookOpen
 } from 'lucide-react';
 
 // A new component to display the quiz results cleanly
-const QuizResults = ({ feedback, onRetry }) => {
+const QuizResults = ({ feedback, onRetry, failedProblemIds, onGeneratePracticePlan }) => {
     const navigate = useNavigate();
     const { score, xp_earned, new_total_xp, new_level } = feedback;
 
@@ -39,6 +41,24 @@ const QuizResults = ({ feedback, onRetry }) => {
                         </div>
                     </div>
                 </div>
+
+                {/* Adaptive Practice Section */}
+                {failedProblemIds && failedProblemIds.length > 0 && (
+                    <div className="bg-gradient-to-r from-orange-900/30 to-red-900/30 rounded-xl p-6 mb-6 border border-orange-700">
+                        <Target className="w-8 h-8 text-orange-400 mx-auto mb-3" />
+                        <h3 className="text-xl font-bold text-white mb-2">Need More Practice?</h3>
+                        <p className="text-slate-300 mb-4">
+                            Don't worry! Let our AI create a personalized practice plan to help you improve.
+                        </p>
+                        <button
+                            onClick={onGeneratePracticePlan}
+                            className="bg-gradient-to-r from-orange-600 to-red-600 text-white px-6 py-3 rounded-lg hover:from-orange-700 hover:to-red-700 transition-all duration-200 font-medium flex items-center mx-auto"
+                        >
+                            <BookOpen className="w-5 h-5 mr-2" />
+                            Build My Personalized Practice Plan
+                        </button>
+                    </div>
+                )}
 
                 <div className="flex justify-center space-x-4">
                     <button
@@ -73,6 +93,9 @@ const Quiz = () => {
     const [error, setError] = useState('');
     const [timeLeft, setTimeLeft] = useState(0);
     const [feedback, setFeedback] = useState(null); // Will hold quiz results
+    const [failedProblemIds, setFailedProblemIds] = useState([]); // Problems user got wrong
+    const [practicePlan, setPracticePlan] = useState(null); // AI-generated practice plan
+    const [isLoadingPlan, setIsLoadingPlan] = useState(false); // Loading state for practice plan
 
     // --- Effects ---
     useEffect(() => {
@@ -147,6 +170,14 @@ const Quiz = () => {
 
             const response = await quizzesAPI.submitQuiz(sessionId, answersArray);
             setFeedback(response.data); // Set feedback to show the results screen
+            
+            // Extract failed problem IDs if score is below 80%
+            if (response.data.score < 80 && Array.isArray(response.data.wrong_questions)) {
+                const ids = response.data.wrong_questions
+                    .map(w => (typeof w === 'string' ? w : w.q_id))
+                    .filter(Boolean);
+                setFailedProblemIds(ids);
+            }
         } catch (err) {
             setError('Failed to submit quiz. Please try again.');
             console.error('Error submitting quiz:', err);
@@ -159,6 +190,21 @@ const Quiz = () => {
         // Find the course slug to navigate back and restart
         // This is a simplified approach; in a real app, you might get this from quizData
         navigate('/courses'); 
+    };
+
+    const handleGeneratePracticePlan = async () => {
+        if (isLoadingPlan || !failedProblemIds.length) return;
+        
+        setIsLoadingPlan(true);
+        try {
+            const response = await quizzesAPI.generatePracticePlan(failedProblemIds);
+            setPracticePlan(response.data);
+        } catch (err) {
+            console.error('Error generating practice plan:', err);
+            setError('Failed to generate practice plan. Please try again.');
+        } finally {
+            setIsLoadingPlan(false);
+        }
     };
 
     // --- Render Logic ---
@@ -200,7 +246,66 @@ const Quiz = () => {
     if (feedback) {
         return (
             <Layout showSidebar={false}>
-                <QuizResults feedback={feedback} onRetry={handleRetry} />
+                <QuizResults 
+                    feedback={feedback} 
+                    onRetry={handleRetry}
+                    failedProblemIds={failedProblemIds}
+                    onGeneratePracticePlan={handleGeneratePracticePlan}
+                />
+                {/* Practice Plan Display */}
+                {practicePlan && (
+                    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+                        <div className="bg-slate-800 rounded-2xl border border-slate-700 shadow-2xl p-8 max-w-2xl w-full max-h-[80vh] overflow-y-auto">
+                            <div className="flex justify-between items-center mb-6">
+                                <h2 className="text-2xl font-bold text-white">Your Personalized Practice Plan</h2>
+                                <button
+                                    onClick={() => setPracticePlan(null)}
+                                    className="text-slate-400 hover:text-white"
+                                >
+                                    ✕
+                                </button>
+                            </div>
+                            
+                            <div className="bg-gradient-to-r from-blue-900/30 to-purple-900/30 rounded-xl p-6 mb-6 border border-blue-700">
+                                <p className="text-slate-200 text-lg leading-relaxed">
+                                    {practicePlan.message}
+                                </p>
+                            </div>
+                            
+                            <div className="space-y-4">
+                                <h3 className="text-xl font-semibold text-white mb-4">Recommended Practice Problems:</h3>
+                                {practicePlan.problems.map((problem, index) => (
+                                    <Link
+                                        key={problem.problem_id}
+                                        to={`/practice/${problem.problem_id}`}
+                                        className="block bg-slate-700 rounded-lg p-4 hover:bg-slate-600 transition-all duration-200 border border-slate-600 hover:border-blue-500"
+                                    >
+                                        <div className="flex justify-between items-start">
+                                            <div>
+                                                <h4 className="text-white font-semibold mb-1">
+                                                    {index + 1}. {problem.title}
+                                                </h4>
+                                                <p className="text-slate-400 text-sm">
+                                                    Difficulty: <span className="capitalize">{problem.difficulty}</span>
+                                                </p>
+                                            </div>
+                                            <BookOpen className="w-5 h-5 text-blue-400 flex-shrink-0" />
+                                        </div>
+                                    </Link>
+                                ))}
+                            </div>
+                            
+                            <div className="mt-6 flex justify-end">
+                                <button
+                                    onClick={() => setPracticePlan(null)}
+                                    className="bg-slate-600 text-white px-6 py-2 rounded-lg hover:bg-slate-500 transition-all duration-200"
+                                >
+                                    Close
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </Layout>
         );
     }

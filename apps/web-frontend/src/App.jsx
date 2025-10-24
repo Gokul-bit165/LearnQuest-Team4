@@ -12,6 +12,7 @@ import QuizResults from './pages/QuizResults';
 import Dashboard from './pages/Dashboard';
 import Tutor from './pages/Tutor';
 import CoachPage from './pages/CoachPage';
+import EnhancedCoachPage from './pages/EnhancedCoachPage';
 import Lesson from './pages/Lesson';
 import PracticePage from './pages/PracticePage';
 import ProblemSolverPage from './pages/ProblemSolverPage';
@@ -71,7 +72,7 @@ function App() {
               path="/coach" 
               element={
                 <ProtectedRoute>
-                  <CoachPage />
+                  <EnhancedCoachPage />
                 </ProtectedRoute>
               } 
             />

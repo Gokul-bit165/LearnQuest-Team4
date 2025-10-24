@@ -289,6 +289,21 @@ const LessonPage = () => {
     );
   }
 
+  const handleRetakeLesson = () => {
+    setLessonComplete(false);
+    setCurrentCardIndex(0);
+    setUserAnswer('');
+    setSelectedChoice(null);
+    setCodeAnswer('');
+    setFillAnswers([]);
+    setCheckResult(null);
+    setRunResult(null);
+    setShowExplanation(false);
+    setShowXPAnimation(false);
+    setXpGained(0);
+    setCardTransition(false);
+  };
+
   if (lessonComplete) {
     return (
       <LessonComplete
@@ -296,6 +311,7 @@ const LessonPage = () => {
         lessonTitle={topic.title}
         xpEarned={topic.xp_reward || 0}
         onBackToModule={handleBackToModule}
+        onRetakeLesson={handleRetakeLesson}
       />
     );
   }

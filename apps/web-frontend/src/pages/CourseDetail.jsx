@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { coursesAPI } from '../services/api';
+import { coursesAPI, quizzesAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import Layout from '../components/Layout';
 import { 
@@ -49,6 +49,35 @@ const CourseDetail = () => {
     }
   }, [isAuthenticated, slug]);
 
+  const handleStartQuiz = async () => {
+    if (!course?.id) return;
+    
+    try {
+      // Generate AI quiz for this course
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/ai-quiz/generate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({
+          course_id: course.id,
+          difficulty: 'medium',
+          num_questions: 5
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to generate quiz');
+      }
+      
+      const quizData = await response.json();
+      navigate(`/quiz/${quizData.session_id}`);
+    } catch (err) {
+      console.error('Error starting quiz:', err);
+      setError('Failed to start quiz. Please try again.');
+    }
+  };
 
   if (loading) {
     return (
@@ -136,6 +165,13 @@ const CourseDetail = () => {
                     <Bot className="w-5 h-5 mr-2" />
                     Ask AI Tutor
                   </Link>
+                  <button
+                    onClick={handleStartQuiz}
+                    className="flex items-center px-8 py-4 bg-gradient-to-r from-green-600 to-blue-600 text-white rounded-lg hover:from-green-700 hover:to-blue-700 transition-all duration-200 font-medium shadow-lg"
+                  >
+                    <Zap className="w-5 h-5 mr-2" />
+                    Take AI Quiz
+                  </button>
                 </>
               ) : (
                 <Link
