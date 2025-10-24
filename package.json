@@ -47,6 +47,7 @@
   "license": "MIT",
   "dependencies": {
     "@lottiefiles/react-lottie-player": "^3.6.0",
-    "framer-motion": "^12.23.24"
+    "framer-motion": "^12.23.24",
+    "mongodb": "^6.20.0"
   }
 }
