@@ -335,6 +335,59 @@ Focus on topics that will help the user learn from their mistakes and improve th
             detail=f"Topic recommendation failed: {str(e)}"
         )
 
+@router.post("/test-generate", response_model=QuizGenerationResponse)
+async def test_generate_quiz(request: QuizGenerationRequest):
+    """
+    Public test endpoint for Quiz Generation (no authentication required)
+    """
+    try:
+        # Generate quiz using Ollama
+        ollama_url = f"{OLLAMA_BASE_URL}/api/generate"
+        
+        prompt = f"""Generate a {request.difficulty} level quiz about {request.course_id} with {request.num_questions} questions.
+
+Format the response as JSON with this structure:
+{{
+    "questions": [
+        {{
+            "question": "Question text",
+            "options": ["A", "B", "C", "D"],
+            "correct_answer": "A",
+            "explanation": "Why this answer is correct"
+        }}
+    ]
+}}
+
+Make the questions educational and relevant to {request.course_id}."""
+
+        import httpx
+        async with httpx.AsyncClient() as client:
+            response = await client.post(ollama_url, json={
+                "model": "llama3:latest",
+                "prompt": prompt,
+                "stream": False
+            })
+            
+            if response.status_code == 200:
+                result = response.json()
+                quiz_data = json.loads(result.get("response", "{}"))
+                
+                return QuizGenerationResponse(
+                    quiz_id=str(uuid.uuid4()),
+                    questions=quiz_data.get("questions", []),
+                    difficulty=request.difficulty,
+                    course_id=request.course_id
+                )
+            else:
+                raise Exception(f"Ollama API error: {response.status_code}")
+                
+    except Exception as e:
+        print(f"Test quiz generation error: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Quiz generation failed: {str(e)}"
+        )
+
 @router.get("/health")
 async def ai_quiz_health():
     """Check if AI quiz service is available"""

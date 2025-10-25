@@ -52,8 +52,8 @@ def wait_for_chroma(max_retries=10, delay=1):
     for attempt in range(max_retries):
         try:
             client = get_chroma_client()
-            # Try to get server version to test connection
-            client.heartbeat()
+            # Try to get server version to test connection (v2 API)
+            client.get_version()
             return client
         except Exception as e:
             if attempt < max_retries - 1:
@@ -82,7 +82,7 @@ async def explain_concept(
     try:
         # Get ChromaDB collection
         chroma_client = wait_for_chroma()
-        collection = chroma_client.get_collection("learnquest_content")
+        collection = chroma_client.get_or_create_collection("learnquest_content")
         
         # Generate embedding for user's question
         embedding_model = get_embedding_model()
@@ -96,10 +96,9 @@ async def explain_concept(
         )
         
         if not results['documents'] or not results['documents'][0]:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="No relevant content found for this course"
-            )
+            # If no course-specific content, use general knowledge
+            print("No course content found, using general knowledge")
+            return await handle_general_knowledge_query(request.question)
         
         # Get the top result
         top_result = results['metadatas'][0][0]
@@ -133,6 +132,50 @@ async def explain_concept(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"AI explanation failed: {str(e)}"
+        )
+
+async def handle_general_knowledge_query(question: str) -> ExplainResponse:
+    """Handle general knowledge queries when no course content is available"""
+    try:
+        # Use Ollama directly for general knowledge
+        ollama_url = f"{OLLAMA_BASE_URL}/api/generate"
+        
+        prompt = f"""You are an AI tutor. Please provide a clear, educational explanation for the following question:
+
+Question: {question}
+
+Please provide:
+1. A clear explanation
+2. Key concepts
+3. Examples if applicable
+4. Related topics
+
+Keep your response educational and helpful."""
+
+        async with httpx.AsyncClient() as client:
+            response = await client.post(ollama_url, json={
+                "model": "llama3:latest",
+                "prompt": prompt,
+                "stream": False
+            })
+            
+            if response.status_code == 200:
+                result = response.json()
+                explanation = result.get("response", "I'm sorry, I couldn't generate an explanation.")
+                
+                return ExplainResponse(
+                    explanation=explanation,
+                    sources=[],
+                    confidence=0.8
+                )
+            else:
+                raise Exception(f"Ollama API error: {response.status_code}")
+                
+    except Exception as e:
+        print(f"General knowledge query error: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to generate explanation: {str(e)}"
         )
 
 async def handle_text_query(question: str, context: str, sources: List[Dict]) -> ExplainResponse:
@@ -246,6 +289,21 @@ Your Response:"""
             detail=f"Image query processing failed: {str(e)}"
         )
 
+@router.post("/test-explain", response_model=ExplainResponse)
+async def test_explain_concept(request: ExplainRequest):
+    """
+    Public test endpoint for AI Tutor (no authentication required)
+    """
+    try:
+        # Use general knowledge query for testing
+        return await handle_general_knowledge_query(request.question)
+    except Exception as e:
+        print(f"Test AI explanation error: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"AI explanation failed: {str(e)}"
+        )
+
 @router.get("/health")
 async def ai_health_check():
     """Health check for AI services"""
@@ -254,7 +312,7 @@ async def ai_health_check():
         chroma_status = {"connected": False, "embeddings_count": 0}
         try:
             chroma_client = wait_for_chroma()
-            collection = chroma_client.get_collection("learnquest_content")
+            collection = chroma_client.get_or_create_collection("learnquest_content")
             count = collection.count()
             chroma_status = {"connected": True, "embeddings_count": count}
         except Exception as e:

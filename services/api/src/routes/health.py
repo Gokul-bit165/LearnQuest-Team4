@@ -7,4 +7,8 @@ router = APIRouter(prefix="/api")
 def health_check():
     return {"status": "ok"}
 
+@router.get("/test")
+def test_endpoint():
+    return {"message": "Test endpoint working"}
+
 

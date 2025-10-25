@@ -22,6 +22,24 @@ learn-quest/
 - Python (v3.9+) for backend services
 - Google Cloud Console account (for OAuth)
 
+### 👥 For Team Members
+
+**Quick Setup:**
+```bash
+# 1. Clone and setup
+git clone <repo-url>
+cd LearnQuest-Team4
+python scripts/setup_for_team.py
+
+# 2. Configure Google OAuth (see docs/TEAM_SETUP_GUIDE.md)
+# Edit .env file with your Google OAuth credentials
+
+# 3. Start the application
+docker-compose up -d
+```
+
+**📖 Full Setup Guide:** [docs/TEAM_SETUP_GUIDE.md](docs/TEAM_SETUP_GUIDE.md)
+
 ### Installation
 
 ```bash
