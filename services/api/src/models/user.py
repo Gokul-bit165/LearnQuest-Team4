@@ -30,6 +30,7 @@ class User(BaseModel):
     role: str = "student"
     avatar_url: Optional[str] = None
     auth_provider: str = "email"
+    google_id: Optional[str] = None
     xp: int = 0
     level: int = 1
     enrolled_courses: List[EnrolledCourse] = Field(default_factory=list)

@@ -80,6 +80,42 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const loginWithGoogle = async () => {
+    try {
+      const response = await authAPI.getGoogleAuthUrl();
+      const { auth_url } = response.data;
+      
+      // Redirect to Google OAuth
+      window.location.href = auth_url;
+    } catch (error) {
+      console.error('Google login failed:', error);
+      return { 
+        success: false, 
+        error: error.response?.data?.detail || 'Google login failed' 
+      };
+    }
+  };
+
+  const handleGoogleCallback = async (code) => {
+    try {
+      const response = await authAPI.googleCallback(code);
+      const { access_token, user: userData } = response.data;
+      
+      localStorage.setItem('token', access_token);
+      setToken(access_token);
+      setUser(userData);
+      setLoginResponse(response.data);
+      
+      return { success: true };
+    } catch (error) {
+      console.error('Google callback failed:', error);
+      return { 
+        success: false, 
+        error: error.response?.data?.detail || 'Google authentication failed' 
+      };
+    }
+  };
+
   const logout = () => {
     localStorage.removeItem('token');
     setToken(null);
@@ -112,6 +148,8 @@ export const AuthProvider = ({ children }) => {
     token,
     loading,
     login,
+    loginWithGoogle,
+    handleGoogleCallback,
     logout,
     refreshUserProgress,
     isAuthenticated: !!user

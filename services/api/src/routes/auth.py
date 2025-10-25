@@ -5,6 +5,14 @@ from ..models.user import User
 from ..auth import verify_password, create_access_token, get_current_user
 from ..database import get_collection
 
+# Import Google OAuth service
+try:
+    from ..services.google_auth import GoogleAuthService
+    GOOGLE_OAUTH_AVAILABLE = True
+except Exception as e:
+    GOOGLE_OAUTH_AVAILABLE = False
+    GoogleAuthService = None
+
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 class LoginRequest(BaseModel):
@@ -15,6 +23,9 @@ class LoginResponse(BaseModel):
     access_token: str
     token_type: str
     user: dict
+
+class GoogleAuthRequest(BaseModel):
+    code: str
 
 @router.post("/login", response_model=LoginResponse)
 async def login(request: LoginRequest):
@@ -96,3 +107,70 @@ async def get_current_user_info(current_user: User = Depends(get_current_user)):
         "completed_topics": doc.get("completed_topics", []),
         "completed_modules": doc.get("completed_modules", [])
     }
+
+@router.get("/google/url")
+async def get_google_auth_url():
+    """Get Google OAuth authorization URL"""
+    if not GOOGLE_OAUTH_AVAILABLE or not GoogleAuthService:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Google OAuth service not available"
+        )
+    
+    try:
+        auth_url = GoogleAuthService.get_google_auth_url()
+        return {"auth_url": auth_url}
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to generate Google auth URL: {str(e)}"
+        )
+
+@router.post("/google/callback", response_model=LoginResponse)
+async def google_auth_callback(request: GoogleAuthRequest):
+    """Handle Google OAuth callback and authenticate user"""
+    if not GOOGLE_OAUTH_AVAILABLE or not GoogleAuthService:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Google OAuth service not available"
+        )
+    
+    try:
+        # Exchange code for token
+        token_data = await GoogleAuthService.exchange_code_for_token(request.code)
+        access_token = token_data["access_token"]
+        
+        # Get user info from Google
+        user_info = await GoogleAuthService.get_user_info(access_token)
+        
+        # Authenticate or create user
+        user, jwt_token = await GoogleAuthService.authenticate_or_create_user(user_info)
+        
+        # Prepare user data for response
+        user_response = {
+            "id": user.id,
+            "name": user.name,
+            "email": user.email,
+            "avatar_url": user.avatar_url,
+            "auth_provider": user.auth_provider,
+            "role": user.role,
+            "xp": user.xp,
+            "level": user.level,
+            "badges": user.badges,
+            "completed_topics": getattr(user, 'completed_topics', []),
+            "completed_modules": getattr(user, 'completed_modules', [])
+        }
+        
+        return {
+            "access_token": jwt_token,
+            "token_type": "bearer",
+            "user": user_response
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Google authentication error: {str(e)}"
+        )

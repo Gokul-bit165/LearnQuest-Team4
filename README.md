@@ -20,6 +20,7 @@ learn-quest/
 - Node.js (v18+)
 - Docker & Docker Compose
 - Python (v3.9+) for backend services
+- Google Cloud Console account (for OAuth)
 
 ### Installation
 
@@ -27,9 +28,19 @@ learn-quest/
 # Install dependencies
 npm install
 
+# Configure environment variables
+cp env.example .env
+# Edit .env with your configuration (see Google OAuth setup below)
+
 # Start all services with Docker
 docker-compose up
 ```
+
+### Google OAuth Setup
+
+1. Follow the [Google OAuth Setup Guide](docs/GOOGLE_OAUTH_SETUP.md)
+2. Configure your `.env` file with Google OAuth credentials
+3. Test the integration: `python scripts/test_google_oauth_simple.py`
 
 ## 📦 Components
 

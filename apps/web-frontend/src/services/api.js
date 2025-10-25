@@ -40,6 +40,8 @@ api.interceptors.response.use(
 export const authAPI = {
   login: (email, password) => api.post('/api/auth/login', { email, password }),
   getMe: () => api.get('/api/auth/me'),
+  getGoogleAuthUrl: () => api.get('/api/auth/google/url'),
+  googleCallback: (code) => api.post('/api/auth/google/callback', { code }),
 };
 
 // Courses API
