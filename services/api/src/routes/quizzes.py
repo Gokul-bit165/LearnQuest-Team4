@@ -96,6 +96,79 @@ async def start_quiz(quiz_id: str, current_user: User = Depends(get_current_user
             detail=f"Error starting quiz: {str(e)}"
         )
 
+@router.get("/{quiz_id}/questions")
+async def get_quiz_questions_by_id(quiz_id: str, current_user: User = Depends(get_current_user)):
+    """Get questions for a quiz directly by quiz ID (for frontend compatibility)"""
+    try:
+        # Get quiz from database
+        quizzes_collection = get_collection("quizzes")
+        from bson import ObjectId
+        
+        # Try to find quiz by ObjectId first, then by string ID (for AI-generated quizzes)
+        quiz = None
+        try:
+            # Try as ObjectId first
+            quiz = quizzes_collection.find_one({"_id": ObjectId(quiz_id)})
+        except:
+            # If ObjectId conversion fails, try as string ID (for AI-generated quizzes)
+            quiz = quizzes_collection.find_one({"_id": quiz_id})
+        
+        if not quiz:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Quiz not found"
+            )
+        
+        # Get questions for the quiz
+        questions_collection = get_collection("questions")
+        # Handle both ObjectId and string quiz IDs
+        quiz_id_for_query = str(quiz["_id"]) if isinstance(quiz["_id"], ObjectId) else quiz["_id"]
+        questions = list(questions_collection.find({"quiz_id": quiz_id_for_query}))
+        
+        if not questions:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No questions found for this quiz"
+            )
+        
+        # Format questions for frontend
+        formatted_questions = []
+        for question in questions:
+            question_data = {
+                "id": str(question["_id"]),
+                "type": question["type"],
+                "prompt": question["prompt"],
+                "choices": question.get("choices", []),
+                "difficulty": question.get("difficulty", "easy"),
+                "tags": question.get("tags", [])
+            }
+            if question["type"] == "code":
+                question_data["code_starter"] = question.get("code_starter", "")
+                public_examples = []
+                for tc in question.get("test_cases", []) or []:
+                    if not tc.get("is_hidden", False):
+                        public_examples.append({
+                            "input": tc.get("input", ""),
+                            "expected_output": tc.get("expected_output", "")
+                        })
+                question_data["public_test_cases"] = public_examples
+            formatted_questions.append(question_data)
+        
+        return {
+            "quiz_id": quiz_id,
+            "questions": formatted_questions,
+            "title": quiz.get("title", "Quiz"),
+            "duration_seconds": quiz.get("duration_seconds", 1800)
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error fetching questions: {str(e)}"
+        )
+
 @router.get("/{session_id}/questions")
 async def get_quiz_questions(session_id: str, current_user: User = Depends(get_current_user)):
     """Get questions for a quiz session (without correct answers)"""

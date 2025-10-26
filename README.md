@@ -26,19 +26,22 @@ learn-quest/
 
 **Quick Setup:**
 ```bash
-# 1. Clone and setup
+# 1. Clone the repository
 git clone <repo-url>
-cd LearnQuest-Team4
-python scripts/setup_for_team.py
+cd LearnQuest
 
-# 2. Configure Google OAuth (see docs/TEAM_SETUP_GUIDE.md)
-# Edit .env file with your Google OAuth credentials
+# 2. Run the automated setup script
+python scripts/team_setup.py
 
-# 3. Start the application
-docker-compose up -d
+# 3. Optional: Set up Google OAuth (see docs/TEAM_SETUP_GUIDE.md)
+# Edit services/api/.env file with your Google OAuth credentials
+
+# 4. Access the application at http://localhost:3000
 ```
 
-**📖 Full Setup Guide:** [docs/TEAM_SETUP_GUIDE.md](docs/TEAM_SETUP_GUIDE.md)
+**📖 Full Setup Guide:** [TEAM_SETUP_GUIDE.md](TEAM_SETUP_GUIDE.md)
+
+**🔧 Manual Setup:** If the script doesn't work, follow the manual steps in the team setup guide.
 
 ### Installation
 
