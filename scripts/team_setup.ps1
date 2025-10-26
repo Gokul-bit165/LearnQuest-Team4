@@ -127,4 +127,4 @@ Write-Host "   2. Explore the courses and take quizzes" -ForegroundColor White
 Write-Host "   3. Test the AI Tutor with questions" -ForegroundColor White
 Write-Host "   4. Check the leaderboard for rankings" -ForegroundColor White
 
-Write-Host "`n✨ Happy Learning!" -ForegroundColor Green
+Write-Host "Happy Learning!" -ForegroundColor Green

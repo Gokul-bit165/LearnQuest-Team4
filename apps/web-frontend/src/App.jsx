@@ -17,6 +17,13 @@ import Lesson from './pages/Lesson';
 import PracticePage from './pages/PracticePage';
 import ProblemSolverPage from './pages/ProblemSolverPage';
 import Leaderboard from './pages/Leaderboard';
+import CertificationLanding from './pages/CertificationLanding';
+import CertificationTopics from './pages/CertificationTopics';
+import CertificationDifficulty from './pages/CertificationDifficulty';
+import TestEnvironmentSetup from './pages/TestEnvironmentSetup';
+import PreTestRequirements from './pages/PreTestRequirements';
+import ProctoredTest from './pages/ProctoredTest';
+import TestResults from './pages/TestResults';
 import './App.css';
 
 function App() {
@@ -113,6 +120,43 @@ function App() {
               element={
                 <ProtectedRoute>
                   <Leaderboard />
+                </ProtectedRoute>
+              } 
+            />
+            
+            {/* Certification Routes */}
+            <Route path="/certification" element={<CertificationLanding />} />
+            <Route path="/certification/topics" element={<CertificationTopics />} />
+            <Route path="/certification/difficulty/:topicId" element={<CertificationDifficulty />} />
+            <Route 
+              path="/certification/setup/:topicId/:difficulty" 
+              element={
+                <ProtectedRoute>
+                  <TestEnvironmentSetup />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/certification/requirements/:topicId/:difficulty" 
+              element={
+                <ProtectedRoute>
+                  <PreTestRequirements />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/certification/test/:topicId/:difficulty" 
+              element={
+                <ProtectedRoute>
+                  <ProctoredTest />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/certification/results" 
+              element={
+                <ProtectedRoute>
+                  <TestResults />
                 </ProtectedRoute>
               } 
             />

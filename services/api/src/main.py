@@ -28,6 +28,7 @@ from .routes.admin import router as admin_router  # base admin router
 from .routes.admin_users import router as admin_users_router
 from .routes.simple_gnn import router as gnn_router
 from .routes.ai_quiz import router as ai_quiz_router
+from .routes.proctoring import router as proctoring_router
 
 app = FastAPI(title="Learn Quest API", version="1.0.0")
 
@@ -62,6 +63,7 @@ app.include_router(admin_router, prefix="/api/admin")
 app.include_router(admin_users_router)
 app.include_router(gnn_router)
 app.include_router(ai_quiz_router)
+app.include_router(proctoring_router)
 
 @app.get("/")
 async def root():

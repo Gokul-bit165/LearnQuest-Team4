@@ -24,6 +24,7 @@ const Sidebar = () => {
     { name: 'Courses', href: '/courses', icon: BookOpen },
     { name: 'Practice', href: '/practice', icon: Code },
     { name: 'Leaderboard', href: '/leaderboard', icon: Trophy },
+    { name: 'Certification', href: '/certification', icon: Star },
   ];
 
   const isActive = (path) => location.pathname === path;
