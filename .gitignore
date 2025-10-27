@@ -59,3 +59,34 @@ Thumbs.db
 *.temp
 .cache/
 services/api/.env
+
+# Proctoring specific
+temp_video/
+temp_audio/
+face_encodings/
+violation_logs/
+*.mp4
+*.wav
+*.avi
+
+# AI/ML models and data
+*.pkl
+*.joblib
+*.h5
+*.hdf5
+models/
+checkpoints/
+*.pt
+*.pth
+*.onnx
+*.tflite
+embeddings/
+node_mappings.json
+simple_embeddings.json
+
+# Certificate files
+certificates/
+*.pdf
+*.png
+*.jpg
+*.jpeg

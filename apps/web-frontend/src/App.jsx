@@ -20,6 +20,13 @@ import Leaderboard from './pages/Leaderboard';
 import CertificationsListPage from './pages/CertificationsListPage';
 import CertificationPage from './pages/CertificationPage';
 import CertificationTestPage from './pages/CertificationTestPage';
+import CertificationLanding from './pages/CertificationLanding';
+import CertificationTopics from './pages/CertificationTopics';
+import CertificationDifficulty from './pages/CertificationDifficulty';
+import TestEnvironmentSetup from './pages/TestEnvironmentSetup';
+import PreTestRequirements from './pages/PreTestRequirements';
+import ProctoredTest from './pages/ProctoredTest';
+import TestResults from './pages/TestResults';
 import { Toaster } from 'sonner';
 import './App.css';
 
@@ -134,6 +141,43 @@ function App() {
               element={
                 <ProtectedRoute>
                   <CertificationTestPage />
+                </ProtectedRoute>
+              } 
+            />
+            
+            {/* Certification Routes */}
+            <Route path="/certification" element={<CertificationLanding />} />
+            <Route path="/certification/topics" element={<CertificationTopics />} />
+            <Route path="/certification/difficulty/:topicId" element={<CertificationDifficulty />} />
+            <Route 
+              path="/certification/setup/:topicId/:difficulty" 
+              element={
+                <ProtectedRoute>
+                  <TestEnvironmentSetup />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/certification/requirements/:topicId/:difficulty" 
+              element={
+                <ProtectedRoute>
+                  <PreTestRequirements />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/certification/test/:topicId/:difficulty" 
+              element={
+                <ProtectedRoute>
+                  <ProctoredTest />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/certification/results" 
+              element={
+                <ProtectedRoute>
+                  <TestResults />
                 </ProtectedRoute>
               } 
             />

@@ -32,7 +32,6 @@ from .routes.ai_quiz import router as ai_quiz_router
 from .routes.proctoring import router as proctoring_router
 from .services.proctoring import get_proctoring_service
 
-
 from contextlib import asynccontextmanager
 
 @asynccontextmanager
