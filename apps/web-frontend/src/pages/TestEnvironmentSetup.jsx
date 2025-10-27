@@ -47,8 +47,19 @@ const TestEnvironmentSetup = () => {
 
   const requestMediaAccess = async () => {
     try {
+      // Check if mediaDevices API is available
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        console.warn('getUserMedia is not supported in this browser');
+        setCameraActive(false);
+        return;
+      }
+
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { width: 640, height: 480 },
+        video: { 
+          width: { ideal: 640 }, 
+          height: { ideal: 480 },
+          facingMode: 'user' // Use front camera
+        },
         audio: true
       });
       
@@ -56,13 +67,49 @@ const TestEnvironmentSetup = () => {
       
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
-        videoRef.current.play();
-        setCameraActive(true);
-        setMicrophoneActive(true);
+        
+        // Add event listeners
+        videoRef.current.onloadedmetadata = () => {
+          console.log('Video metadata loaded');
+        };
+        
+        videoRef.current.onplay = () => {
+          console.log('Video started playing');
+          setCameraActive(true);
+          setMicrophoneActive(true);
+        };
+        
+        videoRef.current.onerror = (e) => {
+          console.error('Video error:', e);
+        };
+        
+        // Play the video
+        const playPromise = videoRef.current.play();
+        if (playPromise !== undefined) {
+          playPromise
+            .then(() => {
+              console.log('Video is playing');
+            })
+            .catch(error => {
+              console.error('Error playing video:', error);
+            });
+        }
       }
     } catch (error) {
       console.error('Error accessing media devices:', error);
-      alert('Error accessing camera/microphone. Please check permissions.');
+      let errorMessage = 'Error accessing camera/microphone. ';
+      
+      if (error.name === 'NotAllowedError') {
+        errorMessage += 'Please allow camera and microphone access in your browser settings.';
+      } else if (error.name === 'NotFoundError') {
+        errorMessage += 'No camera or microphone found.';
+      } else if (error.name === 'NotReadableError') {
+        errorMessage += 'Camera or microphone is already in use by another application.';
+      } else {
+        errorMessage += 'Please check permissions.';
+      }
+      
+      alert(errorMessage);
       setCameraActive(false);
       setMicrophoneActive(false);
     }

@@ -75,3 +75,5 @@ If testing locally, browsers may restrict camera access on HTTP. Try:
 ---
 
 **The camera issue is now fixed! Try the certification flow and you should see your live video feed.** 🎉
+
+
