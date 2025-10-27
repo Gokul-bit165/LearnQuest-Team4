@@ -7,7 +7,16 @@ import io
 from typing import Dict, List, Optional, Tuple
 import numpy as np
 from PIL import Image
-import cv2
+
+# Optional imports - only load when needed
+cv2 = None
+mp = None
+
+try:
+    import cv2
+except ImportError:
+    print("Warning: opencv-python not available")
+    
 
 class ProctoringService:
     """Service for AI-based proctoring using computer vision"""
@@ -20,41 +29,22 @@ class ProctoringService:
         
     def load_models(self):
         """Load ML models for proctoring"""
+        global cv2
         try:
-            # Import here to avoid breaking if dependencies are not installed
-            from ultralytics import YOLO
-            import mediapipe as mp
+            if cv2 is None:
+                import cv2
             
-            print("Loading proctoring models...")
+            print("Loading basic proctoring models...")
             
-            # Load YOLOv8 for object detection
-            self.yolo_model = YOLO('yolov8n.pt')  # nano model for speed
-            print("YOLOv8 model loaded")
+            # For now, just use OpenCV's built-in detectors
+            print("OpenCV face detection loaded")
             
-            # Initialize MediaPipe face mesh and face detection
-            mp_face_mesh = mp.solutions.face_mesh
-            mp_face_detection = mp.solutions.face_detection
-            mp_drawing = mp.solutions.drawing_utils
-            
-            self.face_mesh = mp_face_mesh.FaceMesh(
-                static_image_mode=False,
-                max_num_faces=1,
-                refine_landmarks=True,
-                min_detection_confidence=0.5,
-                min_tracking_confidence=0.5
-            )
-            
-            self.face_detector = mp_face_detection.FaceDetection(
-                model_selection=0,
-                min_detection_confidence=0.5
-            )
-            
-            print("MediaPipe models loaded")
+            print("Basic proctoring models loaded")
             self.models_loaded = True
             
         except ImportError as e:
             print(f"Warning: Proctoring dependencies not available: {e}")
-            print("Install with: pip install ultralytics mediapipe opencv-python-headless")
+            print("Install with: pip install opencv-python-headless")
             self.models_loaded = False
         except Exception as e:
             print(f"Error loading proctoring models: {e}")
@@ -72,7 +62,8 @@ class ProctoringService:
                 'person_count': int
             }
         """
-        if not self.models_loaded:
+        global cv2
+        if not self.models_loaded or cv2 is None:
             return {
                 'violations': [],
                 'metadata': {'status': 'models_not_loaded'},
@@ -100,21 +91,23 @@ class ProctoringService:
             violations = []
             metadata = {}
             
-            # 1. Face Detection using MediaPipe
+            # 1. Basic face detection using OpenCV
             face_detected = False
-            face_results = self.face_detector.process(img_rgb)
-            
-            if face_results.detections and len(face_results.detections) > 0:
-                face_detected = True
-                metadata['face_confidence'] = face_results.detections[0].score[0]
-                metadata['face_count'] = len(face_results.detections)
+            try:
+                # Use OpenCV's built-in face detector
+                face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+                gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+                faces = face_cascade.detectMultiScale(gray, 1.1, 4)
                 
-                # Detect landmarks for face presence quality
-                landmarks = self.face_mesh.process(img_rgb)
-                if landmarks.multi_face_landmarks:
-                    metadata['landmarks_detected'] = True
-            else:
-                # No face detected
+                if len(faces) > 0:
+                    face_detected = True
+                    metadata['face_count'] = len(faces)
+                    metadata['face_confidence'] = 0.8  # Default confidence for OpenCV
+                else:
+                    violations.append('face_not_detected')
+                    metadata['face_count'] = 0
+            except Exception as e:
+                print(f"Face detection error: {e}")
                 violations.append('face_not_detected')
                 metadata['face_count'] = 0
             

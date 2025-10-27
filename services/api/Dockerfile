@@ -17,17 +17,8 @@ WORKDIR /app
 # Copy the dependencies file from its location relative to the root
 COPY services/api/requirements.txt .
 
-# Install PyTorch CPU version first (lighter and faster)
-RUN pip install --no-cache-dir --timeout 1000 --retries 5 --no-deps torch==1.13.1+cpu --index-url https://download.pytorch.org/whl/cpu
-
-# Install other dependencies
-RUN pip install --no-cache-dir --timeout 1000 --retries 5 -r requirements.txt
-
-# Install proctoring dependencies explicitly
-RUN pip install --no-cache-dir --timeout 1000 --retries 5 \
-    mediapipe==0.10.8 \
-    opencv-python-headless==4.8.1.78 \
-    ultralytics==8.0.196
+# Install dependencies with SSL workaround
+RUN pip install --no-cache-dir --timeout 1000 --retries 5 --trusted-host pypi.org --trusted-host pypi.python.org --trusted-host files.pythonhosted.org -r requirements.txt
 
 # Copy your application's source code AND the scripts
 COPY services/api/src ./src

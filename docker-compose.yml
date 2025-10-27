@@ -131,17 +131,18 @@ services:
     working_dir: /app
     command: >
       sh -c "pip install pymongo passlib[bcrypt] python-jose[cryptography] && python /app/scripts/seed_db.py"
-    # depends_on: - db (removed for cloud database)
+    depends_on:
+      - db
     restart: "no"
 
-  # --- Local DB Service (Removed for Cloud Database) ---
-  # db:
-  #   image: mongo:7.0
-  #   ports:
-  #     - "27017:27017"
-  #   volumes:
-  #     - mongo_data:/data/db
-  #   restart: unless-stopped
+  # --- Local DB Service ---
+  db:
+    image: mongo:7.0
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    restart: unless-stopped
 
   # --- Chroma Service (Unchanged) ---
   chroma:
@@ -168,7 +169,7 @@ services:
     restart: "no"
 
 volumes:
-  # mongo_data: (removed for cloud database)
+  mongo_data:
   judge0_pg_data:
   chroma_data:
 

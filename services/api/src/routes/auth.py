@@ -41,8 +41,9 @@ async def login(request: LoginRequest):
                 detail="Invalid credentials"
             )
         
-        # Verify password
-        if not verify_password(request.password, user_data["password"]):
+        # Verify password - check both "password" and "password_hash" fields
+        password_field = user_data.get("password") or user_data.get("password_hash")
+        if not password_field or not verify_password(request.password, password_field):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid credentials"

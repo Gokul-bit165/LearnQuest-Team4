@@ -29,17 +29,20 @@ from .routes.admin import router as admin_router  # base admin router
 from .routes.admin_users import router as admin_users_router
 from .routes.simple_gnn import router as gnn_router
 from .routes.ai_quiz import router as ai_quiz_router
-from .routes.proctoring import router as proctoring_router
-from .services.proctoring import get_proctoring_service
+# Temporarily disable proctoring import to fix login
+# from .routes.proctoring import router as proctoring_router
+# from .services.proctoring import get_proctoring_service
 
 from contextlib import asynccontextmanager
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
-    print("Loading proctoring models...")
-    proctoring_service = get_proctoring_service()
-    proctoring_service.load_models()
+    print("Starting up...")
+    # Temporarily disabled proctoring
+    # print("Loading proctoring models...")
+    # proctoring_service = get_proctoring_service()
+    # proctoring_service.load_models()
     print("Startup complete")
     yield
     # Shutdown
@@ -83,7 +86,7 @@ app.include_router(admin_router, prefix="/api/admin")
 app.include_router(admin_users_router)
 app.include_router(gnn_router)
 app.include_router(ai_quiz_router)
-app.include_router(proctoring_router)
+# app.include_router(proctoring_router)  # Temporarily disabled
 
 @app.get("/")
 async def root():
