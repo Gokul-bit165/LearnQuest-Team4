@@ -71,12 +71,12 @@ const CertificationTopics = () => {
 
   const handleContinue = () => {
     if (selectedTopic) {
-      navigate(`/certification/difficulty/${selectedTopic.id}`);
+      navigate(`/certifications/proctored/difficulty/${selectedTopic.id}`);
     }
   };
 
   const handleBack = () => {
-    navigate('/certification');
+    navigate('/certifications');
   };
 
   return (

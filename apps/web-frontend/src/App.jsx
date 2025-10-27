@@ -128,6 +128,7 @@ function App() {
                 </ProtectedRoute>
               } 
             />
+            {/* Unified Certification Routes - combines course certifications with proctored tests */}
             <Route 
               path="/certifications" 
               element={
@@ -144,13 +145,11 @@ function App() {
                 </ProtectedRoute>
               } 
             />
-            
-            {/* Certification Routes */}
-            <Route path="/certification" element={<CertificationLanding />} />
-            <Route path="/certification/topics" element={<CertificationTopics />} />
-            <Route path="/certification/difficulty/:topicId" element={<CertificationDifficulty />} />
+            {/* Proctored test flow routes */}
+            <Route path="/certifications/proctored/topics" element={<CertificationTopics />} />
+            <Route path="/certifications/proctored/difficulty/:topicId" element={<CertificationDifficulty />} />
             <Route 
-              path="/certification/setup/:topicId/:difficulty" 
+              path="/certifications/proctored/setup/:topicId/:difficulty" 
               element={
                 <ProtectedRoute>
                   <TestEnvironmentSetup />
@@ -158,7 +157,7 @@ function App() {
               } 
             />
             <Route 
-              path="/certification/requirements/:topicId/:difficulty" 
+              path="/certifications/proctored/requirements/:topicId/:difficulty" 
               element={
                 <ProtectedRoute>
                   <PreTestRequirements />
@@ -166,7 +165,7 @@ function App() {
               } 
             />
             <Route 
-              path="/certification/test/:topicId/:difficulty" 
+              path="/certifications/proctored/test/:topicId/:difficulty" 
               element={
                 <ProtectedRoute>
                   <ProctoredTest />
@@ -174,7 +173,7 @@ function App() {
               } 
             />
             <Route 
-              path="/certification/results" 
+              path="/certifications/proctored/results" 
               element={
                 <ProtectedRoute>
                   <TestResults />

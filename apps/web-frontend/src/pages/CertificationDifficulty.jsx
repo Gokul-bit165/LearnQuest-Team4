@@ -46,11 +46,11 @@ const CertificationDifficulty = () => {
   const selectedDifficultyData = difficulties.find(d => d.id === selectedDifficulty);
 
   const handleContinue = () => {
-    navigate(`/certification/setup/${topicId}/${selectedDifficulty}`);
+    navigate(`/certifications/proctored/setup/${topicId}/${selectedDifficulty}`);
   };
 
   const handleBack = () => {
-    navigate('/certification/topics');
+    navigate('/certifications/proctored/topics');
   };
 
   return (

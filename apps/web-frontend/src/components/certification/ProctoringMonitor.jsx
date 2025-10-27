@@ -40,11 +40,18 @@ const ProctoringMonitor = ({ attemptId, onViolation }) => {
 
   const initializeProctoring = async () => {
     try {
+      // Check if mediaDevices API is available
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        console.warn('getUserMedia is not supported in this browser');
+        setStatus('not_supported');
+        return;
+      }
+
       // Request camera and microphone access
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
+          width: { ideal: 640 },
+          height: { ideal: 480 },
           facingMode: 'user'
         },
         audio: {
@@ -59,6 +66,18 @@ const ProctoringMonitor = ({ attemptId, onViolation }) => {
       // Set up video
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
+        videoRef.current.setAttribute('playsInline', 'true');
+        
+        // Wait for video to be ready and play
+        videoRef.current.onloadedmetadata = () => {
+          videoRef.current.play()
+            .then(() => {
+              console.log('Proctoring camera started');
+            })
+            .catch(err => {
+              console.error('Error playing video:', err);
+            });
+        };
       }
 
       // Set up audio analysis
@@ -81,6 +100,15 @@ const ProctoringMonitor = ({ attemptId, onViolation }) => {
     } catch (error) {
       console.error('Error accessing media devices:', error);
       setStatus('permission_denied');
+      let errorMessage = 'Camera/Mic Required - ';
+      if (error.name === 'NotAllowedError') {
+        errorMessage += 'Please allow camera and microphone access.';
+      } else if (error.name === 'NotFoundError') {
+        errorMessage += 'No camera or microphone found.';
+      } else if (error.name === 'NotReadableError') {
+        errorMessage += 'Camera/microphone is already in use.';
+      }
+      
       logEvent({
         type: 'permission_denied',
         error: error.message
@@ -259,15 +287,15 @@ const ProctoringMonitor = ({ attemptId, onViolation }) => {
 
   return (
     <div className="proctoring-monitor">
-      {/* Hidden video and canvas for capturing */}
+      {/* Video element for capturing - kept hidden as it's only for analysis */}
       <video
         ref={videoRef}
         autoPlay
         playsInline
         muted
-        className="hidden"
+        style={{ display: 'none' }}
       />
-      <canvas ref={canvasRef} className="hidden" />
+      <canvas ref={canvasRef} style={{ display: 'none' }} />
 
       {/* Status indicator */}
       <div className={`fixed top-4 right-4 z-50 p-3 rounded-lg shadow-lg ${

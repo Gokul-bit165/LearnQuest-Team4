@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import api from '../services/api';
 import { toast } from 'sonner';
 import Layout from '../components/Layout';
-import { Award, Clock, Users, CheckCircle } from 'lucide-react';
+import { Award, Clock, Users, CheckCircle, Shield, Sparkles } from 'lucide-react';
 
 const CertificationsListPage = () => {
   const navigate = useNavigate();
@@ -55,9 +55,35 @@ const CertificationsListPage = () => {
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-4xl font-bold text-white mb-4">Certifications</h1>
-          <p className="text-slate-400 text-lg">
+          <p className="text-slate-400 text-lg mb-6">
             Earn industry-recognized certifications by completing proctored tests
           </p>
+          
+          {/* Proctored Test Option */}
+          <div className="bg-gradient-to-r from-blue-900 to-purple-900 rounded-lg p-6 border border-blue-700 mb-8">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-4">
+                <div className="bg-blue-600 p-3 rounded-lg">
+                  <Shield className="w-8 h-8 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-2xl font-bold text-white mb-1">Advanced Proctored Certification</h3>
+                  <p className="text-blue-200">Take skills-based tests with AI monitoring</p>
+                </div>
+              </div>
+              <button
+                onClick={() => navigate('/certifications/proctored/topics')}
+                className="bg-white text-blue-900 px-6 py-3 rounded-lg font-semibold hover:bg-blue-50 transition-colors flex items-center space-x-2"
+              >
+                <Sparkles className="w-5 h-5" />
+                <span>Start Proctored Test</span>
+              </button>
+            </div>
+          </div>
+          
+          <div className="mb-4">
+            <h2 className="text-2xl font-semibold text-white">Available Certifications</h2>
+          </div>
         </div>
 
         {/* Certifications Grid */}

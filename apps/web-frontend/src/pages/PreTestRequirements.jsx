@@ -43,12 +43,12 @@ const PreTestRequirements = () => {
 
   const handleStartTest = () => {
     if (allRequirementsMet) {
-      navigate(`/certification/test/${topicId}/${difficulty}`);
+      navigate(`/certifications/proctored/test/${topicId}/${difficulty}`);
     }
   };
 
   const handleBack = () => {
-    navigate(`/certification/setup/${topicId}/${difficulty}`);
+    navigate(`/certifications/proctored/setup/${topicId}/${difficulty}`);
   };
 
   const RequirementCard = ({ title, description, isMet, icon }) => (

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
+import Layout from '../components/Layout'
 
 const CertificationQuestions = () => {
   const { certId } = useParams()
@@ -11,6 +12,8 @@ const CertificationQuestions = () => {
   const [error, setError] = useState(null)
   const [saving, setSaving] = useState(false)
 
+  const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+
   useEffect(() => {
     fetchData()
   }, [certId])
@@ -20,7 +23,7 @@ const CertificationQuestions = () => {
       setLoading(true)
       
       // Fetch certification details
-      const certResponse = await fetch(`/api/admin/certifications/certifications//${certId}`, {
+      const certResponse = await fetch(`${API_BASE_URL}/api/admin/certifications/${certId}`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
@@ -34,7 +37,7 @@ const CertificationQuestions = () => {
       setCertification(certData)
       
       // Fetch all questions
-      const questionsResponse = await fetch('/api/admin/problems', {
+      const questionsResponse = await fetch(`${API_BASE_URL}/api/admin/problems`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
@@ -75,7 +78,7 @@ const CertificationQuestions = () => {
       
       const questionIds = certQuestions.map(q => q._id)
       
-      const response = await fetch(`/api/admin/certifications/certifications//${certId}/questions`, {
+      const response = await fetch(`${API_BASE_URL}/api/admin/certifications/${certId}/questions`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

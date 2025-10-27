@@ -34,11 +34,11 @@ const TestResults = () => {
   const certificateIssued = passed && violations.length <= 3;
 
   const handleRetakeTest = () => {
-    navigate(`/certification/test/${topicId}/${difficulty}`);
+    navigate(`/certifications/proctored/test/${topicId}/${difficulty}`);
   };
 
   const handleReturnHome = () => {
-    navigate('/certification');
+    navigate('/certifications');
   };
 
   const formatTime = (seconds) => {

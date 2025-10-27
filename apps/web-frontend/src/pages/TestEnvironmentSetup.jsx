@@ -128,14 +128,14 @@ const TestEnvironmentSetup = () => {
 
     setIsLoading(true);
     
-    // Navigate to the actual test
+    // Navigate to requirements page
     setTimeout(() => {
-      navigate(`/certification/test/${topicId}/${difficulty}`);
+      navigate(`/certifications/proctored/requirements/${topicId}/${difficulty}`);
     }, 1000);
   };
 
   const handleBack = () => {
-    navigate(`/certification/difficulty/${topicId}`);
+    navigate(`/certifications/proctored/difficulty/${topicId}`);
   };
 
   return (

@@ -113,25 +113,67 @@ const ProctoredTest = () => {
 
   const startCameraMonitoring = async () => {
     try {
+      // Check if mediaDevices API is available
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        console.warn('getUserMedia is not supported in this browser');
+        setCameraActive(false);
+        return;
+      }
+
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { width: 640, height: 480 },
-        audio: true
+        video: { 
+          width: { ideal: 640 }, 
+          height: { ideal: 480 },
+          facingMode: 'user'
+        },
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true
+        }
       });
       
       streamRef.current = stream;
       
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
-        videoRef.current.play();
-        setCameraActive(true);
+        videoRef.current.setAttribute('playsInline', 'true');
+        
+        // Wait for video to be ready
+        videoRef.current.onloadedmetadata = () => {
+          videoRef.current.play()
+            .then(() => {
+              setCameraActive(true);
+              console.log('Camera started successfully');
+            })
+            .catch(err => {
+              console.error('Error playing video:', err);
+              setCameraActive(false);
+            });
+        };
       }
 
       // Start monitoring for violations
-      monitorViolations();
+      const cleanup = monitorViolations();
+      
+      // Store cleanup function for component unmount
+      return () => {
+        if (cleanup && typeof cleanup === 'function') {
+          cleanup();
+        }
+      };
     } catch (error) {
       console.error('Error accessing camera:', error);
-      alert('Error accessing camera/microphone. Please check permissions.');
+      let errorMessage = 'Error accessing camera/microphone. ';
+      if (error.name === 'NotAllowedError') {
+        errorMessage += 'Please allow camera and microphone access in your browser settings.';
+      } else if (error.name === 'NotFoundError') {
+        errorMessage += 'No camera or microphone found.';
+      } else if (error.name === 'NotReadableError') {
+        errorMessage += 'Camera or microphone is already in use by another application.';
+      }
+      alert(errorMessage);
       addViolation('camera_disabled', 'Camera access denied');
+      setCameraActive(false);
     }
   };
 
@@ -206,7 +248,7 @@ const ProctoredTest = () => {
     const finalScore = (testScore * 0.6) + (behaviorScore * 0.4);
     
     // Navigate to results
-    navigate('/certification/results', {
+    navigate('/certifications/proctored/results', {
       state: {
         testScore,
         behaviorScore,
@@ -367,13 +409,15 @@ const ProctoredTest = () => {
                 </svg>
                 Proctoring Active
               </h3>
-              <div className="bg-black rounded-lg h-48 flex items-center justify-center">
+              <div className="bg-black rounded-lg h-48 flex items-center justify-center relative">
                 {cameraActive ? (
                   <video
                     ref={videoRef}
                     autoPlay
+                    playsInline
                     muted
                     className="w-full h-full object-cover rounded-lg"
+                    style={{ transform: 'scaleX(-1)' }} // Mirror the video
                   />
                 ) : (
                   <div className="text-center text-white">
@@ -381,7 +425,7 @@ const ProctoredTest = () => {
                       <path fillRule="evenodd" d="M3.707 2.293a1 1 0 00-1.414 1.414l14 14a1 1 0 001.414-1.414l-1.473-1.473A10.014 10.014 0 0019.542 10C18.268 5.943 14.478 3 10 3a9.958 9.958 0 00-4.512 1.074l-1.78-1.781zm4.261 4.26l1.514 1.515a2.003 2.003 0 012.45 2.45l1.514 1.514a4 4 0 00-5.478-5.478z" clipRule="evenodd" />
                       <path d="M12.454 16.697L9.75 13.992a4 4 0 01-3.742-3.741L2.335 6.578A9.98 9.98 0 00.458 10c1.274 4.057 5.065 7 9.542 7 .847 0 1.669-.105 2.454-.303z" />
                     </svg>
-                    <p className="text-sm">Camera Disabled</p>
+                    <p className="text-sm">Camera Not Active</p>
                   </div>
                 )}
               </div>
