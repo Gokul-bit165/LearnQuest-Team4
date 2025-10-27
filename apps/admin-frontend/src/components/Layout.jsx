@@ -27,6 +27,8 @@ const Layout = ({ children }) => {
           <SidebarLink to="/users">Users</SidebarLink>
           <SidebarLink to="/courses">Courses</SidebarLink>
           <SidebarLink to="/problems">Practice Zone Management</SidebarLink>
+          <SidebarLink to="/certifications">Certifications</SidebarLink>
+          <SidebarLink to="/proctoring">Proctoring Review</SidebarLink>
         </nav>
       </aside>
       <main className="flex-1 p-8">

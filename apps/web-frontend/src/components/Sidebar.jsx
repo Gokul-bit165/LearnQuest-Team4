@@ -10,7 +10,8 @@ import {
   Zap,
   Sparkles,
   Flame,
-  Code
+  Code,
+  Award
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -23,6 +24,7 @@ const Sidebar = () => {
     { name: 'AI Coach', href: '/coach', icon: Sparkles },
     { name: 'Courses', href: '/courses', icon: BookOpen },
     { name: 'Practice', href: '/practice', icon: Code },
+    { name: 'Certifications', href: '/certifications', icon: Award },
     { name: 'Leaderboard', href: '/leaderboard', icon: Trophy },
   ];
 

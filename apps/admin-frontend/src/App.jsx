@@ -7,6 +7,9 @@ import Courses from './pages/Courses'
 import CreateCoursePage from './pages/CreateCoursePage'
 import EditCoursePage from './pages/EditCoursePage'
 import Problems from './pages/Problems'
+import Certifications from './pages/Certifications'
+import CertificationQuestions from './pages/CertificationQuestions'
+import ProctoringReview from './pages/ProctoringReview'
 
 function App() {
   // Capture token from URL on first load and store in localStorage
@@ -34,6 +37,9 @@ function App() {
         <Route path="/courses/new" element={<CreateCoursePage />} />
         <Route path="/courses/:courseId/edit" element={<EditCoursePage />} />
         <Route path="/problems" element={<Problems />} />
+        <Route path="/certifications" element={<Certifications />} />
+        <Route path="/certifications/:certId/questions" element={<CertificationQuestions />} />
+        <Route path="/proctoring" element={<ProctoringReview />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Layout>

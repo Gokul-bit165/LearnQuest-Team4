@@ -104,4 +104,24 @@ export const problemsAPI = {
   }),
 };
 
+// Certifications API
+export const certificationsAPI = {
+  getCertifications: () => api.get('/api/certifications'),
+  startTest: (specId) => api.post('/api/certifications/start', { spec_id: specId }),
+  submitTest: (attemptId, answers) => api.post('/api/certifications/submit', { 
+    attempt_id: attemptId, 
+    answers 
+  }),
+  logEvent: (attemptId, event) => api.post('/api/certifications/event', {
+    attempt_id: attemptId,
+    event
+  }),
+  proctorImage: (attemptId, imageBase64) => api.post('/api/ai/proctor', {
+    attempt_id: attemptId,
+    image_base64: imageBase64
+  }),
+  getUserAttempts: () => api.get('/api/certifications/attempts'),
+  getAttemptDetails: (attemptId) => api.get(`/api/certifications/attempts/${attemptId}`),
+};
+
 export default api;

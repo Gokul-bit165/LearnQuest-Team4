@@ -17,6 +17,10 @@ import Lesson from './pages/Lesson';
 import PracticePage from './pages/PracticePage';
 import ProblemSolverPage from './pages/ProblemSolverPage';
 import Leaderboard from './pages/Leaderboard';
+import CertificationsListPage from './pages/CertificationsListPage';
+import CertificationPage from './pages/CertificationPage';
+import CertificationTestPage from './pages/CertificationTestPage';
+import { Toaster } from 'sonner';
 import './App.css';
 
 function App() {
@@ -24,6 +28,7 @@ function App() {
     <AuthProvider>
       <Router>
         <div className="App">
+          <Toaster />
           <Routes>
             {/* Public Routes */}
             <Route path="/login" element={<Login />} />
@@ -113,6 +118,22 @@ function App() {
               element={
                 <ProtectedRoute>
                   <Leaderboard />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/certifications" 
+              element={
+                <ProtectedRoute>
+                  <CertificationsListPage />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/certifications/test/:certificationId" 
+              element={
+                <ProtectedRoute>
+                  <CertificationTestPage />
                 </ProtectedRoute>
               } 
             />

@@ -24,12 +24,33 @@ from .routes.users import router as users_router
 from .routes.ai import router as ai_router
 from .routes.lessons import router as lessons_router
 from .routes.problems import router as problems_router
+from .routes.certifications import router as certifications_router
 from .routes.admin import router as admin_router  # base admin router
 from .routes.admin_users import router as admin_users_router
 from .routes.simple_gnn import router as gnn_router
 from .routes.ai_quiz import router as ai_quiz_router
+from .routes.proctoring import router as proctoring_router
+from .services.proctoring import get_proctoring_service
 
-app = FastAPI(title="Learn Quest API", version="1.0.0")
+
+from contextlib import asynccontextmanager
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
+    print("Loading proctoring models...")
+    proctoring_service = get_proctoring_service()
+    proctoring_service.load_models()
+    print("Startup complete")
+    yield
+    # Shutdown
+    print("Shutting down...")
+
+app = FastAPI(
+    title="Learn Quest API",
+    version="1.0.0",
+    lifespan=lifespan
+)
 
 # Add CORS middleware
 app.add_middleware(
@@ -58,10 +79,12 @@ app.include_router(users_router)
 app.include_router(ai_router)
 app.include_router(lessons_router)
 app.include_router(problems_router)
+app.include_router(certifications_router)
 app.include_router(admin_router, prefix="/api/admin")
 app.include_router(admin_users_router)
 app.include_router(gnn_router)
 app.include_router(ai_quiz_router)
+app.include_router(proctoring_router)
 
 @app.get("/")
 async def root():

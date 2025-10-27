@@ -4,6 +4,8 @@ from . import users as users_admin
 from fastapi import Depends
 from ...auth import require_admin_user
 from . import problems as problems_admin
+from . import certifications
+from . import proctoring
 
 router = APIRouter(tags=["admin"])
 
@@ -11,6 +13,8 @@ router = APIRouter(tags=["admin"])
 router.include_router(courses.router, prefix="/courses", tags=["admin-courses"])
 router.include_router(quizzes.router, prefix="/quizzes", tags=["admin-quizzes"])
 router.include_router(problems_admin.router, prefix="/problems", tags=["admin-problems"])
+router.include_router(certifications.router, prefix="/certifications", tags=["admin-certifications"])
+router.include_router(proctoring.router, prefix="/proctoring", tags=["admin-proctoring"])
 
 @router.get("/metrics", dependencies=[Depends(require_admin_user)])
 async def get_admin_metrics():

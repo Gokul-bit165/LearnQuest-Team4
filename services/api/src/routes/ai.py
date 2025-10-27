@@ -8,6 +8,11 @@ import base64
 import time
 import requests
 import httpx
+# Temporarily disable proctoring imports to fix startup
+# import cv2
+# import numpy as np
+# import mediapipe as mp
+# from ultralytics import YOLO
 from typing import List, Dict, Any, Optional
 from fastapi import APIRouter, HTTPException, Depends, status
 from pydantic import BaseModel
@@ -624,8 +629,29 @@ Do not include any other text or formatting."""
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"AI service unavailable: {str(e)}"
         )
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Adaptive practice generation failed: {str(e)}"
-        )
+
+
+# Proctoring Models
+class ProctoringRequest(BaseModel):
+    attempt_id: str
+    image_base64: str
+
+
+# Initialize proctoring models (lazy loading)
+yolo_model = None
+face_mesh = None
+
+def get_proctoring_models():
+    """Get or initialize proctoring models"""
+    # Temporarily disabled proctoring models
+    return None, None
+
+
+@router.post("/proctor")
+async def proctor_image(
+    request: ProctoringRequest,
+    current_user=Depends(get_current_user)
+):
+    """Proctor an image for violations during certification test"""
+    # Temporarily disabled proctoring functionality
+    return {"status": "ok", "violations": [], "message": "Proctoring temporarily disabled"}
