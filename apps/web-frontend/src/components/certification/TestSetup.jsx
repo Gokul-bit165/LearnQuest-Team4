@@ -30,7 +30,19 @@ export const TestSetup = ({ topic, difficulty, onStartTest, onBack }) => {
 
   const checkDevices = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      // Check if getUserMedia is supported
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error('getUserMedia not supported');
+      }
+
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        video: { 
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+          facingMode: 'user'
+        }, 
+        audio: true 
+      });
       
       const videoTracks = stream.getVideoTracks();
       const audioTracks = stream.getAudioTracks();
@@ -43,6 +55,7 @@ export const TestSetup = ({ topic, difficulty, onStartTest, onBack }) => {
       
       toast.success('Devices detected successfully');
     } catch (error) {
+      console.error('Device access error:', error);
       toast.warning('Camera/Microphone not detected. Enabling testing mode.');
       setTestingMode(true);
       // In testing mode, mock the device access
@@ -183,9 +196,21 @@ export const TestSetup = ({ topic, difficulty, onStartTest, onBack }) => {
                       ref={webcamRef}
                       audio={false}
                       screenshotFormat="image/jpeg"
-                      className="w-full"
+                      className="w-full h-48 object-cover"
                       videoConstraints={{
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 },
                         facingMode: 'user',
+                      }}
+                      onUserMedia={(stream) => {
+                        console.log('Webcam stream started:', stream);
+                        toast.success('Camera preview active');
+                      }}
+                      onUserMediaError={(error) => {
+                        console.error('Webcam error:', error);
+                        toast.error('Camera preview failed. Enabling testing mode.');
+                        setTestingMode(true);
+                        setHasWebcam(false);
                       }}
                     />
                   ) : (
@@ -195,10 +220,24 @@ export const TestSetup = ({ topic, difficulty, onStartTest, onBack }) => {
                         <p className="text-sm text-muted-foreground">
                           {testingMode ? 'Testing Mode Active' : 'Camera not detected'}
                         </p>
+                        {!testingMode && (
+                          <button
+                            onClick={checkDevices}
+                            className="mt-2 px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded transition-colors"
+                          >
+                            Retry Camera Access
+                          </button>
+                        )}
                       </div>
                     </div>
                   )}
                 </div>
+                {hasWebcam && !testingMode && (
+                  <div className="mt-2 text-xs text-green-600 flex items-center gap-1">
+                    <CheckCircle2 className="h-3 w-3" />
+                    Camera is working properly
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>

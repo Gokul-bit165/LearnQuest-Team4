@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { toast } from 'sonner';
+// Removed: import { toast } from 'sonner';
 import { Eye, AlertTriangle, Shield, TrendingDown, Clock, User } from 'lucide-react';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
@@ -26,7 +26,7 @@ const ProctoringReview = () => {
       setAttempts(data.attempts || []);
     } catch (error) {
       console.error('Error fetching attempts:', error);
-      toast.error('Failed to load proctoring attempts');
+      console.error('Failed to load proctoring attempts');
     } finally {
       setLoading(false);
     }
@@ -51,7 +51,7 @@ const ProctoringReview = () => {
       setSelectedAttempt({ ...logsData, ...violationsData });
     } catch (error) {
       console.error('Error fetching attempt details:', error);
-      toast.error('Failed to load attempt details');
+      console.error('Failed to load attempt details');
     }
   };
 
@@ -71,12 +71,12 @@ const ProctoringReview = () => {
       });
 
       if (response.ok) {
-        toast.success('Score updated successfully');
+        console.log('Score updated successfully');
         fetchAttempts();
         setSelectedAttempt(null);
       }
     } catch (error) {
-      toast.error('Failed to update score');
+      console.error('Failed to update score');
     }
   };
 

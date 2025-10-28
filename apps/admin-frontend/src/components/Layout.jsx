@@ -26,8 +26,13 @@ const Layout = ({ children }) => {
           <SidebarLink to="/">Dashboard</SidebarLink>
           <SidebarLink to="/users">Users</SidebarLink>
           <SidebarLink to="/courses">Courses</SidebarLink>
-          <SidebarLink to="/problems">Practice Zone Management</SidebarLink>
-          <SidebarLink to="/certifications">Certifications</SidebarLink>
+          <SidebarLink to="/problems">Problems</SidebarLink>
+          <SidebarLink to="/practice-zone">Practice Zone</SidebarLink>
+          <SidebarLink to="/test-management">Test Management</SidebarLink>
+          <SidebarLink to="/certification">Certification</SidebarLink>
+          <SidebarLink to="/proctoring-review">Proctoring Review</SidebarLink>
+          <SidebarLink to="/results-analytics">Results & Analytics</SidebarLink>
+          <SidebarLink to="/certificate-management">Certificate Management</SidebarLink>
         </nav>
       </aside>
       <main className="flex-1 p-8">

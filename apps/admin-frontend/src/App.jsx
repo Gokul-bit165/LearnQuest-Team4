@@ -7,9 +7,13 @@ import Courses from './pages/Courses'
 import CreateCoursePage from './pages/CreateCoursePage'
 import EditCoursePage from './pages/EditCoursePage'
 import Problems from './pages/Problems'
-import Certifications from './pages/Certifications'
+import PracticeZone from './pages/PracticeZone'
+import TestManagement from './pages/TestManagement'
+import Certification from './pages/Certification'
 import CertificationQuestions from './pages/CertificationQuestions'
 import ProctoringReview from './pages/ProctoringReview'
+import ResultsAnalytics from './pages/ResultsAnalytics'
+import CertificateManagement from './pages/CertificateManagement'
 
 function App() {
   // Capture token from URL on first load and store in localStorage
@@ -34,12 +38,16 @@ function App() {
         <Route path="/" element={<Dashboard />} />
         <Route path="/users" element={<Users />} />
         <Route path="/courses" element={<Courses />} />
-        <Route path="/courses/new" element={<CreateCoursePage />} />
-        <Route path="/courses/:courseId/edit" element={<EditCoursePage />} />
+        <Route path="/courses/create" element={<CreateCoursePage />} />
+        <Route path="/courses/:id/edit" element={<EditCoursePage />} />
         <Route path="/problems" element={<Problems />} />
-        <Route path="/certifications" element={<Certifications />} />
+        <Route path="/practice-zone" element={<PracticeZone />} />
+        <Route path="/test-management" element={<TestManagement />} />
+        <Route path="/certification" element={<Certification />} />
         <Route path="/certifications/:certId/questions" element={<CertificationQuestions />} />
-        <Route path="/proctoring" element={<ProctoringReview />} />
+        <Route path="/proctoring-review" element={<ProctoringReview />} />
+        <Route path="/results-analytics" element={<ResultsAnalytics />} />
+        <Route path="/certificate-management" element={<CertificateManagement />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Layout>
@@ -47,5 +55,3 @@ function App() {
 }
 
 export default App
-
-

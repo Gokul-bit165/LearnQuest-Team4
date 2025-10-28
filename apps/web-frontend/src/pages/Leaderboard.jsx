@@ -14,14 +14,20 @@ import {
   Clock,
   ChevronDown,
   ChevronUp,
-  BookOpen
+  BookOpen,
+  GraduationCap,
+  CheckCircle,
+  ArrowRight
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { usersAPI } from '../services/api';
+import { Link } from 'react-router-dom';
+import certificationService from '../services/certificationService';
 
 const Leaderboard = () => {
   const { user } = useAuth();
   const [leaderboard, setLeaderboard] = useState([]);
+  const [certifications, setCertifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [timeFilter, setTimeFilter] = useState('all'); // all, week, month
   const [expandedUser, setExpandedUser] = useState(null);
@@ -29,21 +35,27 @@ const Leaderboard = () => {
   // Real data from API - no more mock data needed
 
   useEffect(() => {
-    const fetchLeaderboard = async () => {
+    const fetchData = async () => {
       setLoading(true);
       try {
-        const response = await usersAPI.getLeaderboard(timeFilter);
-        setLeaderboard(response.data);
+        const [leaderboardResponse, certificationsResponse] = await Promise.all([
+          usersAPI.getLeaderboard(timeFilter),
+          certificationService.getCertifications()
+        ]);
+        
+        setLeaderboard(leaderboardResponse.data);
+        setCertifications(certificationsResponse);
       } catch (error) {
-        console.error('Error fetching leaderboard:', error);
+        console.error('Error fetching data:', error);
         // Show empty state if API fails
         setLeaderboard([]);
+        setCertifications([]);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchLeaderboard();
+    fetchData();
   }, [timeFilter]);
 
   const getRankIcon = (rank) => {
@@ -334,6 +346,97 @@ const Leaderboard = () => {
                 )}
               </motion.div>
             ))}
+          </div>
+        </motion.div>
+
+        {/* Certification Section */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.6 }}
+          className="mt-12"
+        >
+          <div className="text-center mb-8">
+            <h2 className="text-3xl font-bold text-white mb-4 flex items-center justify-center gap-3">
+              <GraduationCap className="w-8 h-8 text-blue-400" />
+              Earn Your Certifications
+            </h2>
+            <p className="text-slate-400 text-lg">
+              Validate your skills with industry-recognized certifications
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {certifications.length === 0 ? (
+              <div className="col-span-full text-center py-12">
+                <GraduationCap className="w-16 h-16 text-slate-600 mx-auto mb-4" />
+                <div className="text-slate-500 text-lg">No certifications available</div>
+                <div className="text-slate-400 text-sm">Check back later for new certification tracks</div>
+              </div>
+            ) : (
+              certifications.slice(0, 3).map((cert, index) => {
+                const colors = [
+                  'from-blue-500 to-purple-600',
+                  'from-green-500 to-blue-600',
+                  'from-purple-500 to-pink-600'
+                ];
+                const borderColors = [
+                  'hover:border-blue-500/50',
+                  'hover:border-green-500/50',
+                  'hover:border-purple-500/50'
+                ];
+                const buttonColors = [
+                  'from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700',
+                  'from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700',
+                  'from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700'
+                ];
+
+                return (
+                  <div
+                    key={cert.id || index}
+                    className={`bg-slate-800 rounded-xl p-6 border border-slate-700 ${borderColors[index]} transition-all duration-200`}
+                  >
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className={`w-12 h-12 bg-gradient-to-br ${colors[index]} rounded-lg flex items-center justify-center`}>
+                        <GraduationCap className="w-6 h-6 text-white" />
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-semibold text-white">{cert.title}</h3>
+                        <p className="text-slate-400 text-sm">{cert.difficulty} Level</p>
+                      </div>
+                    </div>
+                    <p className="text-slate-300 text-sm mb-4">
+                      {cert.description}
+                    </p>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-slate-400 text-sm">
+                        <Clock className="w-4 h-4" />
+                        <span>{Math.round(cert.duration_minutes / 60)} hours</span>
+                      </div>
+                      <Link
+                        to="/certification"
+                        className={`flex items-center gap-2 bg-gradient-to-r ${buttonColors[index]} text-white px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200`}
+                      >
+                        Start Now
+                        <ArrowRight className="w-4 h-4" />
+                      </Link>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          {/* View All Certifications */}
+          <div className="text-center mt-8">
+            <Link
+              to="/certification"
+              className="inline-flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-white px-6 py-3 rounded-lg font-medium transition-all duration-200 border border-slate-600 hover:border-slate-500"
+            >
+              <Award className="w-5 h-5" />
+              View All Certifications
+              <ArrowRight className="w-4 h-4" />
+            </Link>
           </div>
         </motion.div>
       </div>

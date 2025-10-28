@@ -17,16 +17,13 @@ import Lesson from './pages/Lesson';
 import PracticePage from './pages/PracticePage';
 import ProblemSolverPage from './pages/ProblemSolverPage';
 import Leaderboard from './pages/Leaderboard';
-import CertificationsListPage from './pages/CertificationsListPage';
-import CertificationPage from './pages/CertificationPage';
-import CertificationTestPage from './pages/CertificationTestPage';
-import CertificationLanding from './pages/CertificationLanding';
-import CertificationTopics from './pages/CertificationTopics';
-import CertificationDifficulty from './pages/CertificationDifficulty';
-import TestEnvironmentSetup from './pages/TestEnvironmentSetup';
-import PreTestRequirements from './pages/PreTestRequirements';
-import ProctoredTest from './pages/ProctoredTest';
-import TestResults from './pages/TestResults';
+// Certification pages - using components from /components/certification
+import { CertificationLanding } from './components/certification/CertificationLanding';
+import { TopicSelection } from './components/certification/TopicSelection';
+import { DifficultySelection } from './components/certification/DifficultySelection';
+import { TestSetup } from './components/certification/TestSetup';
+import { TestInterface } from './components/certification/TestInterface';
+import { TestResults } from './components/certification/TestResults';
 import { Toaster } from 'sonner';
 import './App.css';
 
@@ -128,40 +125,36 @@ function App() {
                 </ProtectedRoute>
               } 
             />
+            {/* Certification Routes - Using components from /components/certification */}
             <Route 
-              path="/certifications" 
+              path="/certification" 
               element={
                 <ProtectedRoute>
-                  <CertificationsListPage />
+                  <CertificationLanding />
                 </ProtectedRoute>
               } 
             />
             <Route 
-              path="/certifications/test/:certificationId" 
+              path="/certification/topics" 
               element={
                 <ProtectedRoute>
-                  <CertificationTestPage />
+                  <TopicSelection />
                 </ProtectedRoute>
               } 
             />
-            
-            {/* Certification Routes */}
-            <Route path="/certification" element={<CertificationLanding />} />
-            <Route path="/certification/topics" element={<CertificationTopics />} />
-            <Route path="/certification/difficulty/:topicId" element={<CertificationDifficulty />} />
+            <Route 
+              path="/certification/difficulty/:topicId" 
+              element={
+                <ProtectedRoute>
+                  <DifficultySelection />
+                </ProtectedRoute>
+              } 
+            />
             <Route 
               path="/certification/setup/:topicId/:difficulty" 
               element={
                 <ProtectedRoute>
-                  <TestEnvironmentSetup />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/certification/requirements/:topicId/:difficulty" 
-              element={
-                <ProtectedRoute>
-                  <PreTestRequirements />
+                  <TestSetup />
                 </ProtectedRoute>
               } 
             />
@@ -169,7 +162,7 @@ function App() {
               path="/certification/test/:topicId/:difficulty" 
               element={
                 <ProtectedRoute>
-                  <ProctoredTest />
+                  <TestInterface />
                 </ProtectedRoute>
               } 
             />

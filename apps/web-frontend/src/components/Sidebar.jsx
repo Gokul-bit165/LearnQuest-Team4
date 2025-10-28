@@ -6,7 +6,6 @@ import {
   Trophy, 
   User, 
   LogOut,
-  Star,
   Zap,
   Sparkles,
   Flame,
@@ -24,9 +23,8 @@ const Sidebar = () => {
     { name: 'AI Coach', href: '/coach', icon: Sparkles },
     { name: 'Courses', href: '/courses', icon: BookOpen },
     { name: 'Practice', href: '/practice', icon: Code },
-    { name: 'Certifications', href: '/certifications', icon: Award },
+    { name: 'Certification', href: '/certification', icon: Award },
     { name: 'Leaderboard', href: '/leaderboard', icon: Trophy },
-    { name: 'Certification', href: '/certification', icon: Star },
   ];
 
   const isActive = (path) => location.pathname === path;
