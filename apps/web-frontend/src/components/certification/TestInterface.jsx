@@ -41,12 +41,48 @@ export const TestInterface = ({ topic, difficulty, userName, testQuestions, atte
       }
     };
 
+    // Prevent common keyboard shortcuts for tab/window switching
+    const handleKeyDown = (e) => {
+      // Prevent Ctrl+Tab, Alt+Tab, etc.
+      if ((e.ctrlKey || e.altKey || e.metaKey) && e.key === 'Tab') {
+        e.preventDefault();
+        toast.error('Tab switching is not allowed during the test!');
+        setViolations(prev => ({ ...prev, tabSwitch: prev.tabSwitch + 1 }));
+        logEvent({ type: 'tab_switch_attempt', method: e.ctrlKey ? 'Ctrl+Tab' : 'Alt+Tab' });
+      }
+      
+      // Prevent F11 and other system keys
+      if (e.key === 'F11' || e.key === 'F12') {
+        e.preventDefault();
+        toast.error('This action is not allowed during the test!');
+      }
+      
+      // Prevent Ctrl+W, Ctrl+N, Ctrl+T (window/tab management)
+      if ((e.ctrlKey || e.metaKey) && ['w', 'n', 't'].includes(e.key.toLowerCase())) {
+        e.preventDefault();
+        toast.error('Window management shortcuts are disabled!');
+        setViolations(prev => ({ ...prev, tabSwitch: prev.tabSwitch + 1 }));
+      }
+    };
+
+    // Prevent right-click context menu
+    const handleContextMenu = (e) => {
+      e.preventDefault();
+      toast.warning('Right-click is disabled during the test');
+    };
+
     document.addEventListener('visibilitychange', handleVisibilityChange);
+    document.addEventListener('keydown', handleKeyDown);
+    document.addEventListener('contextmenu', handleContextMenu);
 
     // Fullscreen change handler
     const handleFullscreenChange = () => {
-      if (!document.fullscreenElement) {
+      if (!document.fullscreenElement && screenfull.isEnabled) {
         toast.warning('Please remain in fullscreen mode');
+        // Try to re-enter fullscreen
+        screenfull.request().catch(() => {
+          toast.error('Unable to re-enter fullscreen. Test may be terminated.');
+        });
       }
     };
 
@@ -54,6 +90,8 @@ export const TestInterface = ({ topic, difficulty, userName, testQuestions, atte
 
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
+      document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('contextmenu', handleContextMenu);
       document.removeEventListener('fullscreenchange', handleFullscreenChange);
       if (screenfull.isEnabled && screenfull.isFullscreen) {
         screenfull.exit();

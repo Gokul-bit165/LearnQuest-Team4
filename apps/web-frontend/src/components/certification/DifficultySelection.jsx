@@ -1,8 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ChevronRight, Zap, TrendingUp, Flame } from 'lucide-react';
-import { Button } from '../ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
-import { Badge } from '../ui/badge';
+import { useParams, useNavigate } from 'react-router-dom';
+import certificationService from '../../services/certificationService';
 import { motion } from 'framer-motion';
 
 const DIFFICULTY_LEVELS = [
@@ -38,29 +37,68 @@ const DIFFICULTY_LEVELS = [
   },
 ];
 
-export const DifficultySelection = ({ topic, onSelectDifficulty, onBack }) => {
+export const DifficultySelection = () => {
+  const { topicId } = useParams();
+  const navigate = useNavigate();
   const [selectedLevel, setSelectedLevel] = useState(null);
+  const [topic, setTopic] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchTopic();
+  }, [topicId]);
+
+  const fetchTopic = async () => {
+    try {
+      setLoading(true);
+      const certifications = await certificationService.getCertifications();
+      const foundTopic = certifications.find(cert => cert._id === topicId);
+      if (foundTopic) {
+        setTopic(foundTopic);
+      }
+    } catch (error) {
+      console.error('Error fetching topic:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleContinue = () => {
-    if (selectedLevel) {
-      onSelectDifficulty(selectedLevel);
+    if (selectedLevel && topicId) {
+      navigate(`/certifications/proctored/setup/${topicId}/${selectedLevel.id}`);
     }
   };
 
-  // Map certification difficulty to our levels
-  const getDifficultyLevel = (certDifficulty) => {
-    switch (certDifficulty.toLowerCase()) {
-      case 'easy': return DIFFICULTY_LEVELS[0];
-      case 'medium': return DIFFICULTY_LEVELS[1];
-      case 'tough': return DIFFICULTY_LEVELS[2];
-      default: return DIFFICULTY_LEVELS[0];
-    }
+  const handleBack = () => {
+    navigate('/certification/topics');
   };
 
-  const mappedLevel = getDifficultyLevel(topic.difficulty);
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-white text-xl">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!topic) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-white text-xl">Topic not found</p>
+          <button onClick={() => navigate('/certification/topics')} className="mt-4 px-4 py-2 bg-blue-600 text-white rounded">
+            Back to Topics
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted py-12">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 py-12">
       <div className="container mx-auto px-4">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -70,14 +108,14 @@ export const DifficultySelection = ({ topic, onSelectDifficulty, onBack }) => {
         >
           {/* Header */}
           <div className="mb-12 text-center">
-            <Badge variant="default" className="mb-4">
+            <div className="mb-4 inline-block rounded-full bg-blue-500/20 px-4 py-2 text-blue-300 text-sm font-medium border border-blue-500/30">
               Step 2 of 3
-            </Badge>
-            <h1 className="mb-4 font-display text-3xl font-bold text-foreground sm:text-4xl">
+            </div>
+            <h1 className="mb-4 font-display text-3xl font-bold text-white sm:text-4xl">
               Select Difficulty Level
             </h1>
-            <p className="text-lg text-muted-foreground">
-              Testing for <span className="font-semibold text-primary">{topic.title}</span>
+            <p className="text-lg text-slate-400">
+              Testing for <span className="font-semibold text-blue-400">{topic.title}</span>
             </p>
           </div>
 
@@ -94,43 +132,39 @@ export const DifficultySelection = ({ topic, onSelectDifficulty, onBack }) => {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.4, delay: index * 0.1 }}
                 >
-                  <Card
-                    className={`flex h-full cursor-pointer flex-col transition-all duration-300 hover:shadow-lg hover:scale-[1.02] ${
+                  <div
+                    className={`flex h-full cursor-pointer flex-col rounded-xl border-2 transition-all duration-300 hover:shadow-lg hover:scale-[1.02] bg-slate-800/50 p-6 ${
                       isSelected
-                        ? 'border-2 border-primary shadow-primary'
-                        : 'border border-border hover:border-primary/50'
+                        ? 'border-blue-500 shadow-lg shadow-blue-500/20'
+                        : 'border-slate-700 hover:border-blue-400'
                     }`}
                     onClick={() => setSelectedLevel(level)}
                   >
-                    <CardHeader>
-                      <div className="mb-4 flex items-center justify-between">
-                        <div className={`flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-br ${level.color}`}>
-                          <Icon className="h-7 w-7 text-white" />
-                        </div>
-                        {isSelected && (
-                          <Badge variant="success">Selected</Badge>
-                        )}
+                    <div className="mb-4 flex items-center justify-between">
+                      <div className={`flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-br ${level.color}`}>
+                        <Icon className="h-7 w-7 text-white" />
                       </div>
-                      <CardTitle className="text-2xl">{level.name}</CardTitle>
-                      <CardDescription className="text-base">{level.description}</CardDescription>
-                    </CardHeader>
-                    <CardContent className="mt-auto">
-                      <div className="space-y-2 text-sm">
-                        <div className="flex items-center justify-between rounded-md bg-muted/50 p-2">
-                          <span className="text-muted-foreground">Duration:</span>
-                          <span className="font-semibold text-foreground">{level.duration}</span>
-                        </div>
-                        <div className="flex items-center justify-between rounded-md bg-muted/50 p-2">
-                          <span className="text-muted-foreground">Questions:</span>
-                          <span className="font-semibold text-foreground">{level.questions}</span>
-                        </div>
-                        <div className="flex items-center justify-between rounded-md bg-muted/50 p-2">
-                          <span className="text-muted-foreground">Passing Score:</span>
-                          <span className="font-semibold text-foreground">{level.passingScore}%</span>
-                        </div>
+                      {isSelected && (
+                        <div className="px-3 py-1 bg-green-500 text-white text-xs font-medium rounded-full">Selected</div>
+                      )}
+                    </div>
+                    <h3 className="text-2xl font-bold text-white mb-2">{level.name}</h3>
+                    <p className="text-base text-slate-400 mb-4">{level.description}</p>
+                    <div className="mt-auto space-y-2 text-sm">
+                      <div className="flex items-center justify-between rounded-md bg-slate-700/50 p-2">
+                        <span className="text-slate-400">Duration:</span>
+                        <span className="font-semibold text-white">{level.duration}</span>
                       </div>
-                    </CardContent>
-                  </Card>
+                      <div className="flex items-center justify-between rounded-md bg-slate-700/50 p-2">
+                        <span className="text-slate-400">Questions:</span>
+                        <span className="font-semibold text-white">{level.questions}</span>
+                      </div>
+                      <div className="flex items-center justify-between rounded-md bg-slate-700/50 p-2">
+                        <span className="text-slate-400">Passing Score:</span>
+                        <span className="font-semibold text-white">{level.passingScore}%</span>
+                      </div>
+                    </div>
+                  </div>
                 </motion.div>
               );
             })}
@@ -143,43 +177,48 @@ export const DifficultySelection = ({ topic, onSelectDifficulty, onBack }) => {
               animate={{ opacity: 1, scale: 1 }}
               className="mb-8"
             >
-              <Card className="border-2 border-primary/20 bg-primary/5">
-                <CardContent className="flex flex-col items-center justify-between gap-4 p-6 sm:flex-row">
+              <div className="rounded-xl border-2 border-blue-500/30 bg-gradient-to-r from-blue-500/10 to-purple-500/10 p-6">
+                <div className="flex flex-col items-center justify-between gap-4 sm:flex-row">
                   <div className="flex items-center gap-4">
                     <div className={`flex h-16 w-16 items-center justify-center rounded-xl bg-gradient-to-br ${selectedLevel.color}`}>
                       <selectedLevel.icon className="h-8 w-8 text-white" />
                     </div>
                     <div>
-                      <div className="text-sm font-semibold text-muted-foreground">You've Selected</div>
-                      <div className="text-2xl font-bold text-primary">{selectedLevel.name} Level</div>
-                      <div className="text-sm text-muted-foreground">
+                      <div className="text-sm font-semibold text-slate-400">You've Selected</div>
+                      <div className="text-2xl font-bold text-blue-400">{selectedLevel.name} Level</div>
+                      <div className="text-sm text-slate-400">
                         {selectedLevel.questions} questions • {selectedLevel.duration}
                       </div>
                     </div>
                   </div>
-                  <Badge variant="warning" className="text-sm">
+                  <div className="px-4 py-2 bg-yellow-600 text-white text-base font-bold rounded-lg">
                     {selectedLevel.passingScore}% to pass
-                  </Badge>
-                </CardContent>
-              </Card>
+                  </div>
+                </div>
+              </div>
             </motion.div>
           )}
 
           {/* Action Buttons */}
           <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
-            <Button size="lg" variant="outline" onClick={onBack} className="w-full sm:w-auto">
+            <button
+              onClick={handleBack}
+              className="w-full sm:w-auto border-2 border-slate-600 text-slate-300 hover:bg-slate-700 hover:text-white px-6 py-3 rounded-lg font-semibold transition-all"
+            >
               Back
-            </Button>
-            <Button
-              size="lg"
-              variant="premium"
+            </button>
+            <button
               onClick={handleContinue}
               disabled={!selectedLevel}
-              className="w-full sm:w-auto"
+              className={`w-full sm:w-auto flex items-center gap-2 px-6 py-3 rounded-lg font-semibold transition-all ${
+                selectedLevel
+                  ? 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg hover:shadow-xl transform hover:scale-105'
+                  : 'bg-slate-700 text-slate-500 cursor-not-allowed'
+              }`}
             >
               Continue to Setup
               <ChevronRight className="h-5 w-5" />
-            </Button>
+            </button>
           </div>
         </motion.div>
       </div>
