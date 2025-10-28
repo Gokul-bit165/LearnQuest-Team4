@@ -151,7 +151,7 @@ function App() {
               } 
             />
             <Route 
-              path="/certification/setup/:topicId/:difficulty" 
+              path="/certifications/proctored/setup/:topicId/:difficulty" 
               element={
                 <ProtectedRoute>
                   <TestSetup />
@@ -159,7 +159,7 @@ function App() {
               } 
             />
             <Route 
-              path="/certification/test/:topicId/:difficulty" 
+              path="/certifications/proctored/test/:topicId/:difficulty" 
               element={
                 <ProtectedRoute>
                   <TestInterface />
@@ -167,7 +167,7 @@ function App() {
               } 
             />
             <Route 
-              path="/certification/results" 
+              path="/certifications/proctored/results" 
               element={
                 <ProtectedRoute>
                   <TestResults />
