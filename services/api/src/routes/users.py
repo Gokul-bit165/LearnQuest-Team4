@@ -45,6 +45,39 @@ async def get_user_profile(current_user: User = Depends(get_current_user)):
             detail=f"Error fetching user profile: {str(e)}"
         )
 
+def _compute_course_completions(courses_collection, completed_topics, completed_modules):
+    """Helper to compute which courses are completed based on topic/module completion"""
+    try:
+        courses = list(courses_collection.find({}, {"id": 1, "title": 1, "modules": 1, "_id": 1}))
+        completion_status = {}
+        completed_topics_set = set(completed_topics)
+        completed_modules_set = set(completed_modules)
+        
+        for course in courses:
+            course_id = str(course.get("_id") or course.get("id", ""))
+            modules = course.get("modules", [])
+            all_topic_ids = []
+            all_module_ids = []
+            
+            for module in modules:
+                module_id = module.get("module_id")
+                if module_id:
+                    all_module_ids.append(module_id)
+                topics = module.get("topics", [])
+                for topic in topics:
+                    topic_id = topic.get("topic_id")
+                    if topic_id:
+                        all_topic_ids.append(topic_id)
+            
+            topics_done = len(all_topic_ids) > 0 and all(tid in completed_topics_set for tid in all_topic_ids)
+            modules_done = len(all_module_ids) > 0 and all(mid in completed_modules_set for mid in all_module_ids)
+            
+            completion_status[course_id] = topics_done or modules_done
+        
+        return completion_status
+    except Exception:
+        return {}
+
 @router.get("/me/dashboard")
 async def get_user_dashboard(current_user: User = Depends(get_current_user)):
     """Get user's dashboard data with progress and analytics"""
@@ -64,6 +97,7 @@ async def get_user_dashboard(current_user: User = Depends(get_current_user)):
         quiz_history = user_doc.get("quiz_history", [])
         completed_topics = user_doc.get("completed_topics", [])
         completed_modules = user_doc.get("completed_modules", [])
+        completed_courses = user_doc.get("completed_courses", [])
         enrolled_courses = user_doc.get("enrolled_courses", [])
         
         # Calculate performance metrics
@@ -222,7 +256,13 @@ async def get_user_dashboard(current_user: User = Depends(get_current_user)):
             "skill_distribution": skill_distribution,
             "goals": goals,
             "achievements": achievements,
-            "enrolled_courses": enrolled_courses
+            "enrolled_courses": enrolled_courses,
+            # Expose raw progress arrays for clients that compute progress locally
+            "completed_topics": completed_topics,
+            "completed_modules": completed_modules,
+            "completed_courses": completed_courses,
+            # Also compute course completion status on server side
+            "courses_completion_status": _compute_course_completions(get_collection("courses"), completed_topics, completed_modules),
         }
         
     except Exception as e:
@@ -385,3 +425,53 @@ async def get_leaderboard(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error fetching leaderboard: {str(e)}"
         )
+
+
+@router.post("/me/complete-course/{course_id}")
+async def mark_course_completed(course_id: str, current_user: User = Depends(get_current_user)):
+    """Utility endpoint: mark all topics and modules of a course as completed for the current user.
+    Accepts either a course ObjectId string or a slug. Useful to reconcile progress or for demos.
+    """
+    try:
+        courses = get_collection("courses")
+        users = get_collection("users")
+        course_doc = None
+        # Try ObjectId
+        try:
+            course_doc = courses.find_one({"_id": bson.ObjectId(course_id)})
+        except Exception:
+            course_doc = None
+        # Fallback by id field or slug
+        if not course_doc:
+            course_doc = courses.find_one({"id": course_id}) or courses.find_one({"slug": course_id})
+        if not course_doc:
+            raise HTTPException(status_code=404, detail="Course not found")
+
+        topic_ids: list[str] = []
+        module_ids: list[str] = []
+        for m in course_doc.get("modules", []):
+            mid = m.get("module_id")
+            if isinstance(mid, str):
+                module_ids.append(mid)
+            for t in m.get("topics", []):
+                tid = t.get("topic_id")
+                if isinstance(tid, str):
+                    topic_ids.append(tid)
+
+        if not topic_ids and not module_ids:
+            return {"message": "No topics/modules found in course", "updated": False}
+
+        users.update_one(
+            {"_id": bson.ObjectId(current_user.id)},
+            {
+                "$addToSet": {
+                    "completed_topics": {"$each": topic_ids},
+                    "completed_modules": {"$each": module_ids},
+                }
+            }
+        )
+        return {"message": "Course progress marked completed", "updated": True, "topic_ids": topic_ids, "module_ids": module_ids}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to mark course completed: {e}")

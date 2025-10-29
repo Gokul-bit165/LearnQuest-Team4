@@ -29,21 +29,34 @@ class ProctoringEventRequest(BaseModel):
     event: Dict[str, Any]
 
 
-@router.get("/", response_model=List[CertificationSpec])
+@router.get("/")
 async def get_certifications():
-    """Get all available certifications for users"""
+    """Get all available certifications for users - returns grouped specs"""
     try:
-        certifications_collection = get_collection("certifications")
+        specs_collection = get_collection("cert_test_specs")
+        items = list(specs_collection.find({}))
         
-        cursor = certifications_collection.find().sort("created_at", -1)
-        certifications = []
+        # Group by cert_id
+        grouped = {}
+        for item in items:
+            cert_id = item.get("cert_id")
+            if not cert_id:
+                continue
+            diff = item.get("difficulty")
+            if cert_id not in grouped:
+                grouped[cert_id] = {
+                    "cert_id": cert_id,
+                    "difficulties": [],
+                    "prerequisite_course_id": item.get("prerequisite_course_id", "") or "",
+                }
+            grouped[cert_id]["difficulties"].append({
+                "name": diff,
+                "question_count": int(item.get("question_count", 10)),
+                "duration_minutes": int(item.get("duration_minutes", 30)),
+                "pass_percentage": int(item.get("pass_percentage", 70)),
+            })
         
-        for doc in cursor:
-            doc["id"] = str(doc["_id"])
-            del doc["_id"]
-            certifications.append(CertificationSpec(**doc))
-        
-        return certifications
+        return list(grouped.values())
         
     except Exception as e:
         raise HTTPException(
@@ -72,6 +85,19 @@ async def start_test(
             )
         
         cert_spec = CertificationSpec(**{**cert_doc, "_id": str(cert_doc["_id"])})
+        
+        # Check prerequisites
+        prerequisite_course_id = cert_doc.get("prerequisite_course_id")
+        if prerequisite_course_id:
+            users_collection = get_collection("users")
+            user_doc = users_collection.find_one({"_id": ObjectId(current_user.id)})
+            completed_courses = user_doc.get("completed_courses", [])
+            
+            if str(prerequisite_course_id) not in completed_courses:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="You have not completed the prerequisite course for this certification."
+                )
         
         # Check if user already has an active attempt
         existing_attempt = attempts_collection.find_one({

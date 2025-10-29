@@ -88,6 +88,69 @@ const Courses = () => {
             <p className="text-slate-400">Create, edit, and manage your learning courses</p>
           </div>
           <div className="flex gap-3">
+            <button
+              className="px-4 py-2 bg-purple-600 rounded-lg inline-block hover:bg-purple-700 transition-colors font-medium"
+              onClick={async () => {
+                try {
+                  const demoCourses = [
+                    {
+                      title: 'Intro to Python',
+                      description: 'Learn Python fundamentals with hands-on modules and quizzes.',
+                      xp_reward: 300,
+                      modules: [
+                        {
+                          title: 'Getting Started',
+                          order: 1,
+                          topics: [
+                            {
+                              title: 'Basics',
+                              content: 'Variables, types, and basic IO',
+                              xp_reward: 50,
+                              cards: [
+                                { type: 'theory', content: 'What is a variable?', xp_reward: 10, explanation: '' },
+                                { type: 'mcq', content: 'Select a valid variable name', xp_reward: 10, explanation: '', choices: ['1name', 'name_1', 'class', 'def'], correct_choice_index: 1 },
+                              ],
+                            },
+                          ],
+                        },
+                      ],
+                    },
+                    {
+                      title: 'Web Fundamentals',
+                      description: 'HTML, CSS, and basic JavaScript for the web.',
+                      xp_reward: 250,
+                      modules: [
+                        {
+                          title: 'HTML & CSS',
+                          order: 1,
+                          topics: [
+                            {
+                              title: 'HTML Basics',
+                              content: 'Tags, elements, attributes',
+                              xp_reward: 50,
+                              cards: [
+                                { type: 'theory', content: 'What is an HTML element?', xp_reward: 10, explanation: '' },
+                                { type: 'fill-in-blank', content: 'Fill the missing tag', xp_reward: 10, explanation: '', blanks: [''], correct_answers: ['</div>'] },
+                              ],
+                            },
+                          ],
+                        },
+                      ],
+                    },
+                  ]
+
+                  for (const payload of demoCourses) {
+                    await adminAPI.createCourse(payload)
+                  }
+                  alert('Demo courses loaded')
+                  await load()
+                } catch (e) {
+                  alert('Failed to load demo courses: ' + (e.response?.data?.detail || e.message))
+                }
+              }}
+            >
+              Load Demo Courses
+            </button>
             <label className="px-4 py-2 bg-green-600 rounded-lg inline-block cursor-pointer hover:bg-green-700 transition-colors font-medium">
               {uploading ? 'Uploading...' : 'Upload JSON'}
               <input 
@@ -100,7 +163,7 @@ const Courses = () => {
             </label>
             <Link 
               className="px-4 py-2 bg-blue-600 rounded-lg inline-block hover:bg-blue-700 transition-colors font-medium" 
-              to="/courses/new"
+              to="/courses/create"
             >
               Create New Course
             </Link>
@@ -119,7 +182,7 @@ const Courses = () => {
             <div className="flex gap-3 justify-center">
               <Link 
                 className="px-6 py-3 bg-blue-600 hover:bg-blue-700 rounded-lg font-medium transition-colors" 
-                to="/courses/new"
+                to="/courses/create"
               >
                 Create Course
               </Link>

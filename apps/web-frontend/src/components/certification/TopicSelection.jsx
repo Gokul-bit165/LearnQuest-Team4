@@ -3,6 +3,7 @@ import { ChevronRight, Code2, Database, Cloud, Brain, Shield, Palette, Award } f
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import certificationService from '../../services/certificationService';
+import { usersAPI, coursesAPI } from '../../services/api';
 
 const TOPICS = [
   { id: 'react', name: 'React.js', icon: Code2, color: 'from-blue-500 to-cyan-500', level: 'Frontend' },
@@ -19,32 +20,100 @@ const TopicSelection = () => {
   const navigate = useNavigate();
   const [certifications, setCertifications] = useState([]);
   const [selectedTopic, setSelectedTopic] = useState(null);
+  const [completedCourseIds, setCompletedCourseIds] = useState([]);
+  const [coursesById, setCoursesById] = useState({});
+  const [coursesBySlug, setCoursesBySlug] = useState({});
+  const [courseCompletedById, setCourseCompletedById] = useState({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchCertifications();
   }, []);
 
+  // Refresh when window gains focus
+  useEffect(() => {
+    const handleFocus = () => {
+      fetchCertifications();
+    };
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, []);
+
   const fetchCertifications = async () => {
     try {
       setLoading(true);
-      const data = await certificationService.getCertifications();
-      setCertifications(data);
+      const [specs, dash, coursesRes] = await Promise.all([
+        certificationService.getPublicSpecs(),
+        usersAPI.getDashboard().then(r => r.data).catch(() => null),
+        coursesAPI.getCourses().then(r => r.data).catch(() => []),
+      ]);
+      const mapped = specs.map(s => ({
+        _id: s.cert_id,
+        title: s.cert_id,
+        description: 'Certification test created from question banks',
+        difficulties: s.difficulties,
+        prerequisite_course_id: s.prerequisite_course_id || ''
+      }));
+      setCertifications(mapped);
+      const byId = {};
+      const bySlug = {};
+      (coursesRes || []).forEach(c => { 
+        if (c?.id) byId[c.id] = c; 
+        if (c?.slug) bySlug[c.slug] = c;
+      });
+      setCoursesById(byId);
+      setCoursesBySlug(bySlug);
+      // Use server-computed completion status if available
+      const serverCompletion = dash?.courses_completion_status || {};
+      const completedTopics = new Set(dash?.completed_topics || []);
+      const completedModules = new Set(dash?.completed_modules || []);
+      console.log('=== TOPIC SELECTION DEBUG ===');
+      console.log('TopicSelection - Dashboard data:', dash);
+      console.log('TopicSelection - Server completion:', serverCompletion);
+      console.log('TopicSelection - Completed topics:', Array.from(completedTopics));
+      console.log('TopicSelection - Completed modules:', Array.from(completedModules));
+      
+      const completedIds = new Set(dash?.completed_courses || []);
+      const completedMap = {};
+      // Also consider enrolled_courses flags as completion source
+      const enrolled = Array.isArray(dash?.enrolled_courses) ? dash.enrolled_courses : [];
+      const enrolledCompletedIds = new Set(
+        enrolled
+          .filter(ec => ec && (ec.completed || ec.status === 'completed'))
+          .map(ec => ec.course_id || ec.id)
+      );
+      console.log('TopicSelection - Enrolled completed IDs:', Array.from(enrolledCompletedIds));
+
+      (coursesRes || []).forEach(c => {
+        if (completedIds.has(c.id) || enrolledCompletedIds.has(c.id)) {
+          completedMap[c.id] = true;
+        } else {
+          completedMap[c.id] = false;
+        }
+      });
+      
+      console.log('\n=== TopicSelection FINAL COMPLETED COURSE IDs ===', Array.from(completedIds));
+      console.log('=== TopicSelection COMPLETED MAP ===', completedMap);
+      console.log('=== END TOPIC SELECTION DEBUG ===\n');
+      
+      setCompletedCourseIds(Array.from(completedIds));
+      setCourseCompletedById(completedMap);
     } catch (error) {
       console.error('Error fetching certifications:', error);
-      // Fallback to mock data
-      setCertifications([
-        { _id: '1', title: 'React.js', description: 'Frontend development certification', difficulty: 'Medium', duration_minutes: 60, pass_percentage: 70 },
-        { _id: '2', title: 'Node.js', description: 'Backend development certification', difficulty: 'Hard', duration_minutes: 90, pass_percentage: 75 },
-      ]);
+      setCertifications([]);
     } finally {
       setLoading(false);
     }
   };
 
+  const goToSetup = (topicId) => {
+    // Skip difficulty step; default to 'easy'
+    navigate(`/certifications/proctored/setup/${topicId}/easy`);
+  };
+
   const handleContinue = () => {
     if (selectedTopic) {
-      navigate(`/certification/difficulty/${selectedTopic._id}`);
+      goToSetup(selectedTopic._id);
     }
   };
 
@@ -91,6 +160,13 @@ const TopicSelection = () => {
               </div>
             ) : (
               certifications.map((cert, index) => {
+                // Resolve prerequisite by id or slug
+                let prereqKey = cert.prerequisite_course_id;
+                if (prereqKey && !courseCompletedById[prereqKey]) {
+                  const bySlugCourse = coursesBySlug[prereqKey];
+                  if (bySlugCourse?.id) prereqKey = bySlugCourse.id;
+                }
+                const locked = prereqKey && !courseCompletedById[prereqKey];
                 const topic = TOPICS.find(t => t.name.toLowerCase().includes(cert.title.toLowerCase())) || 
                              TOPICS.find(t => t.level.toLowerCase().includes(cert.title.toLowerCase())) ||
                              { id: cert._id, name: cert.title, icon: Code2, color: 'from-blue-500 to-cyan-500', level: cert.difficulty };
@@ -109,28 +185,41 @@ const TopicSelection = () => {
                         isSelected
                           ? 'border-blue-500 shadow-lg shadow-blue-500/20'
                           : 'border-slate-700 hover:border-blue-400'
-                      }`}
-                      onClick={() => setSelectedTopic(cert)}
+                      } ${locked ? 'opacity-60 grayscale cursor-not-allowed' : ''}`}
+                      onClick={() => {
+                        if (locked) {
+                          const course = coursesById[cert.prerequisite_course_id];
+                          const title = course?.title || cert.prerequisite_course_id || 'the prerequisite course';
+                          alert(`This certification is locked. Please complete ${title} first.`);
+                          return;
+                        }
+                        goToSetup(cert._id);
+                      }}
                     >
                       <div className="mb-3 flex items-center justify-between">
                         <div className={`flex h-12 w-12 items-center justify-center rounded-lg bg-gradient-to-br ${topic.color}`}>
                           <Icon className="h-6 w-6 text-white" />
                         </div>
-                        {isSelected && (
+                        {locked ? (
+                          <div className="px-3 py-1 bg-slate-600 text-white text-xs font-medium rounded-full">Locked</div>
+                        ) : isSelected ? (
                           <div className="px-3 py-1 bg-green-500 text-white text-xs font-medium rounded-full">Selected</div>
-                        )}
+                        ) : null}
                       </div>
                       <h3 className="text-xl font-bold text-white mb-2">{cert.title}</h3>
-                      <div className="mb-2">
-                        <div className="inline-block px-2 py-1 border border-blue-500 text-blue-400 text-xs font-medium rounded">
-                          {cert.difficulty}
-                        </div>
+                      <div className="mb-2 flex flex-wrap gap-2">
+                        {cert.difficulties?.map((d, i) => (
+                          <div key={i} className="inline-block px-2 py-1 border border-blue-500 text-blue-400 text-xs font-medium rounded">
+                            {d.name}
+                          </div>
+                        ))}
                       </div>
                       <p className="text-sm text-slate-400 mb-3">{cert.description}</p>
-                      <div className="flex items-center justify-between text-xs text-slate-500">
-                        <span>{cert.duration_minutes} min</span>
-                        <span>{cert.pass_percentage}% to pass</span>
-                      </div>
+                      {!!cert.prerequisite_course_id && (
+                        <div className="text-xs text-slate-400">
+                          Prerequisite course: {coursesById[cert.prerequisite_course_id]?.title || coursesBySlug[cert.prerequisite_course_id]?.title || cert.prerequisite_course_id}
+                        </div>
+                      )}
                     </div>
                   </motion.div>
                 );
@@ -174,14 +263,14 @@ const TopicSelection = () => {
             </button>
             <button
               onClick={handleContinue}
-              disabled={!selectedTopic}
+              disabled={!selectedTopic || (selectedTopic.prerequisite_course_id && !courseCompletedById[selectedTopic.prerequisite_course_id])}
               className={`w-full sm:w-auto flex items-center gap-2 px-6 py-3 rounded-lg font-semibold transition-all ${
-                selectedTopic
+                selectedTopic && !(selectedTopic.prerequisite_course_id && !courseCompletedById[selectedTopic.prerequisite_course_id])
                   ? 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg hover:shadow-xl transform hover:scale-105'
                   : 'bg-slate-700 text-slate-500 cursor-not-allowed'
               }`}
             >
-              Continue to Difficulty Level
+              Start Test Now
               <ChevronRight className="h-5 w-5" />
             </button>
           </div>

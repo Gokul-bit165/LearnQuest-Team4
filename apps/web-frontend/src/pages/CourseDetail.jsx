@@ -49,6 +49,17 @@ const CourseDetail = () => {
     }
   }, [isAuthenticated, slug]);
 
+  // Refresh progress when returning to this page
+  useEffect(() => {
+    const handleFocus = () => {
+      if (isAuthenticated) {
+        refreshUserProgress();
+      }
+    };
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [isAuthenticated, refreshUserProgress]);
+
   const handleStartQuiz = async () => {
     if (!course?.id) return;
     

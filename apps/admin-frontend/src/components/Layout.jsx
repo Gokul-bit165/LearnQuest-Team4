@@ -28,8 +28,8 @@ const Layout = ({ children }) => {
           <SidebarLink to="/courses">Courses</SidebarLink>
           <SidebarLink to="/problems">Problems</SidebarLink>
           <SidebarLink to="/practice-zone">Practice Zone</SidebarLink>
-          <SidebarLink to="/test-management">Test Management</SidebarLink>
-          <SidebarLink to="/certification">Certification</SidebarLink>
+          <SidebarLink to="/tests">Tests Dashboard</SidebarLink>
+          <SidebarLink to="/certification-tests">Certification Test Manager</SidebarLink>
           <SidebarLink to="/proctoring-review">Proctoring Review</SidebarLink>
           <SidebarLink to="/results-analytics">Results & Analytics</SidebarLink>
           <SidebarLink to="/certificate-management">Certificate Management</SidebarLink>

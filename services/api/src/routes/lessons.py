@@ -406,14 +406,28 @@ async def complete_topic(
 
     # If all topics in the module are completed, mark module as completed
     if module_id:
-        user_after = users.find_one({"_id": ObjectId(current_user.id)}, {"completed_topics": 1})
+        user_after = users.find_one({"_id": ObjectId(current_user.id)}, {"completed_topics": 1, "completed_modules": 1})
         completed_topics_set = set(user_after.get("completed_topics", []))
-        module_ids = next((ids for mid, ids in module_topic_ids if mid == module_id), [])
-        if module_ids and all(tid in completed_topics_set for tid in module_ids):
+        
+        # Check if module is complete
+        module_topic_ids_list = next((ids for mid, ids in module_topic_ids if mid == module_id), [])
+        if module_topic_ids_list and all(tid in completed_topics_set for tid in module_topic_ids_list):
             users.update_one(
                 {"_id": ObjectId(current_user.id)},
                 {"$addToSet": {"completed_modules": module_id}}
             )
+            
+            # After marking module complete, check if course is complete
+            user_after_module_update = users.find_one({"_id": ObjectId(current_user.id)}, {"completed_modules": 1})
+            completed_modules_set = set(user_after_module_update.get("completed_modules", []))
+            
+            all_module_ids_in_course = [m.get("module_id") for m in course_doc.get("modules", [])]
+            
+            if all(mid in completed_modules_set for mid in all_module_ids_in_course):
+                users.update_one(
+                    {"_id": ObjectId(current_user.id)},
+                    {"$addToSet": {"completed_courses": str(course_doc["_id"])}}
+                )
     
     return CompleteTopicResponse(
         success=True,

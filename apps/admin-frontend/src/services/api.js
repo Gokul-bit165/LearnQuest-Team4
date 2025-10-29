@@ -53,6 +53,33 @@ export const adminAPI = {
 
 }
 
+export const adminCertTestsAPI = {
+  // Question Banks
+  listBanks: () => api.get('/api/admin/cert-tests/banks'),
+  uploadBanks: (files) => {
+    const formData = new FormData();
+    files.forEach((f) => formData.append('files', f));
+    return api.post('/api/admin/cert-tests/banks', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
+
+  // Test Specs
+  createSpec: (payload) => api.post('/api/admin/cert-tests/specs', payload),
+  listSpecs: (params) => api.get('/api/admin/cert-tests/specs', { params }),
+  getSpecForCertDifficulty: (certId, difficulty) =>
+    api.get(`/api/admin/cert-tests/specs/${certId}/${difficulty}`),
+  deleteSpec: (certId, difficulty) =>
+    api.delete(`/api/admin/cert-tests/specs/${certId}/${difficulty}`).catch((e) => {
+      if (e.response && e.response.status === 405) {
+        return api.post(`/api/admin/cert-tests/specs/${certId}/${difficulty}/delete`)
+      }
+      throw e
+    }),
+  setSpecActive: (certId, difficulty, active) =>
+    api.patch(`/api/admin/cert-tests/specs/${certId}/${difficulty}/status`, { active }),
+};
+
 export default api
 
 

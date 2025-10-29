@@ -75,7 +75,7 @@ export const lessonsAPI = {
     return api.post('/api/lessons/check-answer', payload);
   },
   completeTopic: (topicId) => api.post(`/api/lessons/complete/${topicId}`),
-  getUserProgress: () => api.get('/api/lessons/user-progress'),
+  getUserProgress: () => api.get('/api/users/me/dashboard'),
 };
 
 // AI API

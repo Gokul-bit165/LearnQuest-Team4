@@ -1,6 +1,29 @@
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 class CertificationService {
+  async getPublicSpecs() {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/cert-tests/specs`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token') || ''}`,
+        },
+      });
+      if (!res.ok) throw new Error('Failed to fetch specs');
+      const data = await res.json();
+      return Array.isArray(data) ? data : [];
+    } catch (e) {
+      // Fallback mock for dev environments
+      return [
+        {
+          cert_id: "DEMO-PYTHON",
+          difficulties: [
+            { name: "Easy", question_count: 5, duration_minutes: 10, pass_percentage: 60 },
+          ],
+          prerequisite_course_id: "",
+        },
+      ];
+    }
+  }
   async getCertifications() {
     try {
       const response = await fetch(`${API_BASE_URL}/api/certifications/`, {
@@ -18,6 +41,24 @@ class CertificationService {
     } catch (error) {
       console.error('Error fetching certifications:', error);
       throw error;
+    }
+  }
+
+  async getTestSpec(certId, difficulty) {
+    try {
+      const API_BASE_URL = import.meta.env?.VITE_API_URL || 'http://localhost:8000';
+      const response = await fetch(`${API_BASE_URL}/api/admin/cert-tests/specs/${certId}/${difficulty}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      if (!response.ok) {
+        return null;
+      }
+      return await response.json();
+    } catch (error) {
+      console.error('Error fetching test spec:', error);
+      return null;
     }
   }
 

@@ -29,6 +29,8 @@ from .routes.admin import router as admin_router  # base admin router
 from .routes.admin_users import router as admin_users_router
 from .routes.simple_gnn import router as gnn_router
 from .routes.ai_quiz import router as ai_quiz_router
+from .routes.cert_tests_admin import router as cert_tests_admin_router
+from .routes.cert_tests_runtime import router as cert_tests_runtime_router
 # Temporarily disable proctoring import to fix login
 # from .routes.proctoring import router as proctoring_router
 # from .services.proctoring import get_proctoring_service
@@ -86,6 +88,8 @@ app.include_router(admin_router, prefix="/api/admin")
 app.include_router(admin_users_router)
 app.include_router(gnn_router)
 app.include_router(ai_quiz_router)
+app.include_router(cert_tests_admin_router)
+app.include_router(cert_tests_runtime_router)
 # app.include_router(proctoring_router)  # Temporarily disabled
 
 @app.get("/")
