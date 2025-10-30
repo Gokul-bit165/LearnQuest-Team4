@@ -50,7 +50,11 @@ async def start_attempt(payload: Dict[str, Any], current_user=Depends(get_curren
         raise HTTPException(status_code=400, detail="topic_id and difficulty are required")
 
     specs = get_collection("cert_test_specs")
-    spec = specs.find_one({"cert_id": topic_id, "difficulty": difficulty})
+    # Case-insensitive search for difficulty
+    spec = specs.find_one({
+        "cert_id": topic_id, 
+        "difficulty": {"$regex": f"^{difficulty}$", "$options": "i"}
+    })
     print(f"DEBUG: Query result - spec found: {spec is not None}")
     if not spec:
         # Try to list available specs for debugging
@@ -115,9 +119,12 @@ async def start_attempt(payload: Dict[str, Any], current_user=Depends(get_curren
         "prerequisite_course_id": prereq_course_id,
     }
 
-    # Fetch questions from question_ids (coding problems)
+    # Fetch questions from question_ids (coding problems) or banks
     questions = []
     question_ids = spec.get("question_ids", []) if spec else []
+    bank_ids = spec.get("bank_ids", []) if spec else []
+    
+    # Load from problems collection if question_ids exist
     if question_ids:
         problems_collection = get_collection("problems")
         from bson import ObjectId
@@ -133,6 +140,46 @@ async def start_attempt(payload: Dict[str, Any], current_user=Depends(get_curren
             except Exception as e:
                 print(f"Error fetching problem {qid}: {e}")
                 continue
+    
+    # Load from question banks if bank_ids exist
+    elif bank_ids:
+        banks_collection = get_collection("cert_test_banks")
+        from bson import ObjectId
+        question_pool = []
+        
+        for bid in bank_ids:
+            try:
+                bank = banks_collection.find_one({"_id": ObjectId(bid)})
+            except Exception:
+                bank = banks_collection.find_one({"file_name": bid})
+            
+            if bank and isinstance(bank.get("questions"), list):
+                # Filter for coding questions only (type="code")
+                coding_questions = [
+                    q for q in bank["questions"] 
+                    if q.get("type", "").lower() == "code"
+                ]
+                question_pool.extend(coding_questions)
+        
+        # Randomize and select questions
+        question_count = settings.get("question_count", 10)
+        if settings.get("randomize", True):
+            random.shuffle(question_pool)
+        
+        questions = question_pool[:question_count]
+        
+        # Process questions: separate public and hidden test cases
+        for q in questions:
+            if "test_cases" in q:
+                all_tests = q.get("test_cases", [])
+                public_tests = [tc for tc in all_tests if not tc.get("is_hidden", False)]
+                hidden_tests = [tc for tc in all_tests if tc.get("is_hidden", False)]
+                
+                q["public_test_cases"] = public_tests
+                q["hidden_test_cases"] = hidden_tests
+                q["all_test_cases"] = all_tests
+        
+        print(f"DEBUG: Loaded {len(questions)} coding questions from {len(bank_ids)} banks")
 
     attempts = get_collection("cert_attempts")
     doc = {
@@ -188,7 +235,7 @@ async def get_attempt_questions(attempt_id: str, current_user=Depends(get_curren
     randomize = bool(settings.get("randomize", True))
     bank_ids = settings.get("bank_ids", [])
 
-    # Load questions from selected banks
+    # Load questions from selected banks (coding questions only)
     pool = []
     from bson import ObjectId
     if bank_ids:
@@ -198,12 +245,21 @@ async def get_attempt_questions(attempt_id: str, current_user=Depends(get_curren
             except Exception:
                 b = banks.find_one({"file_name": bid})
             if b and isinstance(b.get("questions"), list):
-                pool.extend(b["questions"]) 
+                # Filter for coding questions only
+                coding_questions = [
+                    q for q in b["questions"] 
+                    if q.get("type", "").lower() == "code"
+                ]
+                pool.extend(coding_questions)
     else:
-        # If no banks specified, take all
+        # If no banks specified, take all coding questions
         for b in banks.find({}):
             if isinstance(b.get("questions"), list):
-                pool.extend(b["questions"]) 
+                coding_questions = [
+                    q for q in b["questions"] 
+                    if q.get("type", "").lower() == "code"
+                ]
+                pool.extend(coding_questions)
 
     if not pool:
         return {"questions": []}
@@ -277,6 +333,64 @@ async def submit_attempt(payload: Dict[str, Any], current_user=Depends(get_curre
     }})
 
     return {"test_score": test_score, "final_score": final_score, "passed": passed}
+
+
+@router.post("/finish")
+async def finish_attempt(payload: Dict[str, Any], current_user=Depends(get_current_user)):
+    """Finish a certification test attempt. This endpoint marks the attempt as completed.
+    Expects: { attempt_id: str }
+    Returns: { message: str, result: {...} }
+    """
+    attempt_id = payload.get("attempt_id")
+    if not attempt_id:
+        raise HTTPException(status_code=400, detail="attempt_id is required")
+
+    attempts = get_collection("cert_attempts")
+    from bson import ObjectId
+    
+    try:
+        att = attempts.find_one({"_id": ObjectId(attempt_id)})
+    except Exception:
+        att = None
+    
+    if not att:
+        raise HTTPException(status_code=404, detail="Attempt not found")
+    
+    if str(att.get("user_id")) != str(current_user.id):
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    # Check if already completed
+    if att.get("status") == "completed":
+        return {
+            "message": "Test already completed",
+            "result": att.get("result", {})
+        }
+
+    # Mark as completed
+    attempts.update_one(
+        {"_id": att["_id"]}, 
+        {
+            "$set": {
+                "status": "completed",
+                "completed_at": datetime.utcnow(),
+            }
+        }
+    )
+
+    # Return the result if it exists, otherwise return basic completion info
+    result = att.get("result", {})
+    if not result:
+        result = {
+            "test_score": 0,
+            "final_score": 0,
+            "passed": False,
+            "message": "Test submitted without grading. Please review your answers."
+        }
+
+    return {
+        "message": "Test submitted successfully",
+        "result": result
+    }
 
 
 @router.post("/run-code")

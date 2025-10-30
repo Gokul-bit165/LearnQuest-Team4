@@ -20,15 +20,12 @@ export const CodingTestInterface = () => {
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [code, setCode] = useState({});
   const [testResults, setTestResults] = useState({});
-  const [consoleOutput, setConsoleOutput] = useState('');
-  const [showConsole, setShowConsole] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState(3600);
   const [violations, setViolations] = useState({ tabSwitch: 0, copyPaste: 0 });
   const [isLoading, setIsLoading] = useState(true);
   const [isRunning, setIsRunning] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const webcamRef = useRef(null);
-  const [selectedTab, setSelectedTab] = useState('description');
   const [selectedLanguage, setSelectedLanguage] = useState('python');
   const [allowedLanguages, setAllowedLanguages] = useState(['python', 'javascript', 'cpp', 'c', 'java']);
 
@@ -94,10 +91,29 @@ export const CodingTestInterface = () => {
       setQuestions(questionsData);
       setTimeRemaining((certData.duration_minutes || 60) * 60);
       
+      // Debug: Log questions structure
+      console.log('Loaded questions:', questionsData);
+      if (questionsData.length > 0) {
+        console.log('First question structure:', questionsData[0]);
+        console.log('Test cases:', questionsData[0].public_test_cases || questionsData[0].test_cases);
+      }
+      
       // Initialize code for all questions
       const initialCode = {};
       questionsData.forEach((q, index) => {
-        initialCode[index] = q.starter_code || q.initial_code || '';
+        // Handle starter_code as object (with language keys) or string
+        let starterCode = '';
+        if (q.starter_code) {
+          if (typeof q.starter_code === 'object') {
+            // Get starter code for current language
+            starterCode = q.starter_code[selectedLanguage] || q.starter_code['python'] || '';
+          } else if (typeof q.starter_code === 'string') {
+            starterCode = q.starter_code;
+          }
+        } else {
+          starterCode = q.initial_code || '';
+        }
+        initialCode[index] = starterCode;
       });
       setCode(initialCode);
       
@@ -239,18 +255,34 @@ export const CodingTestInterface = () => {
   };
 
   const handleRunCode = async () => {
-    if (!code[currentQuestion]?.trim()) return;
+    if (!code[currentQuestion]?.trim()) {
+      toast.error('Please write some code first');
+      return;
+    }
     
     setIsRunning(true);
-    setConsoleOutput('Running test cases...\n\n');
-    setShowConsole(true);
     
     try {
       const selectedLang = languageOptions.find(lang => lang.value === selectedLanguage);
       const currentQ = questions[currentQuestion];
       
       // Use public test cases for run
-      const testCases = currentQ.public_test_cases || [];
+      let testCases = currentQ.public_test_cases || currentQ.test_cases || [];
+      
+      // Filter only non-hidden test cases if is_hidden property exists
+      if (!testCases.filter) {
+        testCases = Array.isArray(testCases) ? testCases : [];
+      }
+      testCases = testCases.filter(tc => !tc.is_hidden);
+      
+      // If no test cases, show error
+      if (!testCases || testCases.length === 0) {
+        toast.error('No test cases available');
+        setIsRunning(false);
+        return;
+      }
+      
+      console.log('Running with test cases:', testCases);
       
       // Use cert tests API for certification tests
       const response = await certTestsAPI.runCode({
@@ -260,38 +292,18 @@ export const CodingTestInterface = () => {
       });
       
       const result = response.data;
-      const visibleResults = result.results || [];
-      const passedCount = visibleResults.filter(r => r.passed).length;
       
-      let output = `${'='.repeat(50)}\n\n`;
-      output += `Visible Test Cases: ${passedCount}/${visibleResults.length} passed\n\n`;
-      
-      visibleResults.forEach((r, idx) => {
-        output += `Test Case ${r.test_case_number}: ${r.passed ? '✓ PASSED' : '✗ FAILED'}\n`;
-        if (!r.passed && r.error) {
-          output += `  Error: ${r.error}\n`;
-        }
-      });
-      
-      output += `\n${'='.repeat(50)}\n\n`;
-      output += result.overall_passed 
-        ? '✓ All visible test cases passed!\n\nYou can now submit your solution.' 
-        : '✗ Some test cases failed.\n\nReview your code and try again.';
-      
-      output += `\n\nNote: ${result.results.filter(r => r.is_hidden).length} hidden test cases will be evaluated on submission.`;
-      
-      setConsoleOutput(output);
+      // Store results for display in Run Results section
       setTestResults(prev => ({ ...prev, [currentQuestion]: result }));
       
       if (result.overall_passed) {
-        toast.success('All visible test cases passed!');
+        toast.success('All test cases passed!');
       } else {
         toast.error('Some test cases failed');
       }
     } catch (error) {
       console.error('Error running code:', error);
-      setConsoleOutput('Error: Failed to run code\n' + (error.response?.data?.detail || error.message));
-      toast.error('Failed to run code');
+      toast.error(error.response?.data?.detail || 'Failed to run code');
     } finally {
       setIsRunning(false);
     }
@@ -312,10 +324,25 @@ export const CodingTestInterface = () => {
       const currentQ = questions[currentQuestion];
       
       // Get all test cases (public + hidden) for submission
-      const allTestCases = [
-        ...(currentQ.public_test_cases || []),
-        ...(currentQ.hidden_test_cases || [])
-      ];
+      let allTestCases = currentQ.test_cases || [];
+      
+      // If test_cases doesn't exist, try combining public and hidden
+      if (allTestCases.length === 0) {
+        allTestCases = [
+          ...(currentQ.public_test_cases || []),
+          ...(currentQ.hidden_test_cases || [])
+        ];
+      }
+      
+      // If still no test cases, show error
+      if (!allTestCases || allTestCases.length === 0) {
+        setConsoleOutput('Error: No test cases available for this problem.\nPlease contact the administrator.');
+        toast.error('No test cases available');
+        setIsRunning(false);
+        return;
+      }
+      
+      console.log('Submitting with test cases:', allTestCases);
       
       // Use cert tests API for certification tests
       const response = await certTestsAPI.runCode({
@@ -364,33 +391,44 @@ export const CodingTestInterface = () => {
   const handleSubmitTest = async () => {
     if (isSubmitting) return;
     
+    if (!confirm('Are you sure you want to submit the entire test? This action cannot be undone.')) {
+      return;
+    }
+    
     setIsSubmitting(true);
     
     try {
-      // Submit all solutions
-      const submissions = [];
-      for (let i = 0; i < questions.length; i++) {
-        if (code[i] && code[i].trim()) {
-          const selectedLang = languageOptions.find(lang => lang.value === selectedLanguage);
-          const problemId = questions[i].id || questions[i]._id || questions[i].problem_id;
-          const response = await problemsAPI.submitSolution(problemId, {
-            code: code[i],
-            language_id: selectedLang.id
-          });
-          submissions.push(response.data);
+      // For cert tests with attemptId, use finish endpoint
+      if (attemptId) {
+        await certTestsAPI.finishAttempt(attemptId);
+        if (screenfull.isEnabled && screenfull.isFullscreen) screenfull.exit();
+        toast.success('Test submitted successfully!');
+        navigate('/certification');
+      } else {
+        // Fallback for old certification system
+        const submissions = [];
+        for (let i = 0; i < questions.length; i++) {
+          if (code[i] && code[i].trim()) {
+            const selectedLang = languageOptions.find(lang => lang.value === selectedLanguage);
+            const problemId = questions[i].id || questions[i]._id || questions[i].problem_id;
+            const response = await problemsAPI.submitSolution(problemId, {
+              code: code[i],
+              language_id: selectedLang.id
+            });
+            submissions.push(response.data);
+          }
         }
+        
+        await certificationsAPI.submitCertificationAttempt(certificationId, {
+          answers: submissions,
+          violations: violations,
+          time_taken: (certification.duration_minutes * 60) - timeRemaining
+        });
+        
+        if (screenfull.isEnabled && screenfull.isFullscreen) screenfull.exit();
+        toast.success('Test submitted successfully!');
+        navigate(`/certifications/${certificationId}/result`);
       }
-      
-      // Submit certification attempt
-      await certificationsAPI.submitCertificationAttempt(certificationId, {
-        answers: submissions,
-        violations: violations,
-        time_taken: (certification.duration_minutes * 60) - timeRemaining
-      });
-      
-      if (screenfull.isEnabled && screenfull.isFullscreen) screenfull.exit();
-      toast.success('Test submitted successfully!');
-      navigate(`/certifications/${certificationId}/result`);
     } catch (error) {
       console.error('Error submitting test:', error);
       toast.error('Failed to submit test');
@@ -504,231 +542,162 @@ export const CodingTestInterface = () => {
       {/* Main Content - Split View */}
       <div className="flex h-[calc(100vh-140px)]">
         {/* Left Panel - Problem Description */}
-        <div className="w-1/2 border-r border-slate-700 flex flex-col bg-slate-900/50">
-          {/* Tabs Header */}
-          <div className="flex border-b border-slate-700 bg-slate-800/90">
-            <button
-              onClick={() => setSelectedTab('description')}
-              className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
-                selectedTab === 'description'
-                  ? 'bg-slate-700 text-white border-b-2 border-blue-500'
-                  : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
-              }`}
-            >
-              Description
-            </button>
-            <button
-              onClick={() => setSelectedTab('testcases')}
-              className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
-                selectedTab === 'testcases'
-                  ? 'bg-slate-700 text-white border-b-2 border-blue-500'
-                  : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
-              }`}
-            >
-              Test Cases
-            </button>
-            <button
-              onClick={() => setSelectedTab('custom')}
-              className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
-                selectedTab === 'custom'
-                  ? 'bg-slate-700 text-white border-b-2 border-blue-500'
-                  : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
-              }`}
-            >
-              Custom Input
-            </button>
-          </div>
+        <div className="w-1/2 border-r border-slate-700 flex flex-col bg-slate-900/50 overflow-hidden">
+          {/* No tabs - continuous scroll */}
 
-          {/* Tab Content */}
-          <div className="flex-1 overflow-auto p-6">
-            {/* Title - Always visible */}
-            <div className="mb-6">
-              <h1 className="text-2xl font-bold text-white mb-3">{currentQ.title}</h1>
-              <div className="flex items-center gap-2">
+          {/* Content - Single scroll area */}
+          <div className="flex-1 overflow-auto p-6 space-y-8">
+            {/* Problem Description Section */}
+            <div>
+              <h2 className="text-xl font-bold text-white mb-4">Problem Description</h2>
+              <h3 className="text-lg font-semibold text-slate-200 mb-3">{currentQ.title}</h3>
+              <div className="flex items-center gap-2 mb-4">
                 <Badge className={
-                  currentQ.difficulty === 'easy' 
+                  currentQ.difficulty === 'Easy' 
                     ? 'bg-green-700/40 text-green-300 border border-green-600' 
-                    : currentQ.difficulty === 'medium'
+                    : currentQ.difficulty === 'Medium'
                     ? 'bg-yellow-700/40 text-yellow-300 border border-yellow-600'
                     : 'bg-red-700/40 text-red-300 border border-red-600'
                 }>
                   {currentQ.difficulty}
                 </Badge>
-                <Badge variant="outline" className="border-slate-600 text-slate-400">
-                  {currentQ.public_test_cases?.length || 0} Open
-                </Badge>
-                <Badge variant="outline" className="border-slate-600 text-slate-400">
-                  <Lock className="h-3 w-3 mr-1" />
-                  Hidden Cases
-                </Badge>
+              </div>
+              <p className="text-slate-300 leading-relaxed whitespace-pre-line mb-4">
+                {currentQ.prompt || currentQ.content}
+              </p>
+
+              {currentQ.tags && (
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-sm text-slate-400">Tags:</span>
+                  {(Array.isArray(currentQ.tags) ? currentQ.tags : [currentQ.tags]).map((tag, idx) => (
+                    <span key={idx} className="px-2 py-1 bg-slate-700 text-slate-300 rounded text-xs">
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Test Cases Section */}
+            <div>
+              <h2 className="text-xl font-bold text-white mb-4">Test Cases</h2>
+              {currentQ.public_test_cases && currentQ.public_test_cases.length > 0 ? (
+                <div className="space-y-3">
+                  {currentQ.public_test_cases.map((tc, idx) => (
+                    <div
+                      key={idx}
+                      className="p-4 rounded-lg border bg-slate-800 border-slate-700"
+                    >
+                      <div className="mb-3">
+                        <span className="text-sm font-semibold text-white">
+                          Test Case {idx + 1}
+                        </span>
+                      </div>
+                      <div className="space-y-2">
+                        <div className="flex items-start gap-2">
+                          <span className="text-sm font-semibold text-blue-400 min-w-[80px]">Input:</span>
+                          <pre className="text-sm font-mono text-slate-300 whitespace-pre-wrap">{tc.input || '(empty)'}</pre>
+                        </div>
+                        <div className="flex items-start gap-2">
+                          <span className="text-sm font-semibold text-green-400 min-w-[80px]">Expected:</span>
+                          <pre className="text-sm font-mono text-slate-300 whitespace-pre-wrap">{tc.expected_output}</pre>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-slate-400">
+                  No test cases available
+                </div>
+              )}
+
+              <div className="mt-4 p-4 bg-gradient-to-br from-slate-800 to-slate-900 border border-slate-700 rounded-lg">
+                <div className="flex items-start gap-3">
+                  <Lock className="h-5 w-5 text-yellow-400 mt-0.5" />
+                  <div>
+                    <h4 className="text-sm font-semibold text-yellow-400 mb-1">Hidden Test Cases</h4>
+                    <p className="text-sm text-slate-300">
+                      Additional hidden test cases will be used during final evaluation to assess edge cases, 
+                      performance, and correctness. Make sure your solution handles all possible scenarios.
+                    </p>
+                  </div>
+                </div>
               </div>
             </div>
 
-            {/* Description Tab */}
-            {selectedTab === 'description' && (
-              <div className="space-y-6">
-                <div>
-                  <h3 className="text-lg font-semibold text-white mb-3">Problem Statement</h3>
-                  <p className="text-slate-300 leading-relaxed whitespace-pre-line">{currentQ.prompt || currentQ.content}</p>
-                </div>
-
-                {currentQ.constraints && (
-                  <div>
-                    <h3 className="text-lg font-semibold text-white mb-3">Constraints</h3>
-                    <div className="bg-slate-800 border border-slate-700 rounded-lg p-4">
-                      <p className="text-slate-300 text-sm font-mono whitespace-pre-line">{currentQ.constraints}</p>
-                    </div>
-                  </div>
-                )}
-
-                {currentQ.examples && (
-                  <div>
-                    <h3 className="text-lg font-semibold text-white mb-3">Examples</h3>
-                    <div className="space-y-3">
-                      {currentQ.examples.map((example, idx) => (
-                        <div key={idx} className="bg-slate-800 border border-slate-700 rounded-lg p-4">
-                          <div className="space-y-2">
-                            <div>
-                              <span className="text-sm font-semibold text-blue-400">Input:</span>
-                              <pre className="text-sm font-mono text-slate-300 mt-1">{example.input}</pre>
-                            </div>
-                            <div>
-                              <span className="text-sm font-semibold text-green-400">Output:</span>
-                              <pre className="text-sm font-mono text-slate-300 mt-1">{example.output}</pre>
-                            </div>
-                            {example.explanation && (
-                              <div>
-                                <span className="text-sm font-semibold text-slate-400">Explanation:</span>
-                                <p className="text-sm text-slate-300 mt-1">{example.explanation}</p>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Test Cases Tab */}
-            {selectedTab === 'testcases' && (
-              <div className="space-y-4">
-                <div className="flex items-center gap-3">
-                  <h3 className="text-lg font-semibold text-white">Open Test Cases</h3>
-                  <Badge className="bg-blue-700/40 text-blue-300 border border-blue-600">
-                    {currentQ.public_test_cases?.length || 0} visible
-                  </Badge>
-                </div>
+            {/* Run Results Section */}
+            {currentResults && currentResults.results && (
+              <div>
+                <h2 className="text-xl font-bold text-white mb-4">Run Results</h2>
                 
-                {currentQ.public_test_cases && currentQ.public_test_cases.length > 0 ? (
-                  <div className="space-y-3">
-                    {currentQ.public_test_cases.map((tc, idx) => {
-                      const result = currentResults?.results?.[idx];
-                      return (
-                        <div
-                          key={idx}
-                          className={`p-4 rounded-lg border transition-all ${
-                            result?.passed
-                              ? 'bg-green-900/20 border-green-700/50'
-                              : result?.passed === false
-                              ? 'bg-red-900/20 border-red-700/50'
-                              : 'bg-slate-800 border-slate-700'
-                          }`}
-                        >
-                          <div className="flex items-center justify-between mb-3">
-                            <span className="text-sm font-semibold text-white">
-                              Test Case {idx + 1}
-                            </span>
-                            {result && (
-                              <Badge className={result.passed ? 'bg-green-700 border border-green-600' : 'bg-red-700 border border-red-600'}>
-                                {result.passed ? '✓ Passed' : '✗ Failed'}
-                              </Badge>
-                            )}
-                          </div>
-                          <div className="space-y-2">
-                            <div className="flex items-start gap-2">
-                              <span className="text-sm font-semibold text-blue-400 min-w-[60px]">Input:</span>
-                              <span className="text-sm font-mono text-slate-300">{tc.input}</span>
-                            </div>
-                            <div className="flex items-start gap-2">
-                              <span className="text-sm font-semibold text-green-400 min-w-[60px]">Output:</span>
-                              <span className="text-sm font-mono text-slate-300">{tc.expected_output}</span>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <div className="text-center py-8 text-slate-400">
-                    No test cases available
-                  </div>
-                )}
-
-                <div className="mt-4 p-4 bg-gradient-to-br from-slate-800 to-slate-900 border border-slate-700 rounded-lg">
-                  <div className="flex items-start gap-3">
-                    <Lock className="h-5 w-5 text-yellow-400 mt-0.5" />
+                {/* Overall Result */}
+                <div className={`p-4 rounded-lg border mb-4 ${
+                  currentResults.overall_passed 
+                    ? 'bg-green-900/20 border-green-700/50' 
+                    : 'bg-red-900/20 border-red-700/50'
+                }`}>
+                  <div className="flex items-center gap-3">
+                    {currentResults.overall_passed ? (
+                      <CheckCircle2 className="h-6 w-6 text-green-400" />
+                    ) : (
+                      <AlertCircle className="h-6 w-6 text-red-400" />
+                    )}
                     <div>
-                      <h4 className="text-sm font-semibold text-yellow-400 mb-1">Hidden Test Cases</h4>
+                      <h3 className={`font-semibold ${currentResults.overall_passed ? 'text-green-300' : 'text-red-300'}`}>
+                        {currentResults.overall_passed ? 'Accepted' : 'Wrong Answer'}
+                      </h3>
                       <p className="text-sm text-slate-300">
-                        Additional hidden test cases will be used during final evaluation to assess edge cases, 
-                        performance, and correctness. Make sure your solution handles all possible scenarios.
+                        {currentResults.results.filter(r => r.passed).length} / {currentResults.results.length} test cases passed
                       </p>
                     </div>
                   </div>
                 </div>
-              </div>
-            )}
 
-            {/* Custom Input Tab */}
-            {selectedTab === 'custom' && (
-              <div className="space-y-4">
-                <div>
-                  <h3 className="text-lg font-semibold text-white mb-3">Test with Custom Input</h3>
-                  <p className="text-sm text-slate-400 mb-4">
-                    Run your code with custom test inputs to debug and verify your solution.
-                  </p>
+                {/* Individual Test Results */}
+                <div className="space-y-3">
+                  {currentResults.results.map((result, idx) => (
+                    <div
+                      key={idx}
+                      className={`p-4 rounded-lg border ${
+                        result.passed
+                          ? 'bg-green-900/20 border-green-700/50'
+                          : 'bg-red-900/20 border-red-700/50'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <span className={`text-sm font-semibold ${result.passed ? 'text-green-300' : 'text-red-300'}`}>
+                          Test {idx + 1}: {result.passed ? 'PASSED' : 'FAILED'}
+                        </span>
+                        {result.passed ? (
+                          <CheckCircle2 className="h-5 w-5 text-green-400" />
+                        ) : (
+                          <AlertCircle className="h-5 w-5 text-red-400" />
+                        )}
+                      </div>
+                      <div className="space-y-2 text-sm">
+                        <div className="flex items-start gap-2">
+                          <span className="font-semibold text-slate-400 min-w-[80px]">Expected:</span>
+                          <pre className="text-slate-300 font-mono whitespace-pre-wrap">{result.expected_output}</pre>
+                        </div>
+                        <div className="flex items-start gap-2">
+                          <span className={`font-semibold min-w-[80px] ${result.passed ? 'text-green-400' : 'text-red-400'}`}>
+                            Got:
+                          </span>
+                          <pre className={`font-mono whitespace-pre-wrap ${result.passed ? 'text-green-300' : 'text-red-300'}`}>
+                            {result.output || '(empty)'}
+                          </pre>
+                        </div>
+                        {result.error && (
+                          <div className="mt-2 p-2 bg-red-900/30 border border-red-700/50 rounded">
+                            <span className="font-semibold text-red-400">Error:</span>
+                            <pre className="font-mono text-red-300 mt-1 whitespace-pre-wrap">{result.error}</pre>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
                 </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-slate-300 mb-2">
-                    Custom Input
-                  </label>
-                  <textarea
-                    className="w-full h-32 bg-slate-800 border border-slate-700 rounded-lg p-3 text-slate-300 font-mono text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                    placeholder="Enter your custom input here..."
-                    value={code[`custom_input_${currentQuestion}`] || ''}
-                    onChange={(e) => setCode({
-                      ...code,
-                      [`custom_input_${currentQuestion}`]: e.target.value
-                    })}
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-slate-300 mb-2">
-                    Expected Output (Optional)
-                  </label>
-                  <textarea
-                    className="w-full h-24 bg-slate-800 border border-slate-700 rounded-lg p-3 text-slate-300 font-mono text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                    placeholder="Enter expected output for comparison..."
-                    value={code[`custom_output_${currentQuestion}`] || ''}
-                    onChange={(e) => setCode({
-                      ...code,
-                      [`custom_output_${currentQuestion}`]: e.target.value
-                    })}
-                  />
-                </div>
-
-                <Button
-                  onClick={handleRunCode}
-                  disabled={isRunning || !code[currentQuestion]?.trim()}
-                  className="w-full bg-gradient-to-r from-green-600 to-green-700 hover:from-green-500 hover:to-green-600 border border-green-600 shadow-lg"
-                >
-                  <Play className="h-4 w-4 mr-2" />
-                  {isRunning ? 'Running Custom Input...' : 'Run with Custom Input'}
-                </Button>
               </div>
             )}
           </div>
@@ -778,7 +747,7 @@ export const CodingTestInterface = () => {
           </div>
 
           {/* Code Editor */}
-          <div className={`flex-1 ${showConsole ? 'h-[60%]' : 'h-full'}`}>
+          <div className="flex-1 h-full">
             <Editor
               height="100%"
               defaultLanguage={selectedLanguage}
@@ -796,27 +765,6 @@ export const CodingTestInterface = () => {
               }}
             />
           </div>
-
-          {/* Console/Output */}
-          {showConsole && (
-            <div className="h-[40%] border-t border-slate-700 bg-slate-900 flex flex-col">
-              <div className="flex items-center justify-between px-4 py-2 border-b border-slate-700 bg-slate-800">
-                <div className="flex items-center gap-2">
-                  <Terminal className="h-4 w-4 text-blue-400" />
-                  <span className="text-sm font-semibold text-blue-400">Console Output</span>
-                </div>
-                <button
-                  onClick={() => setShowConsole(false)}
-                  className="text-slate-400 hover:text-white"
-                >
-                  ✕
-                </button>
-              </div>
-              <div className="flex-1 overflow-auto p-4 font-mono text-sm">
-                <pre className="text-slate-300 whitespace-pre-wrap">{consoleOutput}</pre>
-              </div>
-            </div>
-          )}
         </div>
       </div>
 

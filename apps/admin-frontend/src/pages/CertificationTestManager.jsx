@@ -120,7 +120,8 @@ const CertificationTestManager = () => {
     "correct_answer": 0,
     "difficulty": "Easy",
     "topic_name": "Python Basics",
-    "tags": ["python", "basics"]
+    "tags": ["python", "basics"],
+    "explanation": "Python is a high-level, interpreted programming language known for its simplicity and readability."
   },
   {
     "title": "Which HTTP method is idempotent?",
@@ -128,19 +129,46 @@ const CertificationTestManager = () => {
     "correct_answer": 1,
     "difficulty": "Medium",
     "topic_name": "Web",
-    "tags": ["http", "web"]
+    "tags": ["http", "web"],
+    "explanation": "PUT is idempotent - calling it multiple times with the same data produces the same result."
+  },
+  {
+    "title": "What is the time complexity of binary search?",
+    "options": ["O(n)", "O(log n)", "O(n^2)", "O(1)"],
+    "correct_answer": 1,
+    "difficulty": "Medium",
+    "topic_name": "Data Structures",
+    "tags": ["algorithms", "complexity"]
   },
   {
     "type": "code",
-    "title": "Sum of two numbers",
-    "problem_statement": "Read two integers and print their sum.",
+    "title": "Sum of Two Numbers",
+    "prompt": "Write a program that reads two integers from input and prints their sum.",
     "test_cases": [
-      { "input": "1 2\\n", "expected_output": "3\\n", "is_hidden": false },
-      { "input": "10 20\\n", "expected_output": "30\\n", "is_hidden": false }
+      { "input": "1 2", "expected_output": "3", "is_hidden": false },
+      { "input": "10 20", "expected_output": "30", "is_hidden": false },
+      { "input": "-5 5", "expected_output": "0", "is_hidden": true }
     ],
     "difficulty": "Easy",
     "topic_name": "Basics",
-    "tags": ["code", "sum"]
+    "tags": ["code", "math", "input-output"],
+    "starter_code": {
+      "python": "# Read two integers and print their sum\\na = int(input())\\nb = int(input())\\n# Your code here",
+      "javascript": "// Read input and print sum\\nconst readline = require('readline');\\n// Your code here"
+    }
+  },
+  {
+    "type": "code",
+    "title": "Reverse a String",
+    "prompt": "Write a function that takes a string as input and returns the reversed string.",
+    "test_cases": [
+      { "input": "hello", "expected_output": "olleh", "is_hidden": false },
+      { "input": "world", "expected_output": "dlrow", "is_hidden": false },
+      { "input": "a", "expected_output": "a", "is_hidden": true }
+    ],
+    "difficulty": "Easy",
+    "topic_name": "Strings",
+    "tags": ["strings", "manipulation"]
   }
 ]`;
 
