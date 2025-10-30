@@ -22,8 +22,8 @@ import { CertificationLanding } from './components/certification/CertificationLa
 import { TopicSelection } from './components/certification/TopicSelection';
 import { DifficultySelection } from './components/certification/DifficultySelection';
 import { TestSetup } from './components/certification/TestSetup';
-import { TestInterface } from './components/certification/TestInterface';
 import { TestResults } from './components/certification/TestResults';
+import CodingTestInterface from './pages/CodingTestInterface';
 import { Toaster } from 'sonner';
 import './App.css';
 
@@ -32,7 +32,7 @@ function App() {
     <AuthProvider>
       <Router>
         <div className="App">
-          <Toaster />
+          <Toaster position="top-right" richColors />
           <Routes>
             {/* Public Routes */}
             <Route path="/login" element={<Login />} />
@@ -162,7 +162,15 @@ function App() {
               path="/certifications/proctored/test/:topicId/:difficulty" 
               element={
                 <ProtectedRoute>
-                  <TestInterface />
+                  <CodingTestInterface />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/certifications/test/:certificationId" 
+              element={
+                <ProtectedRoute>
+                  <CodingTestInterface />
                 </ProtectedRoute>
               } 
             />

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { coursesAPI, quizzesAPI } from '../services/api';
+import { coursesAPI, quizzesAPI, usersAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import Layout from '../components/Layout';
 import { 
@@ -48,6 +48,27 @@ const CourseDetail = () => {
       refreshUserProgress();
     }
   }, [isAuthenticated, slug]);
+
+  // When the user completes all modules, trigger a final check
+  useEffect(() => {
+    if (course && user) {
+      const allModuleIds = course.modules.map(m => m.module_id);
+      const completedModules = new Set(user.completed_modules || []);
+      const isCourseComplete = allModuleIds.every(id => completedModules.has(id));
+
+      if (isCourseComplete) {
+        // Call the check endpoint to finalize completion on the backend
+        usersAPI.checkCourseCompletion(course.id || course.slug)
+          .then(() => {
+            // Refresh user data to get the `completed_courses` update
+            refreshUserProgress();
+          })
+          .catch(err => {
+            console.error("Error finalizing course completion:", err);
+          });
+      }
+    }
+  }, [user, course, refreshUserProgress]);
 
   // Refresh progress when returning to this page
   useEffect(() => {

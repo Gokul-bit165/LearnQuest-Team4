@@ -131,69 +131,40 @@ async def submit_code_problem(
     xp_reward = 0
     
     try:
-        async with httpx.AsyncClient(timeout=60) as client:
-            for i, tc in enumerate(test_cases):
-                payload = {
-                    "language_id": language_id,
-                    "source_code": submission.user_code,
-                    "stdin": tc.get("input", "")
-                }
-                
-                try:
-                    resp = await client.post(
-                        f"{judge0_url}/submissions/?base64_encoded=false&wait=true",
-                        json=payload
-                    )
-                    resp.raise_for_status()
-                    data = resp.json()
-                    
-                    stdout = (data.get("stdout") or "").strip()
-                    stderr = data.get("stderr")
-                    compile_output = data.get("compile_output")
-                    message = data.get("message")  # Judge0 error message
-                    expected = (tc.get("expected_output", "") or "").strip()
-                    
-                    # Check if there's a Judge0 error - if so, use local executor as fallback
-                    if message and "Internal Error" in str(data.get("status", {}).get("description", "")):
-                        # Fallback to local execution
-                        local_result = CodeExecutor.execute_code(
-                            submission.user_code, 
-                            language_id, 
-                            tc.get("input", "")
-                        )
-                        stdout = local_result.get("stdout", "")
-                        stderr = local_result.get("stderr")
-                        compile_output = local_result.get("compile_output")
-                        error_msg = stderr or compile_output
-                    else:
-                        error_msg = stderr or compile_output
-                    
-                    # Check if test passed
-                    passed = (stderr is None) and (compile_output is None) and (stdout == expected)
-                    if not passed:
-                        overall_passed = False
-                    
-                    results.append(TestResult(
-                        test_case_number=i + 1,
-                        passed=passed,
-                        output=stdout,
-                        expected_output=expected,
-                        error=error_msg,
-                        input=tc.get("input", ""),
-                        is_hidden=tc.get("is_hidden", False)
-                    ))
-                    
-                except Exception as e:
-                    overall_passed = False
-                    results.append(TestResult(
-                        test_case_number=i + 1,
-                        passed=False,
-                        output=None,
-                        expected_output=tc.get("expected_output"),
-                        input=tc.get("input", ""),
-                        error=f"Judge0 error: {str(e)}",
-                        is_hidden=tc.get("is_hidden", False)
-                    ))
+        # Use local execution directly (more reliable than Judge0)
+        for i, tc in enumerate(test_cases):
+            expected = (tc.get("expected_output", "") or "").strip()
+            
+            try:
+                local_result = CodeExecutor.execute_code(
+                    submission.user_code, 
+                    language_id, 
+                    tc.get("input", "")
+                )
+                stdout = local_result.get("stdout", "")
+                stderr = local_result.get("stderr")
+                compile_output = local_result.get("compile_output")
+            except Exception as local_error:
+                stdout = ""
+                stderr = f"Execution failed: {str(local_error)}"
+                compile_output = None
+            
+            error_msg = stderr or compile_output
+            
+            # Check if test passed
+            passed = (stderr is None) and (compile_output is None) and (stdout == expected)
+            if not passed:
+                overall_passed = False
+            
+            results.append(TestResult(
+                test_case_number=i + 1,
+                passed=passed,
+                output=stdout,
+                expected_output=expected,
+                error=error_msg,
+                input=tc.get("input", ""),
+                is_hidden=tc.get("is_hidden", False)
+            ))
     
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Code execution failed: {str(e)}")
@@ -249,70 +220,40 @@ async def run_code_problem(
     overall_passed = True
     
     try:
-        async with httpx.AsyncClient(timeout=60) as client:
-            for i, tc in enumerate(test_cases):
-                payload = {
-                    "language_id": language_id,
-                    "source_code": submission.user_code,
-                    "stdin": tc.get("input", "")
-                }
-                
-                try:
-                    # Try Judge0 first
-                    resp = await client.post(
-                        f"{judge0_url}/submissions/?base64_encoded=false&wait=true",
-                        json=payload
-                    )
-                    resp.raise_for_status()
-                    data = resp.json()
-                    
-                    stdout = (data.get("stdout") or "").strip()
-                    stderr = data.get("stderr")
-                    compile_output = data.get("compile_output")
-                    message = data.get("message")  # Judge0 error message
-                    expected = (tc.get("expected_output", "") or "").strip()
-                    
-                    # Check if there's a Judge0 error - if so, use local executor as fallback
-                    if message and "Internal Error" in str(data.get("status", {}).get("description", "")):
-                        # Fallback to local execution
-                        local_result = CodeExecutor.execute_code(
-                            submission.user_code, 
-                            language_id, 
-                            tc.get("input", "")
-                        )
-                        stdout = local_result.get("stdout", "")
-                        stderr = local_result.get("stderr")
-                        compile_output = local_result.get("compile_output")
-                        error_msg = stderr or compile_output
-                    else:
-                        error_msg = stderr or compile_output
-                    
-                    # Check if test passed
-                    passed = (stderr is None) and (compile_output is None) and (stdout == expected)
-                    if not passed:
-                        overall_passed = False
-                    
-                    results.append(TestResult(
-                        test_case_number=i + 1,
-                        passed=passed,
-                        output=stdout,
-                        expected_output=expected,
-                        error=error_msg,
-                        input=tc.get("input", ""),
-                        is_hidden=False  # All are public in run mode
-                    ))
-                    
-                except Exception as e:
-                    overall_passed = False
-                    results.append(TestResult(
-                        test_case_number=i + 1,
-                        passed=False,
-                        output=None,
-                        expected_output=tc.get("expected_output"),
-                        input=tc.get("input", ""),
-                        error=f"Judge0 error: {str(e)}",
-                        is_hidden=False
-                    ))
+        # Use local execution directly (more reliable than Judge0)
+        for i, tc in enumerate(test_cases):
+            expected = (tc.get("expected_output", "") or "").strip()
+            
+            try:
+                local_result = CodeExecutor.execute_code(
+                    submission.user_code, 
+                    language_id, 
+                    tc.get("input", "")
+                )
+                stdout = local_result.get("stdout", "")
+                stderr = local_result.get("stderr")
+                compile_output = local_result.get("compile_output")
+            except Exception as local_error:
+                stdout = ""
+                stderr = f"Execution failed: {str(local_error)}"
+                compile_output = None
+            
+            error_msg = stderr or compile_output
+            
+            # Check if test passed
+            passed = (stderr is None) and (compile_output is None) and (stdout == expected)
+            if not passed:
+                overall_passed = False
+            
+            results.append(TestResult(
+                test_case_number=i + 1,
+                passed=passed,
+                output=stdout,
+                expected_output=expected,
+                error=error_msg,
+                input=tc.get("input", ""),
+                is_hidden=False  # All are public in run mode
+            ))
     
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Code execution failed: {str(e)}")

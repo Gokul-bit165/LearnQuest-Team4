@@ -475,3 +475,63 @@ async def mark_course_completed(course_id: str, current_user: User = Depends(get
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to mark course completed: {e}")
+
+@router.post("/me/check-course-completion/{course_id}")
+async def check_course_completion(course_id: str, current_user: User = Depends(get_current_user)):
+    """
+    Checks if a course is completed based on its modules and topics, 
+    and updates the user's completed_courses list if it is.
+    """
+    try:
+        users = get_collection("users")
+        courses = get_collection("courses")
+
+        # Find user and course
+        user_doc = users.find_one({"_id": bson.ObjectId(current_user.id)})
+        if not user_doc:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        # Resolve course by exact _id, slug, or id fallback
+        course_doc = None
+        # Try Mongo ObjectId path
+        try:
+            course_doc = courses.find_one({"_id": bson.ObjectId(course_id)})
+        except Exception:
+            course_doc = None
+        # Try slug
+        if not course_doc:
+            course_doc = courses.find_one({"slug": course_id})
+        # Try a loose id field if present in some dumps
+        if not course_doc:
+            course_doc = courses.find_one({"id": course_id})
+        if not course_doc:
+            raise HTTPException(status_code=404, detail=f"Course '{course_id}' not found")
+
+        # Get all module IDs for the course (stringified to normalize types)
+        raw_module_ids = [m.get("module_id") for m in course_doc.get("modules", []) if m.get("module_id") is not None]
+        all_module_ids = [str(mid) for mid in raw_module_ids]
+        if not all_module_ids:
+            return {"completed": False, "message": "Course has no modules."}
+
+        # Check if all modules are in the user's completed list (normalize to strings)
+        completed_modules = set(str(x) for x in user_doc.get("completed_modules", []))
+        is_complete = all(str(module_id) in completed_modules for module_id in all_module_ids)
+
+        # If complete, update the database
+        if is_complete:
+            course_mongo_id = str(course_doc["_id"])
+            if course_mongo_id not in user_doc.get("completed_courses", []):
+                users.update_one(
+                    {"_id": bson.ObjectId(current_user.id)},
+                    {"$addToSet": {"completed_courses": course_mongo_id}}
+                )
+                return {"completed": True, "message": "Course completion status updated."}
+            else:
+                return {"completed": True, "message": "Course already marked as complete."}
+
+        return {"completed": False, "message": "Course is not yet complete."}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")

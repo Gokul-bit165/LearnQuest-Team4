@@ -96,10 +96,20 @@ async def get_spec(cert_id: str, difficulty: str, admin_user=Depends(require_adm
 
 @router.post("/specs")
 async def create_spec(payload: dict, admin_user=Depends(require_admin_user)):
-    required = ["cert_id", "difficulty", "bank_ids", "question_count", "duration_minutes", "pass_percentage"]
+    required = ["cert_id", "difficulty", "question_count", "duration_minutes", "pass_percentage"]
     for key in required:
         if key not in payload:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Missing field: {key}")
+
+    # Support both bank_ids (MCQ) and problem_ids (coding problems)
+    if "bank_ids" not in payload:
+        payload["bank_ids"] = []
+    
+    # Map problem_ids to question_ids for consistency
+    if "problem_ids" in payload:
+        payload["question_ids"] = payload["problem_ids"]
+    elif "question_ids" not in payload:
+        payload["question_ids"] = []
 
     col = get_collection("cert_test_specs")
     payload["created_at"] = datetime.utcnow()

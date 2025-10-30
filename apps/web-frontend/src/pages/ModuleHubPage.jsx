@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { coursesAPI } from '../services/api';
+import { coursesAPI, usersAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import Layout from '../components/Layout';
 import { 
@@ -27,6 +27,25 @@ const ModuleHubPage = () => {
   const [module, setModule] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    const checkCompletion = async () => {
+      if (course?.id) {
+        try {
+          await usersAPI.checkCourseCompletion(course.id);
+          // Optionally refresh user progress again to reflect the change
+          refreshUserProgress();
+        } catch (err) {
+          console.error("Failed to check/update course completion status:", err);
+        }
+      }
+    };
+
+    // Check completion status when the component mounts and user progress is available
+    if (user) {
+      checkCompletion();
+    }
+  }, [user, course?.id]);
 
   useEffect(() => {
     fetchModuleData();

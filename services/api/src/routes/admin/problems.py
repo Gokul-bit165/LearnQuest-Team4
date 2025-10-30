@@ -29,7 +29,10 @@ async def get_all_problems_admin(
     for question in questions.find(query):
         # Extract problem details
         problem_id = str(question["_id"])
-        title = question.get("prompt", "Untitled Problem")
+        # Derive a clean short title purely from the prompt's first non-empty line or explicit title field
+        raw_prompt = str(question.get("prompt", "")).replace('\\n', '\n')
+        lines = raw_prompt.splitlines()
+        title = question.get("title") or next((ln.strip() for ln in lines if ln.strip()), "Untitled Problem")
         difficulty = question.get("difficulty", "medium")
         tags = question.get("tags", [])
         xp_reward = question.get("xp_reward", 10)
@@ -78,15 +81,26 @@ async def get_problem_detail_admin(
         for tc in test_cases
     ]
     
+    # Build clean title and content derived from prompt and title field
+    raw_prompt = str(question.get("prompt", "")).replace('\\n', '\n')
+    prompt_lines = raw_prompt.splitlines()
+    cleaned_title = question.get("title") or "Untitled Problem"
+    if not cleaned_title or cleaned_title == "Untitled Problem":
+        for i, ln in enumerate(prompt_lines):
+            if ln.strip():
+                cleaned_title = ln.strip()
+                break
+    
     return ProblemDetail(
         problem_id=str(question["_id"]),
-        title=question.get("prompt", "Untitled Problem"),
+        title=cleaned_title,
         content=question.get("prompt", ""),
         starter_code=question.get("code_starter", ""),
         difficulty=question.get("difficulty", "medium"),
         tags=question.get("tags", []),
         xp_reward=question.get("xp_reward", 10),
-        public_test_cases=all_test_cases  # Admin sees all test cases
+        public_test_cases=all_test_cases,  # Admin sees all test cases
+        explanation=question.get("explanation", "")
     )
 
 @router.post("/", response_model=dict)
@@ -106,6 +120,7 @@ async def create_problem(
     # Prepare the problem document
     problem_doc = {
         "type": "code",
+        "title": problem_data.get("title", ""),  # Explicit title field
         "prompt": problem_data["prompt"],
         "code_starter": problem_data["code_starter"],
         "test_cases": problem_data["test_cases"],
@@ -148,6 +163,7 @@ async def update_problem(
     
     # Prepare update data with safe defaults
     update_data = {
+        "title": problem_data.get("title", existing_problem.get("title", "")),  # Explicit title field
         "prompt": problem_data.get("prompt", existing_problem.get("prompt", "")),
         "code_starter": problem_data.get("code_starter", existing_problem.get("code_starter", "")),
         "test_cases": problem_data.get("test_cases", existing_problem.get("test_cases", [])),

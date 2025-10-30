@@ -15,6 +15,7 @@ import ResultsAnalytics from './pages/ResultsAnalytics'
 import CertificateManagement from './pages/CertificateManagement'
 import CertificationTestManager from './pages/CertificationTestManager'
 import TestsDashboard from './pages/TestsDashboard'
+import QuestionBanks from './pages/QuestionBanks'
 
 function App() {
   // Capture token from URL on first load and store in localStorage
@@ -47,6 +48,7 @@ function App() {
         <Route path="/certifications/:certId/questions" element={<CertificationQuestions />} />
         <Route path="/tests" element={<TestsDashboard />} />
         <Route path="/certification-tests" element={<CertificationTestManager />} />
+        <Route path="/question-banks" element={<QuestionBanks />} />
         <Route path="/proctoring-review" element={<ProctoringReview />} />
         <Route path="/results-analytics" element={<ResultsAnalytics />} />
         <Route path="/certificate-management" element={<CertificateManagement />} />

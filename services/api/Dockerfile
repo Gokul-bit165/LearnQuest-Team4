@@ -1,7 +1,7 @@
 # Use Python runtime as base
 FROM python:3.10-slim
 
-# Install system dependencies for OpenCV and MediaPipe
+# Install system dependencies for OpenCV, MediaPipe, and code execution
 RUN apt-get update && apt-get install -y \
     libgl1 \
     libglib2.0-0 \
@@ -9,6 +9,11 @@ RUN apt-get update && apt-get install -y \
     libxext6 \
     libxrender-dev \
     libgomp1 \
+    gcc \
+    g++ \
+    nodejs \
+    npm \
+    default-jdk \
     && rm -rf /var/lib/apt/lists/*
 
 # Set the working directory in the container

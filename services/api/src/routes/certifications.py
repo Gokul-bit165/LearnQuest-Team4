@@ -86,18 +86,38 @@ async def start_test(
         
         cert_spec = CertificationSpec(**{**cert_doc, "_id": str(cert_doc["_id"])})
         
-        # Check prerequisites
+        # Check prerequisites (resolve slug or _id)
         prerequisite_course_id = cert_doc.get("prerequisite_course_id")
         if prerequisite_course_id:
             users_collection = get_collection("users")
             user_doc = users_collection.find_one({"_id": ObjectId(current_user.id)})
             completed_courses = user_doc.get("completed_courses", [])
-            
-            if str(prerequisite_course_id) not in completed_courses:
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    detail="You have not completed the prerequisite course for this certification."
-                )
+
+            # Normalize: direct match on string _id
+            prereq_id_str = str(prerequisite_course_id)
+
+            # If direct match fails, try to resolve as a slug to _id
+            if prereq_id_str not in completed_courses:
+                courses_collection = get_collection("courses")
+                # Try slug lookup first
+                course_doc = courses_collection.find_one({"slug": prereq_id_str})
+                if not course_doc:
+                    # Try ObjectId if prereq provided is an _id-like string
+                    try:
+                        course_doc = courses_collection.find_one({"_id": ObjectId(prereq_id_str)})
+                    except Exception:
+                        course_doc = None
+
+                if course_doc:
+                    normalized_prereq_id = str(course_doc.get("_id"))
+                else:
+                    normalized_prereq_id = prereq_id_str
+
+                if normalized_prereq_id not in completed_courses:
+                    raise HTTPException(
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        detail="You have not completed the prerequisite course for this certification."
+                    )
         
         # Check if user already has an active attempt
         existing_attempt = attempts_collection.find_one({

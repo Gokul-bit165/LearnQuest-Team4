@@ -47,8 +47,18 @@ const ProblemSolverPage = () => {
     try {
       const response = await problemsAPI.getProblem(problemId);
       const problemData = response.data;
-      setProblem(problemData);
-      setCode(problemData.starter_code || '');
+      // Normalize backend shape to the frontend's expected fields for backward compatibility
+      const normalized = {
+        ...problemData,
+        // some endpoints use `content` while older frontends expect `description`
+        description: problemData.content || problemData.description || problemData.prompt || '',
+        // public test cases may be returned under `public_test_cases`
+        test_cases: problemData.public_test_cases || problemData.test_cases || [],
+        // starter code may be named differently
+        starter_code: problemData.starter_code || problemData.starterCode || problemData.starter || ''
+      };
+      setProblem(normalized);
+      setCode(normalized.starter_code || '');
     } catch (err) {
       setError('Failed to load problem');
       console.error('Error fetching problem:', err);

@@ -44,13 +44,19 @@ async def start_attempt(payload: Dict[str, Any], current_user=Depends(get_curren
     topic_id = payload.get("topic_id")
     difficulty = payload.get("difficulty")
     user_name = payload.get("user_name")
+    print(f"DEBUG: Received start_attempt request - topic_id: {topic_id}, difficulty: {difficulty}")
+    
     if not topic_id or not difficulty:
         raise HTTPException(status_code=400, detail="topic_id and difficulty are required")
 
     specs = get_collection("cert_test_specs")
     spec = specs.find_one({"cert_id": topic_id, "difficulty": difficulty})
+    print(f"DEBUG: Query result - spec found: {spec is not None}")
     if not spec:
-        raise HTTPException(status_code=404, detail="Test spec not found")
+        # Try to list available specs for debugging
+        available_specs = list(specs.find({}, {"cert_id": 1, "difficulty": 1}))
+        print(f"DEBUG: Available specs: {available_specs}")
+        raise HTTPException(status_code=404, detail=f"Test spec not found for topic_id='{topic_id}', difficulty='{difficulty}'")
 
     # Enforce prerequisite course completion if configured
     prereq_course_id = (spec.get("prerequisite_course_id") or "").strip()
@@ -109,6 +115,25 @@ async def start_attempt(payload: Dict[str, Any], current_user=Depends(get_curren
         "prerequisite_course_id": prereq_course_id,
     }
 
+    # Fetch questions from question_ids (coding problems)
+    questions = []
+    question_ids = spec.get("question_ids", []) if spec else []
+    if question_ids:
+        problems_collection = get_collection("problems")
+        from bson import ObjectId
+        # Fetch all problems for these IDs
+        for qid in question_ids:
+            try:
+                problem = problems_collection.find_one({"_id": ObjectId(qid)})
+                if problem:
+                    # Convert ObjectId to string and clean up the problem data
+                    problem["_id"] = str(problem["_id"])
+                    problem["id"] = str(problem["_id"])
+                    questions.append(problem)
+            except Exception as e:
+                print(f"Error fetching problem {qid}: {e}")
+                continue
+
     attempts = get_collection("cert_attempts")
     doc = {
         "user_id": str(current_user.id),
@@ -120,7 +145,24 @@ async def start_attempt(payload: Dict[str, Any], current_user=Depends(get_curren
         "status": "active",
     }
     ins = attempts.insert_one(doc)
-    return {"attempt_id": str(ins.inserted_id), "settings": settings}
+    
+    # Include restrictions from spec
+    restrictions = {
+        "copy_paste": spec.get("restrict_copy_paste", False) if spec else False,
+        "tab_switching": spec.get("restrict_tab_switching", False) if spec else False,
+        "right_click": spec.get("restrict_right_click", False) if spec else False,
+        "enable_fullscreen": spec.get("enable_fullscreen", False) if spec else False,
+        "enable_proctoring": spec.get("enable_proctoring", False) if spec else False,
+        "allowed_languages": spec.get("allowed_languages", ["python", "javascript", "cpp", "c", "java"]) if spec else ["python", "javascript", "cpp", "c", "java"],
+    }
+    
+    return {
+        "attempt_id": str(ins.inserted_id), 
+        "settings": settings,
+        "questions": questions,
+        "duration_minutes": settings["duration_minutes"],
+        "restrictions": restrictions
+    }
 
 
 @router.get("/attempts/{attempt_id}/questions")

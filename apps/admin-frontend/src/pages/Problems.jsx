@@ -10,7 +10,10 @@ const Problems = () => {
   const [courses, setCourses] = useState([])
   const [topics, setTopics] = useState([])
   const emptyForm = {
-    prompt: '',
+    // UI-level fields: title (short) and description (long). We'll compose 'prompt' when saving.
+    title: '',
+    description: '',
+    explanation: '',
     code_starter: '',
     difficulty: 'medium',
     tags: '',
@@ -78,8 +81,36 @@ const Problems = () => {
     try {
       const res = await adminAPI.getProblem(id)
       const p = res.data
+      // The backend currently stores a single `prompt` field. If present, try to split
+      // it into a short title (first line) and a longer description (rest). Also allow
+      // explicit `content`/`description` fields from the API.
+      const rawPrompt = p.content || p.prompt || '';
+      let title = '';
+      let description = '';
+      if (rawPrompt) {
+        // Prefer explicit description split by blank lines or newlines.
+        const parts = rawPrompt.split(/\n\n|\n/);
+        if (parts.length > 1) {
+          title = parts.shift() || '';
+          description = parts.join('\n\n') || '';
+        } else {
+          // If prompt is a single long line, try to split at the first sentence boundary
+          const sentenceParts = rawPrompt.split(/(?<=[.!?])\s+/);
+          if (sentenceParts.length > 1 && sentenceParts[0].length < 120) {
+            title = sentenceParts.shift() || '';
+            description = sentenceParts.join(' ') || '';
+          } else {
+            // Fallback: put whole prompt into title so admin can edit it
+            title = rawPrompt;
+            description = '';
+          }
+        }
+      }
+
       setForm({
-        prompt: p.title || p.content || '',
+        title: title,
+        description: description || (p.description || ''),
+        explanation: p.explanation || '',
         code_starter: p.starter_code || '',
         difficulty: p.difficulty || 'medium',
         tags: (p.tags || []).join(','),
@@ -102,8 +133,14 @@ const Problems = () => {
   }
 
   const save = async () => {
+    // Compose prompt from title + description so backend retains the existing 'prompt' field.
+    const composedPrompt = [form.title?.trim(), form.description?.trim()].filter(Boolean).join('\n\n');
+    const safeTitle = (form.title || '').toString().trim().split(/\r?\n/)[0] || '';
     const payload = {
-      prompt: form.prompt,
+      // include explicit title so backend can persist it separately from prompt
+      title: safeTitle,
+      prompt: composedPrompt,
+      explanation: form.explanation,
       code_starter: form.code_starter,
       difficulty: form.difficulty,
       tags: form.tags.split(',').map(t => t.trim()).filter(Boolean),
@@ -195,11 +232,11 @@ const Problems = () => {
       </div>
 
       {showForm && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center">
-          <div className="bg-slate-800 border border-slate-700 rounded p-6 w-full max-w-3xl">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center overflow-y-auto p-4">
+          <div className="bg-slate-800 border border-slate-700 rounded p-6 w-full max-w-3xl my-8 max-h-[90vh] overflow-y-auto">
             <h2 className="text-xl font-bold mb-4">{editingId ? 'Edit Problem' : 'Create Problem'}</h2>
             <div className="space-y-3">
-              <input className="w-full bg-slate-700 rounded px-3 py-2" placeholder="Title" value={form.prompt} onChange={e => setForm({ ...form, prompt: e.target.value })} />
+              <input className="w-full bg-slate-700 rounded px-3 py-2" placeholder="Title" value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} />
               <textarea className="w-full bg-slate-700 rounded px-3 py-2 h-28" placeholder="Description" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} />
               <textarea className="w-full bg-slate-700 rounded px-3 py-2 h-28" placeholder="Starter Code" value={form.code_starter} onChange={e => setForm({ ...form, code_starter: e.target.value })} />
               

@@ -115,6 +115,7 @@ class ProblemDetail(BaseModel):
     tags: List[str]
     xp_reward: int
     public_test_cases: List[TestCase]
+    explanation: Optional[str] = None  # Solution explanation
 
 
 class CodeSubmission(BaseModel):

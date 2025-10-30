@@ -25,19 +25,23 @@ const TopicSelection = () => {
   const [coursesBySlug, setCoursesBySlug] = useState({});
   const [courseCompletedById, setCourseCompletedById] = useState({});
   const [loading, setLoading] = useState(true);
+  const [lastLoadedAt, setLastLoadedAt] = useState(0);
 
   useEffect(() => {
     fetchCertifications();
   }, []);
 
-  // Refresh when window gains focus
+  // Refresh when window gains focus (debounced)
   useEffect(() => {
     const handleFocus = () => {
-      fetchCertifications();
+      const now = Date.now();
+      if (now - lastLoadedAt > 5000) { // avoid spamming network if user navigates quickly
+        fetchCertifications();
+      }
     };
     window.addEventListener('focus', handleFocus);
     return () => window.removeEventListener('focus', handleFocus);
-  }, []);
+  }, [lastLoadedAt]);
 
   const fetchCertifications = async () => {
     try {
@@ -84,12 +88,13 @@ const TopicSelection = () => {
       );
       console.log('TopicSelection - Enrolled completed IDs:', Array.from(enrolledCompletedIds));
 
+  // Fallback: server-computed map (in case completed_courses isn't filled yet)
+
       (coursesRes || []).forEach(c => {
-        if (completedIds.has(c.id) || enrolledCompletedIds.has(c.id)) {
-          completedMap[c.id] = true;
-        } else {
-          completedMap[c.id] = false;
-        }
+        const byId = completedIds.has(c.id);
+        const byEnroll = enrolledCompletedIds.has(c.id);
+        const byServer = serverCompletion[c.id] === true;
+        completedMap[c.id] = Boolean(byId || byEnroll || byServer);
       });
       
       console.log('\n=== TopicSelection FINAL COMPLETED COURSE IDs ===', Array.from(completedIds));
@@ -102,6 +107,7 @@ const TopicSelection = () => {
       console.error('Error fetching certifications:', error);
       setCertifications([]);
     } finally {
+      setLastLoadedAt(Date.now());
       setLoading(false);
     }
   };

@@ -63,6 +63,7 @@ export const usersAPI = {
   getProfile: () => api.get('/api/users/me'),
   getDashboard: () => api.get('/api/users/me/dashboard'),
   getLeaderboard: (timeFilter = 'all') => api.get(`/api/users/leaderboard?time=${timeFilter}`),
+  checkCourseCompletion: (courseId) => api.post(`/api/users/me/check-course-completion/${courseId}`),
 };
 
 // Lessons API
@@ -100,7 +101,8 @@ export const problemsAPI = {
   }),
   runCode: (problemId, solution) => api.post(`/api/problems/run/${problemId}`, {
     user_code: solution.code,
-    language_id: solution.language_id
+    language_id: solution.language_id,
+    test_cases: solution.test_cases || []
   }),
 };
 
@@ -122,6 +124,25 @@ export const certificationsAPI = {
   }),
   getUserAttempts: () => api.get('/api/certifications/attempts'),
   getAttemptDetails: (attemptId) => api.get(`/api/certifications/attempts/${attemptId}`),
+};
+
+// Cert Tests API (new system)
+export const certTestsAPI = {
+  getSpecs: () => api.get('/api/cert-tests/specs'),
+  startAttempt: (topicId, difficulty, userName) => api.post('/api/cert-tests/attempts', { 
+    topic_id: topicId, 
+    difficulty: difficulty,
+    user_name: userName
+  }),
+  submitAnswer: (attemptId, questionId, answer) => api.post('/api/cert-tests/submit-answer', {
+    attempt_id: attemptId,
+    question_id: questionId,
+    answer: answer
+  }),
+  finishAttempt: (attemptId) => api.post('/api/cert-tests/finish', { attempt_id: attemptId }),
+  getAttempt: (attemptId) => api.get(`/api/cert-tests/attempts/${attemptId}`),
+  runCode: (payload) => api.post('/api/cert-tests/run-code', payload),
+  submitCode: (payload) => api.post('/api/cert-tests/submit-code', payload),
 };
 
 export default api;
