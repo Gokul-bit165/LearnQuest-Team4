@@ -321,6 +321,10 @@ async def log_proctoring_event(
             behavior_score = max(0, behavior_score - 15)  # Deduct 15 points for multiple people
         elif request.event.get("type") == "phone_detected":
             behavior_score = max(0, behavior_score - 20)  # Deduct 20 points for phone detected
+        elif request.event.get("type") == "violation_detected":
+            behavior_score = max(0, behavior_score - 10)  # Deduct 10 points for general violations
+        elif request.event.get("type") == "excessive_noise":
+            behavior_score = max(0, behavior_score - 5)   # Deduct 5 points for excessive noise
         
         # Update attempt
         attempts_collection.update_one(

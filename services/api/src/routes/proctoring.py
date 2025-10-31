@@ -54,6 +54,7 @@ async def proctoring_websocket(websocket: WebSocket, attempt_id: str):
             "multiple_people": 0,
             "no_face": 0,
             "prohibited_object": 0,
+            "excessive_noise": 0,
         },
     }
 
@@ -72,6 +73,42 @@ async def proctoring_websocket(websocket: WebSocket, attempt_id: str):
             if data.get("action") == "stop":
                 logger.info(f"Stopping proctoring for attempt: {attempt_id}")
                 break
+
+            # Handle noise violation separately
+            if data.get("type") == "noise_violation":
+                try:
+                    noise_level = data.get("noise_level", 0)
+                    threshold = data.get("threshold", 15)
+                    
+                    violation_doc = {
+                        "attempt_id": attempt_id,
+                        "session_id": str(session_id),
+                        "type": "excessive_noise",
+                        "severity": "medium",
+                        "message": f"Excessive noise detected (level: {noise_level}, threshold: {threshold})",
+                        "timestamp": datetime.utcnow(),
+                        "metadata": {
+                            "noise_level": noise_level,
+                            "threshold": threshold,
+                        },
+                    }
+                    proctoring_violations.insert_one(violation_doc)
+                    
+                    # Update session violation counts
+                    proctoring_sessions.update_one(
+                        {"_id": session_id},
+                        {
+                            "$inc": {
+                                "violation_counts.excessive_noise": 1,
+                                "total_violations": 1,
+                            }
+                        },
+                    )
+                    
+                    logger.info(f"Noise violation recorded: {noise_level}")
+                except Exception as e:
+                    logger.error(f"Error processing noise violation: {e}")
+                continue
 
             frame_data = data.get("frame")
             if not frame_data:

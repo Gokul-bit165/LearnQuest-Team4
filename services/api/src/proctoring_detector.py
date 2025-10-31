@@ -45,7 +45,20 @@ class ProctoringDetector:
         )
         
         # Initialize YOLOv8 (nano for speed)
-        self.model = YOLO('yolov8n.pt')
+        # Patch torch.load to use weights_only=False for PyTorch 2.6+ compatibility
+        # This is required because YOLOv8 weights include custom classes
+        import torch
+        original_load = torch.load
+        def patched_load(*args, **kwargs):
+            kwargs.setdefault('weights_only', False)
+            return original_load(*args, **kwargs)
+        torch.load = patched_load
+        
+        try:
+            self.model = YOLO('yolov8n.pt')
+        finally:
+            # Restore original torch.load
+            torch.load = original_load
         
         # Classes: person (0), cell phone (67), book (73)
         self.YOLO_CLASSES = [0, 67, 73]

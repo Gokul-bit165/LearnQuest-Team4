@@ -31,8 +31,7 @@ from .routes.simple_gnn import router as gnn_router
 from .routes.ai_quiz import router as ai_quiz_router
 from .routes.cert_tests_admin import router as cert_tests_admin_router
 from .routes.cert_tests_runtime import router as cert_tests_runtime_router
-# Temporarily disabled for troubleshooting
-# from .routes.proctoring import router as proctoring_router
+from .routes.proctoring import router as proctoring_router
 
 from contextlib import asynccontextmanager
 
@@ -85,7 +84,7 @@ app.include_router(gnn_router)
 app.include_router(ai_quiz_router)
 app.include_router(cert_tests_admin_router)
 app.include_router(cert_tests_runtime_router)
-# app.include_router(proctoring_router)  # Temporarily disabled
+app.include_router(proctoring_router)
 
 @app.get("/")
 async def root():

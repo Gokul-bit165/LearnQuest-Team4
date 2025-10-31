@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Camera & Proctoring Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 20px;
+            background: #1a1a2e;
+            color: #eee;
+        }
+        h1 { color: #16c784; }
+        .container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        .panel {
+            background: #16213e;
+            padding: 20px;
+            border-radius: 8px;
+            border: 2px solid #0f3460;
+        }
+        video {
+            width: 100%;
+            border-radius: 8px;
+            border: 4px solid #16c784;
+            background: #000;
+        }
+        button {
+            background: #16c784;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #1db689; }
+        button:disabled {
+            background: #666;
+            cursor: not-allowed;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            background: #0f3460;
+        }
+        .success { border-left: 4px solid #16c784; }
+        .error { border-left: 4px solid #ea3943; }
+        .warning { border-left: 4px solid #f6b93b; }
+        pre {
+            background: #000;
+            padding: 10px;
+            border-radius: 5px;
+            overflow-x: auto;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎥 Camera & Proctoring System Test</h1>
+    
+    <div class="container">
+        <!-- Camera Panel -->
+        <div class="panel">
+            <h2>Camera Preview</h2>
+            <video id="video" autoplay playsinline muted></video>
+            <canvas id="canvas" style="display:none;"></canvas>
+            
+            <div style="margin-top: 10px;">
+                <button id="startBtn" onclick="startCamera()">Start Camera</button>
+                <button id="stopBtn" onclick="stopCamera()" disabled>Stop Camera</button>
+            </div>
+            
+            <div id="cameraStatus" class="status"></div>
+        </div>
+        
+        <!-- Proctoring Panel -->
+        <div class="panel">
+            <h2>Proctoring WebSocket</h2>
+            
+            <div>
+                <label>Attempt ID:</label>
+                <input type="text" id="attemptId" value="test_camera_preview_123" 
+                       style="width: 100%; padding: 8px; margin: 5px 0; background: #0f3460; border: 1px solid #16c784; color: #eee; border-radius: 4px;">
+            </div>
+            
+            <div style="margin-top: 10px;">
+                <button id="connectBtn" onclick="connectWebSocket()">Connect WebSocket</button>
+                <button id="disconnectBtn" onclick="disconnectWebSocket()" disabled>Disconnect</button>
+                <button id="sendBtn" onclick="sendFrame()" disabled>Send Frame (Manual)</button>
+            </div>
+            
+            <div style="margin-top: 10px;">
+                <label>
+                    <input type="checkbox" id="autoSend" checked> Auto-send frames (2 FPS)
+                </label>
+            </div>
+            
+            <div id="wsStatus" class="status"></div>
+            
+            <h3>Response Log:</h3>
+            <pre id="responseLog"></pre>
+        </div>
+    </div>
+    
+    <script>
+        let video = document.getElementById('video');
+        let canvas = document.getElementById('canvas');
+        let stream = null;
+        let ws = null;
+        let sendInterval = null;
+        
+        // Update status
+        function updateStatus(elementId, message, type = 'success') {
+            const el = document.getElementById(elementId);
+            el.textContent = message;
+            el.className = `status ${type}`;
+        }
+        
+        // Log response
+        function logResponse(message) {
+            const log = document.getElementById('responseLog');
+            const timestamp = new Date().toLocaleTimeString();
+            log.textContent = `[${timestamp}] ${message}\n` + log.textContent;
+        }
+        
+        // Start camera
+        async function startCamera() {
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({
+                    video: { width: 640, height: 480, facingMode: 'user' }
+                });
+                video.srcObject = stream;
+                document.getElementById('startBtn').disabled = true;
+                document.getElementById('stopBtn').disabled = false;
+                updateStatus('cameraStatus', '✓ Camera started successfully', 'success');
+                logResponse('Camera started');
+            } catch (err) {
+                updateStatus('cameraStatus', '✗ Camera error: ' + err.message, 'error');
+                logResponse('Camera error: ' + err.message);
+            }
+        }
+        
+        // Stop camera
+        function stopCamera() {
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                video.srcObject = null;
+                document.getElementById('startBtn').disabled = false;
+                document.getElementById('stopBtn').disabled = true;
+                updateStatus('cameraStatus', 'Camera stopped', 'warning');
+                logResponse('Camera stopped');
+            }
+        }
+        
+        // Connect WebSocket
+        function connectWebSocket() {
+            const attemptId = document.getElementById('attemptId').value;
+            const wsUrl = `ws://localhost:8000/api/proctoring/ws/${attemptId}`;
+            
+            updateStatus('wsStatus', 'Connecting...', 'warning');
+            logResponse(`Connecting to ${wsUrl}`);
+            
+            ws = new WebSocket(wsUrl);
+            
+            ws.onopen = () => {
+                updateStatus('wsStatus', '✓ WebSocket connected', 'success');
+                logResponse('WebSocket connected');
+                document.getElementById('connectBtn').disabled = true;
+                document.getElementById('disconnectBtn').disabled = false;
+                document.getElementById('sendBtn').disabled = false;
+                
+                // Auto-send frames every 500ms (2 FPS) if checkbox is checked
+                if (document.getElementById('autoSend').checked) {
+                    sendInterval = setInterval(sendFrame, 500);
+                }
+            };
+            
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                logResponse('Received: ' + JSON.stringify(data, null, 2));
+                
+                // Update video border based on violations
+                if (data.status === 'success' && data.data) {
+                    if (data.data.has_violations) {
+                        video.style.borderColor = '#ea3943';
+                    } else if (data.data.looking_away) {
+                        video.style.borderColor = '#f6b93b';
+                    } else {
+                        video.style.borderColor = '#16c784';
+                    }
+                }
+            };
+            
+            ws.onerror = (error) => {
+                updateStatus('wsStatus', '✗ WebSocket error', 'error');
+                logResponse('WebSocket error: ' + error);
+            };
+            
+            ws.onclose = () => {
+                updateStatus('wsStatus', 'WebSocket disconnected', 'warning');
+                logResponse('WebSocket closed');
+                document.getElementById('connectBtn').disabled = false;
+                document.getElementById('disconnectBtn').disabled = true;
+                document.getElementById('sendBtn').disabled = true;
+                if (sendInterval) {
+                    clearInterval(sendInterval);
+                    sendInterval = null;
+                }
+            };
+        }
+        
+        // Disconnect WebSocket
+        function disconnectWebSocket() {
+            if (ws) {
+                if (sendInterval) {
+                    clearInterval(sendInterval);
+                    sendInterval = null;
+                }
+                ws.send(JSON.stringify({ action: 'stop' }));
+                ws.close();
+                ws = null;
+            }
+        }
+        
+        // Send frame
+        function sendFrame() {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                logResponse('WebSocket not connected');
+                return;
+            }
+            
+            if (!stream) {
+                logResponse('Camera not started');
+                return;
+            }
+            
+            // Capture frame
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            canvas.getContext('2d').drawImage(video, 0, 0);
+            
+            // Convert to base64
+            const frameData = canvas.toDataURL('image/jpeg', 0.7);
+            
+            // Send
+            ws.send(JSON.stringify({ frame: frameData }));
+            logResponse('Frame sent');
+        }
+        
+        // Auto-start camera on load
+        window.onload = () => {
+            updateStatus('cameraStatus', 'Ready to start camera', 'warning');
+            updateStatus('wsStatus', 'Ready to connect', 'warning');
+            logResponse('Page loaded - Click Start Camera to begin');
+        };
+        
+        // Cleanup on page unload
+        window.onbeforeunload = () => {
+            disconnectWebSocket();
+            stopCamera();
+        };
+    </script>
+</body>
+</html>

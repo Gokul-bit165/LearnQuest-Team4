@@ -94,6 +94,7 @@ export const TestSetup = () => {
         throw new Error('getUserMedia not supported');
       }
 
+      // Request permissions early - this prevents tab switch when test starts
       const stream = await navigator.mediaDevices.getUserMedia({ 
         video: { 
           width: { ideal: 1280 },
@@ -109,17 +110,34 @@ export const TestSetup = () => {
       setHasWebcam(videoTracks.length > 0);
       setHasMicrophone(audioTracks.length > 0);
       
-      // Stop the tracks after checking
+      // Stop the stream immediately - browser will remember the permission
+      // The test interface will request a new stream when it starts
       stream.getTracks().forEach(track => track.stop());
       
-      toast.success('Devices detected successfully');
+      toast.success('✅ Camera and microphone ready!', {
+        description: 'Permissions granted. You can now start the test.',
+        duration: 3000
+      });
     } catch (error) {
       console.error('Device access error:', error);
-      toast.warning('Camera/Microphone not detected. Enabling testing mode.');
-      setTestingMode(true);
-      // In testing mode, mock the device access
-      setHasWebcam(true);
-      setHasMicrophone(true);
+      
+      if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
+        toast.error('❌ Permission Denied', {
+          description: 'Please allow camera and microphone access to take the test.',
+          duration: 5000
+        });
+      } else if (error.name === 'NotFoundError' || error.name === 'DevicesNotFoundError') {
+        toast.warning('⚠️ Devices Not Found', {
+          description: 'Camera or microphone not detected. Please check your devices.',
+          duration: 5000
+        });
+      } else {
+        toast.warning('Camera/Microphone not detected. Enabling testing mode.');
+        setTestingMode(true);
+        // In testing mode, mock the device access
+        setHasWebcam(true);
+        setHasMicrophone(true);
+      }
     }
   };
 
@@ -180,7 +198,7 @@ export const TestSetup = () => {
           className="mx-auto max-w-4xl"
         >
           {/* Header */}
-          <div className="mb-12 text-center">
+          <div className="mb-8 text-center">
             <div className="mb-4 inline-block rounded-full bg-gradient-to-r from-blue-500/20 to-purple-500/20 px-6 py-2 text-blue-300 text-sm font-medium border border-blue-500/30 shadow-lg">
               Step 3 of 3 - Almost There!
             </div>
@@ -196,6 +214,49 @@ export const TestSetup = () => {
               Please complete the following steps before starting your test
             </p>
           </div>
+
+          {/* Important Notice */}
+          {!hasWebcam || !hasMicrophone ? (
+            <div className="mb-8 rounded-xl border-2 border-yellow-500/50 bg-gradient-to-r from-yellow-900/30 to-orange-900/30 backdrop-blur-sm shadow-2xl p-6">
+              <div className="flex items-start gap-4">
+                <div className="flex-shrink-0">
+                  <div className="h-12 w-12 rounded-full bg-yellow-500 flex items-center justify-center">
+                    <AlertCircle className="h-6 w-6 text-white" />
+                  </div>
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-lg font-bold text-yellow-300 mb-2">
+                    ⚠️ Action Required: Test Your Devices First
+                  </h3>
+                  <p className="text-slate-200 mb-3">
+                    Before starting the test, you must grant camera and microphone permissions. 
+                    Click the <strong>"Test Camera & Mic"</strong> button below to verify your devices are working.
+                  </p>
+                  <p className="text-sm text-yellow-200/80">
+                    <strong>Important:</strong> Granting permissions now prevents interruptions during the test and avoids triggering tab-switch violations.
+                  </p>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="mb-8 rounded-xl border-2 border-green-500/50 bg-gradient-to-r from-green-900/30 to-emerald-900/30 backdrop-blur-sm shadow-2xl p-6">
+              <div className="flex items-start gap-4">
+                <div className="flex-shrink-0">
+                  <div className="h-12 w-12 rounded-full bg-green-500 flex items-center justify-center">
+                    <CheckCircle2 className="h-6 w-6 text-white" />
+                  </div>
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-lg font-bold text-green-300 mb-2">
+                    ✅ Devices Ready!
+                  </h3>
+                  <p className="text-slate-200">
+                    Camera and microphone permissions have been granted. You're all set to start the test!
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Test Summary */}
           <div className="mb-8 rounded-xl border-2 border-blue-500/30 bg-gradient-to-br from-slate-800/80 to-slate-900/80 backdrop-blur-sm shadow-2xl">
@@ -338,10 +399,21 @@ export const TestSetup = () => {
 
           {/* Requirements Checklist */}
           <div className="my-8 rounded-xl border-2 border-blue-500/30 bg-gradient-to-br from-slate-800/80 to-blue-900/40 backdrop-blur-sm shadow-2xl p-6">
-            <h3 className="text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400 mb-2">
-              Pre-Test Requirements
-            </h3>
-            <p className="text-slate-400 text-sm mb-4">All requirements must be met to start the test</p>
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400 mb-1">
+                  Pre-Test Requirements
+                </h3>
+                <p className="text-slate-400 text-sm">All requirements must be met to start the test</p>
+              </div>
+              <button
+                onClick={checkDevices}
+                className="px-6 py-3 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 hover:from-blue-700 hover:via-purple-700 hover:to-pink-700 text-white font-semibold rounded-xl transition-all shadow-lg hover:shadow-2xl hover:scale-105 flex items-center gap-2"
+              >
+                <Camera className="h-5 w-5" />
+                <span>Test Camera & Mic</span>
+              </button>
+            </div>
             <div>
               <div className="space-y-3">
                 {requirements.map((req, index) => {

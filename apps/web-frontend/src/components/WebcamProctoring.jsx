@@ -12,6 +12,11 @@ const WebcamProctoring = ({ attemptId, onViolation }) => {
   const wsRef = useRef(null);
   const streamRef = useRef(null);
   const intervalRef = useRef(null);
+  const audioContextRef = useRef(null);
+  const analyserRef = useRef(null);
+  const micStreamRef = useRef(null);
+  const noiseCheckIntervalRef = useRef(null);
+  const hasStartedRef = useRef(false);
   
   const [isActive, setIsActive] = useState(false);
   const [hasViolation, setHasViolation] = useState(false);
@@ -23,12 +28,17 @@ const WebcamProctoring = ({ attemptId, onViolation }) => {
     phone_detected: false,
     multiple_people: false
   });
+  const [noiseLevel, setNoiseLevel] = useState(0);
+  const [isLoudNoise, setIsLoudNoise] = useState(false);
   const [error, setError] = useState(null);
   const [permissionDenied, setPermissionDenied] = useState(false);
 
   // Start webcam
   const startWebcam = useCallback(async () => {
     try {
+      console.log('🎥 Requesting webcam access...');
+      
+      // Request camera access - permissions should already be granted from TestSetup
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
           width: { ideal: 640 },
@@ -37,16 +47,54 @@ const WebcamProctoring = ({ attemptId, onViolation }) => {
         }
       });
       
+      console.log('✅ Webcam stream obtained:', stream.getVideoTracks().length, 'video tracks');
+      
       streamRef.current = stream;
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
+        console.log('✅ Video element connected to stream');
+        
+        // Set muted and autoplay attributes
+        videoRef.current.muted = true;
+        videoRef.current.playsInline = true;
+        
+        // Wait for metadata to load
+        videoRef.current.onloadedmetadata = async () => {
+          try {
+            await videoRef.current.play();
+            console.log('✅ Video playing - webcam active!');
+            setIsActive(true); // Mark as active once video is playing
+          } catch (playErr) {
+            console.error('Error playing video:', playErr);
+            // Still try to set active if stream is present
+            setIsActive(true);
+          }
+        };
+        
+        // Fallback: set active after a short delay if metadata doesn't load
+        setTimeout(() => {
+          if (streamRef.current && !permissionDenied) {
+            console.log('✅ Fallback: Setting webcam active');
+            setIsActive(true);
+          }
+        }, 1000);
       }
+      
       setPermissionDenied(false);
       setError(null);
+      console.log('✅ Webcam setup complete');
     } catch (err) {
-      console.error('Error accessing webcam:', err);
-      setError('Failed to access webcam. Please grant camera permissions.');
+      console.error('❌ Error accessing webcam:', err.name, err.message);
+      
+      // Don't show intrusive error if permissions not granted
+      // User should have granted them in test setup page
+      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+        setError('Camera access denied. Please ensure you granted permissions before starting the test.');
+      } else {
+        setError('Failed to access webcam. Please check your camera.');
+      }
       setPermissionDenied(true);
+      setIsActive(false);
     }
   }, []);
 
@@ -63,18 +111,21 @@ const WebcamProctoring = ({ attemptId, onViolation }) => {
 
   // Connect to WebSocket
   const connectWebSocket = useCallback(() => {
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//${window.location.host}/api/proctoring/ws/${attemptId}`;
+    // Use the API base URL - default to localhost:8000 for development
+    const apiHost = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+    const wsProtocol = apiHost.startsWith('https') ? 'wss:' : 'ws:';
+    const wsHost = apiHost.replace(/^https?:\/\//, '');
+    const wsUrl = `${wsProtocol}//${wsHost}/api/proctoring/ws/${attemptId}`;
     
+    console.log('Connecting to proctoring WebSocket:', wsUrl);
     const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
 
     ws.onopen = () => {
-      console.log('Proctoring WebSocket connected');
-      setIsActive(true);
+      console.log('✅ Proctoring WebSocket connected');
     };
 
-    ws.onmessage = (event) => {
+    ws.onmessage = async (event) => {
       const response = JSON.parse(event.data);
       
       if (response.status === 'success' && response.data) {
@@ -94,6 +145,35 @@ const WebcamProctoring = ({ attemptId, onViolation }) => {
           setHasViolation(true);
           setViolations(prev => [...data.violations, ...prev].slice(0, 10)); // Keep last 10
           
+          // Log violations to certification attempt
+          for (const violation of data.violations) {
+            try {
+              const apiHost = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+              await fetch(`${apiHost}/api/certifications/proctoring-event`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${localStorage.getItem('token')}`
+                },
+                body: JSON.stringify({
+                  attempt_id: attemptId,
+                  event: {
+                    type: 'violation_detected',
+                    violation_type: violation.type,
+                    severity: violation.severity,
+                    message: violation.message,
+                    metadata: {
+                      yaw: data.yaw,
+                      pitch: data.pitch
+                    }
+                  }
+                })
+              });
+            } catch (err) {
+              console.error('Failed to log violation to attempt:', err);
+            }
+          }
+          
           // Notify parent component
           if (onViolation) {
             onViolation(data.violations);
@@ -111,19 +191,132 @@ const WebcamProctoring = ({ attemptId, onViolation }) => {
 
     ws.onerror = (error) => {
       console.error('WebSocket error:', error);
-      setError('Connection error. Retrying...');
+      setError('Connection error. Proctoring may not be working.');
     };
 
     ws.onclose = () => {
       console.log('Proctoring WebSocket closed');
-      setIsActive(false);
+      // Don't set isActive to false - camera should stay on even if WS connection drops
+      // setIsActive(false);
     };
 
     return ws;
   }, [attemptId, onViolation]);
 
+  // Start audio monitoring
+  const startAudioMonitoring = useCallback(async () => {
+    try {
+      // Get microphone access (should already be granted from test setup)
+      const micStream = await navigator.mediaDevices.getUserMedia({ 
+        audio: { 
+          echoCancellation: false,
+          noiseSuppression: false,
+          autoGainControl: false
+        } 
+      });
+      micStreamRef.current = micStream;
+      console.log('✅ Microphone started successfully using pre-granted permissions');
+      
+      // Create audio context and analyser
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      audioContextRef.current = audioContext;
+      
+      const analyser = audioContext.createAnalyser();
+      analyser.fftSize = 2048;
+      analyserRef.current = analyser;
+      
+      const microphone = audioContext.createMediaStreamSource(micStream);
+      microphone.connect(analyser);
+      
+      // Monitor noise levels
+      const dataArray = new Uint8Array(analyser.frequencyBinCount);
+      const NOISE_THRESHOLD = 30; // Adjust threshold (0-255) - set to 30 to reduce false positives
+      const CHECK_INTERVAL = 100; // Check every 100ms
+      
+      noiseCheckIntervalRef.current = setInterval(async () => {
+        analyser.getByteFrequencyData(dataArray);
+        
+        // Calculate average volume
+        const sum = dataArray.reduce((acc, val) => acc + val, 0);
+        const average = sum / dataArray.length;
+        
+        setNoiseLevel(Math.round(average));
+        
+        // Check if noise exceeds threshold
+        if (average > NOISE_THRESHOLD) {
+          setIsLoudNoise(true);
+          
+          // Send noise violation via WebSocket
+          if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+            wsRef.current.send(JSON.stringify({
+              type: 'noise_violation',
+              noise_level: Math.round(average),
+              threshold: NOISE_THRESHOLD,
+              timestamp: Date.now()
+            }));
+          }
+          
+          // Log noise violation to certification attempt
+          try {
+            const apiHost = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+            await fetch(`${apiHost}/api/certifications/proctoring-event`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+              },
+              body: JSON.stringify({
+                attempt_id: attemptId,
+                event: {
+                  type: 'excessive_noise',
+                  noise_level: Math.round(average),
+                  threshold: NOISE_THRESHOLD,
+                  message: `Excessive noise detected (level: ${Math.round(average)})`
+                }
+              })
+            });
+          } catch (err) {
+            console.error('Failed to log noise violation to attempt:', err);
+          }
+          
+          // Clear loud noise flag after 2 seconds
+          setTimeout(() => {
+            setIsLoudNoise(false);
+          }, 2000);
+        }
+      }, CHECK_INTERVAL);
+      
+      console.log('Audio monitoring started');
+    } catch (err) {
+      console.error('Error accessing microphone:', err);
+      // Audio monitoring is optional, don't block proctoring
+    }
+  }, []);
+
+  // Stop audio monitoring
+  const stopAudioMonitoring = useCallback(() => {
+    if (noiseCheckIntervalRef.current) {
+      clearInterval(noiseCheckIntervalRef.current);
+      noiseCheckIntervalRef.current = null;
+    }
+    
+    if (micStreamRef.current) {
+      micStreamRef.current.getTracks().forEach(track => track.stop());
+      micStreamRef.current = null;
+    }
+    
+    if (audioContextRef.current) {
+      audioContextRef.current.close();
+      audioContextRef.current = null;
+    }
+    
+    analyserRef.current = null;
+    setNoiseLevel(0);
+    setIsLoudNoise(false);
+  }, []);
+
   // Send frame to server
-  const sendFrame = useCallback(() => {
+  const sendFrame = () => {
     if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
       return;
     }
@@ -146,23 +339,27 @@ const WebcamProctoring = ({ attemptId, onViolation }) => {
     // Convert to base64
     const frameData = canvas.toDataURL('image/jpeg', 0.7);
 
-    // Send via WebSocket
+    // Send via WebSocket with current noise level
     wsRef.current.send(JSON.stringify({
-      frame: frameData
+      frame: frameData,
+      noise_level: noiseLevel
     }));
-  }, []);
+  };
 
   // Start proctoring
-  const startProctoring = useCallback(async () => {
+  const startProctoring = async () => {
+    console.log('🚀 Starting proctoring...');
     await startWebcam();
     connectWebSocket();
+    startAudioMonitoring();
     
-    // Send frames every 1 second
-    intervalRef.current = setInterval(sendFrame, 1000);
-  }, [startWebcam, connectWebSocket, sendFrame]);
+    // Send frames every 250ms (4 FPS) for quicker detection and response
+    intervalRef.current = setInterval(sendFrame, 250);
+  };
 
   // Stop proctoring
-  const stopProctoring = useCallback(() => {
+  const stopProctoring = () => {
+    console.log('🛑 Stopping proctoring...');
     // Stop sending frames
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
@@ -170,23 +367,77 @@ const WebcamProctoring = ({ attemptId, onViolation }) => {
     }
     
     // Close WebSocket
-    if (wsRef.current) {
-      wsRef.current.send(JSON.stringify({ action: 'stop' }));
-      wsRef.current.close();
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      try {
+        wsRef.current.send(JSON.stringify({ action: 'stop' }));
+        wsRef.current.close();
+      } catch (err) {
+        console.error('Error closing WebSocket:', err);
+      }
       wsRef.current = null;
     }
     
-    // Stop webcam
+    // Stop webcam and audio
     stopWebcam();
+    stopAudioMonitoring();
     setIsActive(false);
-  }, [stopWebcam]);
+  };
 
-  // Auto-start on mount
+  // Auto-start on mount (only once) - permissions already granted in TestSetup
   useEffect(() => {
-    startProctoring();
+    if (!hasStartedRef.current) {
+      hasStartedRef.current = true;
+      
+      // Start immediately since permissions are pre-granted
+      console.log('🎥 Starting proctoring with pre-granted permissions...');
+      startProctoring();
+    }
     
     return () => {
-      stopProctoring();
+      if (hasStartedRef.current) {
+        console.log('🛑 Cleaning up proctoring...');
+        stopProctoring();
+      }
+    };
+  }, []); // Empty deps - only run once on mount
+
+  // Handle fullscreen changes to reactivate camera if needed (only if truly broken)
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      console.log('🔄 Fullscreen change detected');
+      
+      // Only intervene if camera is actually broken after a delay
+      setTimeout(() => {
+        const video = videoRef.current;
+        const stream = streamRef.current;
+        
+        // Only restart if stream is truly dead (not just paused)
+        if (stream && video) {
+          const videoTracks = stream.getVideoTracks();
+          if (videoTracks.length > 0 && videoTracks[0].readyState === 'live') {
+            // Stream is healthy, just ensure video is playing
+            if (video.paused) {
+              console.log('📹 Resuming video after fullscreen change...');
+              video.play().catch(err => {
+                console.error('Failed to play video:', err);
+              });
+            }
+          }
+        }
+      }, 1000);
+    };
+
+    // Listen for fullscreen changes
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+    document.addEventListener('mozfullscreenchange', handleFullscreenChange);
+    document.addEventListener('MSFullscreenChange', handleFullscreenChange);
+
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('mozfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('MSFullscreenChange', handleFullscreenChange);
     };
   }, []);
 
@@ -200,101 +451,122 @@ const WebcamProctoring = ({ attemptId, onViolation }) => {
   };
 
   return (
-    <div className="space-y-4">
-      {/* Webcam Preview */}
+    <div className="fixed bottom-20 right-4 z-40 w-64">
+      {/* Compact Webcam Preview */}
       <div className="relative">
-        <div className={`relative rounded-lg overflow-hidden border-4 ${getBorderColor()} transition-colors duration-300`}>
+        <div className={`relative rounded-lg overflow-hidden border-3 ${getBorderColor()} transition-colors duration-300 bg-gray-900 shadow-2xl`}>
           <video
             ref={videoRef}
             autoPlay
             playsInline
             muted
-            className="w-full h-auto"
+            className="w-full h-48 object-cover"
           />
           
           {/* Hidden canvas for frame capture */}
           <canvas ref={canvasRef} className="hidden" />
           
-          {/* Status Overlay */}
-          <div className="absolute top-2 left-2 right-2 flex items-center justify-between">
-            <div className="flex items-center gap-2 bg-black/70 px-3 py-1.5 rounded-lg">
-              <Shield className={`w-4 h-4 ${isActive ? 'text-green-500' : 'text-gray-400'}`} />
-              <span className="text-white text-sm font-medium">
-                {isActive ? 'Monitoring Active' : 'Inactive'}
+          {/* Compact Status Badge */}
+          <div className="absolute top-2 left-2 flex flex-col gap-1">
+            <div className="flex items-center gap-1.5 bg-black/80 px-2 py-1 rounded">
+              <Shield className={`w-3 h-3 ${isActive ? 'text-green-500' : 'text-gray-400'}`} />
+              <span className="text-white text-xs font-medium">
+                {isActive ? 'Active' : 'Inactive'}
               </span>
             </div>
             
-            {hasViolation && (
-              <div className="flex items-center gap-2 bg-red-600 px-3 py-1.5 rounded-lg animate-pulse">
-                <AlertTriangle className="w-4 h-4 text-white" />
-                <span className="text-white text-sm font-bold">Violation Detected!</span>
+            {/* Microphone Status & Noise Level */}
+            {isActive && (
+              <div className={`flex items-center gap-1.5 px-2 py-1 rounded ${
+                isLoudNoise ? 'bg-red-600 animate-pulse' : 'bg-black/80'
+              }`}>
+                <svg className={`w-3 h-3 ${isLoudNoise ? 'text-white' : 'text-green-500'}`} fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
+                  <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
+                </svg>
+                <div className="flex items-center gap-0.5">
+                  <div className={`w-1 h-2 rounded-sm ${noiseLevel > 5 ? 'bg-green-400' : 'bg-gray-600'}`}></div>
+                  <div className={`w-1 h-3 rounded-sm ${noiseLevel > 10 ? 'bg-yellow-400' : 'bg-gray-600'}`}></div>
+                  <div className={`w-1 h-4 rounded-sm ${noiseLevel > 15 ? 'bg-orange-400' : 'bg-gray-600'}`}></div>
+                  <div className={`w-1 h-4 rounded-sm ${noiseLevel > 20 ? 'bg-red-400' : 'bg-gray-600'}`}></div>
+                </div>
+                <span className="text-white text-[10px]">{noiseLevel}</span>
               </div>
             )}
           </div>
           
-          {/* Head Pose Stats */}
+          {/* Violation Alert - Compact */}
+          {hasViolation && (
+            <div className="absolute top-2 right-2">
+              <div className="flex items-center gap-1.5 bg-red-600 px-2 py-1 rounded animate-pulse">
+                <AlertTriangle className="w-3 h-3 text-white" />
+                <span className="text-white text-xs font-bold">Alert!</span>
+              </div>
+            </div>
+          )}
+          
+          {/* Head Pose Stats - Compact */}
           {isActive && (
-            <div className="absolute bottom-2 left-2 bg-black/70 px-3 py-2 rounded-lg text-white text-xs space-y-1">
-              <div>Yaw: {stats.yaw.toFixed(1)}°</div>
-              <div>Pitch: {stats.pitch.toFixed(1)}°</div>
+            <div className="absolute bottom-2 left-2 bg-black/80 px-2 py-1 rounded text-white text-[10px]">
+              <div>Y:{stats.yaw.toFixed(0)}° P:{stats.pitch.toFixed(0)}°</div>
             </div>
           )}
         </div>
 
-        {/* Error Message */}
+        {/* Error Message - Compact */}
         {error && (
-          <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded-lg">
-            <p className="text-red-800 text-sm">{error}</p>
+          <div className="mt-2 p-2 bg-red-900/90 border border-red-600 rounded">
+            <p className="text-red-200 text-xs">{error}</p>
             {permissionDenied && (
               <button
                 onClick={startWebcam}
-                className="mt-2 px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700"
+                className="mt-1 px-2 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700 w-full"
               >
-                Retry Camera Access
+                Retry
               </button>
             )}
           </div>
         )}
       </div>
 
-      {/* Violation Warnings */}
-      <div className="space-y-2">
-        {stats.looking_away && (
-          <div className="flex items-center gap-2 p-2 bg-yellow-50 border border-yellow-200 rounded-lg">
-            <AlertTriangle className="w-4 h-4 text-yellow-600" />
-            <span className="text-yellow-800 text-sm">Looking away from screen</span>
-          </div>
-        )}
-        
-        {stats.phone_detected && (
-          <div className="flex items-center gap-2 p-2 bg-red-50 border border-red-200 rounded-lg">
-            <AlertTriangle className="w-4 h-4 text-red-600" />
-            <span className="text-red-800 text-sm font-medium">Prohibited object detected</span>
-          </div>
-        )}
-        
-        {stats.multiple_people && (
-          <div className="flex items-center gap-2 p-2 bg-red-50 border border-red-200 rounded-lg">
-            <AlertTriangle className="w-4 h-4 text-red-600" />
-            <span className="text-red-800 text-sm font-medium">Multiple people detected</span>
-          </div>
-        )}
-      </div>
+      {/* Compact Violation Warnings - Show as badges below video */}
+      {(stats.looking_away || stats.phone_detected || stats.multiple_people || isLoudNoise) && (
+        <div className="mt-2 space-y-1">
+          {stats.looking_away && (
+            <div className="flex items-center gap-1 p-1.5 bg-yellow-900/90 border border-yellow-600 rounded">
+              <AlertTriangle className="w-3 h-3 text-yellow-400 flex-shrink-0" />
+              <span className="text-yellow-200 text-xs">Looking away</span>
+            </div>
+          )}
+          
+          {stats.phone_detected && (
+            <div className="flex items-center gap-1 p-1.5 bg-red-900/90 border border-red-600 rounded">
+              <AlertTriangle className="w-3 h-3 text-red-400 flex-shrink-0" />
+              <span className="text-red-200 text-xs font-medium">Phone detected</span>
+            </div>
+          )}
+          
+          {stats.multiple_people && (
+            <div className="flex items-center gap-1 p-1.5 bg-red-900/90 border border-red-600 rounded">
+              <AlertTriangle className="w-3 h-3 text-red-400 flex-shrink-0" />
+              <span className="text-red-200 text-xs font-medium">Multiple people</span>
+            </div>
+          )}
+          
+          {isLoudNoise && (
+            <div className="flex items-center gap-1 p-1.5 bg-orange-900/90 border border-orange-600 rounded animate-pulse">
+              <AlertTriangle className="w-3 h-3 text-orange-400 flex-shrink-0" />
+              <span className="text-orange-200 text-xs font-medium">Excessive noise detected</span>
+            </div>
+          )}
+        </div>
+      )}
 
-      {/* Recent Violations */}
+      {/* Violation Count Badge */}
       {violations.length > 0 && (
-        <div className="bg-gray-50 rounded-lg p-3">
-          <h4 className="text-sm font-semibold text-gray-700 mb-2">Recent Violations</h4>
-          <div className="space-y-1 max-h-32 overflow-y-auto">
-            {violations.map((v, idx) => (
-              <div key={idx} className="text-xs text-gray-600">
-                <span className={`font-medium ${v.severity === 'high' ? 'text-red-600' : 'text-yellow-600'}`}>
-                  {v.severity.toUpperCase()}
-                </span>
-                {' - '}
-                {v.message}
-              </div>
-            ))}
+        <div className="mt-2 bg-black/80 rounded p-2">
+          <div className="text-xs text-red-400 font-semibold">
+            {violations.length} Violation{violations.length !== 1 ? 's' : ''}
           </div>
         </div>
       )}

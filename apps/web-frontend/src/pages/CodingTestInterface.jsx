@@ -4,7 +4,6 @@ import { AlertCircle, CheckCircle2, Clock, Eye, Volume2, Play, ChevronLeft, Chev
 import { Button } from '../components/ui/button';
 import { Card, CardContent } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
-import Webcam from 'react-webcam';
 import screenfull from 'screenfull';
 import Editor from '@monaco-editor/react';
 import { certificationsAPI, certTestsAPI, problemsAPI } from '../services/api';
@@ -26,10 +25,10 @@ export const CodingTestInterface = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isRunning, setIsRunning] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const webcamRef = useRef(null);
   const [selectedLanguage, setSelectedLanguage] = useState('python');
   const [allowedLanguages, setAllowedLanguages] = useState(['python', 'javascript', 'cpp', 'c', 'java']);
   const [proctoringViolations, setProctoringViolations] = useState([]);
+  const [isInitialSetup, setIsInitialSetup] = useState(true); // Grace period for initial setup
 
   // Handle proctoring violations
   const handleViolation = (violations) => {
@@ -90,6 +89,11 @@ export const CodingTestInterface = () => {
         const certResponse = await certificationsAPI.getCertification(certificationId);
         certData = certResponse.data;
         
+        // Create attempt ID for proctoring (use certification ID as base)
+        const timestamp = Date.now();
+        const generatedAttemptId = `cert_${certificationId}_${timestamp}`;
+        setAttemptId(generatedAttemptId);
+        
         // Fetch problems for this certification
         const problemIds = certData.problem_ids || [];
         const problemPromises = problemIds.map(id => problemsAPI.getProblem(id));
@@ -137,12 +141,33 @@ export const CodingTestInterface = () => {
   };
 
   useEffect(() => {
-    if (certification?.restrictions?.enable_fullscreen && screenfull.isEnabled) {
-      screenfull.request();
-    }
+    // Grace period: allow 2 seconds for webcam to start before enforcing fullscreen
+    const setupTimer = setTimeout(() => {
+      setIsInitialSetup(false);
+      console.log('✅ Initial setup complete - fullscreen enforcement active');
+    }, 2000);
+
+    // Request fullscreen after webcam has time to start (800ms)
+    const fullscreenTimer = setTimeout(() => {
+      console.log('🔒 Requesting fullscreen...');
+      if (screenfull.isEnabled && !screenfull.isFullscreen) {
+        screenfull.request().catch(err => {
+          console.error('Failed to enter fullscreen:', err);
+          toast.warning('Please enable fullscreen mode for this test');
+        });
+      }
+    }, 800);
+
+    // Continuous fullscreen monitor - checks every 500ms and forces fullscreen
+    const fullscreenMonitor = setInterval(() => {
+      if (!isInitialSetup && screenfull.isEnabled && !screenfull.isFullscreen) {
+        console.log('⚠️ Fullscreen lost! Forcing re-entry...');
+        screenfull.request().catch(err => console.error('Monitor: Failed to enter fullscreen:', err));
+      }
+    }, 500);
 
     const handleVisibilityChange = () => {
-      if (document.hidden && certification?.restrictions?.tab_switching === false) {
+      if (document.hidden) {
         setViolations(prev => {
           const newCount = prev.tabSwitch + 1;
           const totalViolations = newCount + prev.copyPaste;
@@ -154,7 +179,7 @@ export const CodingTestInterface = () => {
             });
             setTimeout(() => handleSubmitTest(), 3000);
           } else {
-            toast.warning(`⚠️ VIOLATION ${totalViolations}/3: Tab switching detected! Your test is being monitored.`, {
+            toast.warning(`⚠️ VIOLATION ${totalViolations}/3: Tab switching detected! Returning to fullscreen...`, {
               duration: 4000,
               style: { background: '#ea580c', color: 'white', fontSize: '14px', fontWeight: 'bold' }
             });
@@ -162,6 +187,13 @@ export const CodingTestInterface = () => {
           
           return { ...prev, tabSwitch: newCount };
         });
+      } else {
+        // When user returns to tab, force fullscreen immediately
+        if (screenfull.isEnabled && !screenfull.isFullscreen && !isInitialSetup) {
+          setTimeout(() => {
+            screenfull.request().catch(err => console.error('Failed to re-enter fullscreen:', err));
+          }, 200);
+        }
       }
     };
     
@@ -181,10 +213,51 @@ export const CodingTestInterface = () => {
     const handleKeyDown = (e) => {
       const restrictions = certification?.restrictions || {};
       
-      // Block tab switching
-      if (restrictions.tab_switching === false && (e.ctrlKey || e.altKey || e.metaKey) && e.key === 'Tab') {
+      // CRITICAL: Block Escape key with highest priority
+      if (e.key === 'Escape' || e.keyCode === 27) {
         e.preventDefault();
-        toast.error('Tab switching is not allowed!');
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        
+        toast.error('🚫 Escape is disabled! You must remain in fullscreen.', {
+          duration: 2000,
+          style: { background: '#dc2626', color: 'white', fontSize: '16px', fontWeight: 'bold' }
+        });
+        
+        // Immediately force fullscreen back
+        if (screenfull.isEnabled && !screenfull.isFullscreen) {
+          screenfull.request();
+        }
+        
+        // Record as violation attempt
+        setViolations(prev => ({ ...prev, tabSwitch: prev.tabSwitch + 1 }));
+        return false;
+      }
+      
+      // Block F11 to prevent manual fullscreen toggle
+      if (e.key === 'F11' || e.keyCode === 122) {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        
+        toast.error('🚫 F11 is disabled during test!', {
+          duration: 2000,
+          style: { background: '#dc2626', color: 'white', fontSize: '14px' }
+        });
+        
+        // Force fullscreen if needed
+        if (screenfull.isEnabled && !screenfull.isFullscreen) {
+          screenfull.request();
+        }
+        return false;
+      }
+      
+      // Block tab switching with keyboard
+      if ((e.ctrlKey || e.altKey || e.metaKey) && e.key === 'Tab') {
+        e.preventDefault();
+        toast.error('⚠️ Tab switching is not allowed!');
+        setViolations(prev => ({ ...prev, tabSwitch: prev.tabSwitch + 1 }));
+        return;
       }
       
       // Block copy/paste
@@ -213,8 +286,50 @@ export const CodingTestInterface = () => {
         }
       }
       
-      // Block F12 and other keys
-      if (['F11', 'F12'].includes(e.key)) e.preventDefault();
+      // Block F12 developer tools
+      if (e.key === 'F12') {
+        e.preventDefault();
+        toast.error('Developer tools are disabled during test');
+      }
+    };
+    
+    // Handle fullscreen exit attempts
+    const handleFullscreenChange = () => {
+      // Skip enforcement during initial setup (webcam starting)
+      if (isInitialSetup) {
+        console.log('⏳ Initial setup - skipping fullscreen enforcement');
+        return;
+      }
+
+      if (screenfull.isEnabled && !screenfull.isFullscreen) {
+        toast.error('⚠️ You must remain in fullscreen! Returning...', {
+          duration: 3000,
+          style: { background: '#dc2626', color: 'white', fontSize: '14px', fontWeight: 'bold' }
+        });
+        
+        // Record violation
+        setViolations(prev => {
+          const newCount = prev.tabSwitch + 1;
+          return { ...prev, tabSwitch: newCount };
+        });
+        
+        // Force back to fullscreen immediately
+        setTimeout(() => {
+          if (screenfull.isEnabled && !screenfull.isFullscreen) {
+            screenfull.request().catch(err => console.error('Failed to re-enter fullscreen:', err));
+          }
+        }, 300);
+      }
+    };
+
+    // Additional keydown handler specifically for Escape (capture phase)
+    const handleEscapeCapture = (e) => {
+      if (e.key === 'Escape' || e.keyCode === 27) {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        return false;
+      }
     };
 
     const handleContextMenu = (e) => {
@@ -224,41 +339,93 @@ export const CodingTestInterface = () => {
       }
     };
 
+    // Add Escape blocker in capture phase (highest priority)
+    document.addEventListener('keydown', handleEscapeCapture, true);
+    document.addEventListener('keyup', handleEscapeCapture, true);
+    window.addEventListener('keydown', handleEscapeCapture, true);
+    
     document.addEventListener('visibilitychange', handleVisibilityChange);
     document.addEventListener('keydown', handleKeyDown);
     document.addEventListener('contextmenu', handleContextMenu);
     window.addEventListener('beforeunload', handleBeforeUnload);
     document.addEventListener('keydown', preventNavigation);
     
+    // Listen for fullscreen changes
+    if (screenfull.isEnabled) {
+      screenfull.on('change', handleFullscreenChange);
+    }
+    
     // Prevent browser back button
     window.history.pushState(null, '', window.location.href);
-    window.addEventListener('popstate', () => {
+    const handlePopState = () => {
       window.history.pushState(null, '', window.location.href);
       toast.warning('Navigation blocked during test!');
-    });
+    };
+    window.addEventListener('popstate', handlePopState);
 
     return () => {
+      clearTimeout(setupTimer);
+      clearTimeout(fullscreenTimer);
+      clearInterval(fullscreenMonitor);
+      
+      // Remove escape capture listeners
+      document.removeEventListener('keydown', handleEscapeCapture, true);
+      document.removeEventListener('keyup', handleEscapeCapture, true);
+      window.removeEventListener('keydown', handleEscapeCapture, true);
+      
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       document.removeEventListener('keydown', handleKeyDown);
       document.removeEventListener('contextmenu', handleContextMenu);
       window.removeEventListener('beforeunload', handleBeforeUnload);
       document.removeEventListener('keydown', preventNavigation);
-      if (screenfull.isEnabled && screenfull.isFullscreen) screenfull.exit();
+      window.removeEventListener('popstate', handlePopState);
+      
+      if (screenfull.isEnabled) {
+        screenfull.off('change', handleFullscreenChange);
+        if (screenfull.isFullscreen) screenfull.exit();
+      }
     };
   }, [certification]);
 
   useEffect(() => {
+    if (timeRemaining === null || isLoading) return;
+    
     const timer = setInterval(() => {
       setTimeRemaining(prev => {
         if (prev <= 1) {
-          handleSubmitTest();
+          clearInterval(timer);
+          toast.info('⏰ Time is up! Auto-submitting test...', {
+            duration: 3000,
+            style: { background: '#0891b2', color: 'white', fontSize: '14px', fontWeight: 'bold' }
+          });
+          setTimeout(() => {
+            handleSubmitTest();
+          }, 1000);
           return 0;
         }
+        
+        // Warning at 5 minutes remaining
+        if (prev === 300) {
+          toast.warning('⚠️ Only 5 minutes remaining!', {
+            duration: 5000,
+            style: { background: '#ea580c', color: 'white', fontSize: '14px' }
+          });
+        }
+        
+        // Warning at 1 minute remaining
+        if (prev === 60) {
+          toast.error('⚠️ Only 1 minute remaining!', {
+            duration: 5000,
+            style: { background: '#dc2626', color: 'white', fontSize: '14px', fontWeight: 'bold' }
+          });
+        }
+        
         return prev - 1;
       });
     }, 1000);
+    
     return () => clearInterval(timer);
-  }, []);
+  }, [isLoading, timeRemaining]);
 
   const handleCodeChange = (value) => {
     setCode(prev => ({ ...prev, [currentQuestion]: value || '' }));
@@ -711,21 +878,16 @@ export const CodingTestInterface = () => {
               </div>
             )}
 
-            {/* AI Proctoring Monitor */}
-            {attemptId && (
-              <div className="bg-slate-800/40 rounded-lg p-4 border border-slate-700">
-                <h3 className="text-lg font-bold text-purple-400 mb-3 flex items-center gap-2">
-                  <Eye className="h-5 w-5" />
-                  🎥 Proctoring Monitor
-                </h3>
-                <WebcamProctoring 
-                  attemptId={attemptId}
-                  onViolation={handleViolation}
-                />
-              </div>
-            )}
           </div>
         </div>
+
+        {/* Fixed Proctoring Overlay - Bottom Right */}
+        {attemptId && !isLoading && (
+          <WebcamProctoring 
+            attemptId={attemptId}
+            onViolation={handleViolation}
+          />
+        )}
 
         {/* Right Panel - Code Editor */}
         <div className="w-1/2 flex flex-col bg-slate-900">
@@ -793,7 +955,7 @@ export const CodingTestInterface = () => {
       </div>
 
       {/* Bottom Navigation */}
-      <div className="border-t border-slate-700 bg-slate-800/90 px-6 py-3 flex items-center justify-between">
+      <div className="border-t border-slate-700 bg-slate-800/90 px-6 py-3 flex items-center justify-between relative z-[60]">
         <button
           onClick={() => setCurrentQuestion(Math.max(0, currentQuestion - 1))}
           disabled={currentQuestion === 0}
@@ -831,31 +993,7 @@ export const CodingTestInterface = () => {
         </button>
       </div>
 
-      {/* Floating Webcam - Bottom Right (moved to avoid blocking any buttons) */}
-      {certification?.restrictions?.enable_proctoring && (
-        <div className="fixed bottom-20 right-6 z-30">
-          <Card className="bg-gradient-to-br from-slate-800 to-slate-900 backdrop-blur-sm border border-slate-700 hover:border-blue-500/50 transition-all duration-300 shadow-2xl">
-            <CardContent className="p-2">
-              <div className="flex items-center gap-2 mb-1.5 px-1">
-                <div className="flex items-center gap-1.5">
-                  <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
-                  <Eye className="h-3 w-3 text-blue-400" />
-                </div>
-                <span className="text-xs font-semibold text-slate-300">Live</span>
-              </div>
-              <div className="w-36 h-24 overflow-hidden rounded border border-slate-700/50 bg-slate-900">
-                <Webcam
-                  ref={webcamRef}
-                  audio={false}
-                  screenshotFormat="image/jpeg"
-                  mirrored
-                  className="w-full h-full object-cover"
-                />
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+
 
       {/* Violations */}
       {(violations.tabSwitch > 0 || violations.copyPaste > 0) && (
