@@ -31,9 +31,8 @@ from .routes.simple_gnn import router as gnn_router
 from .routes.ai_quiz import router as ai_quiz_router
 from .routes.cert_tests_admin import router as cert_tests_admin_router
 from .routes.cert_tests_runtime import router as cert_tests_runtime_router
-# Temporarily disable proctoring import to fix login
+# Temporarily disabled for troubleshooting
 # from .routes.proctoring import router as proctoring_router
-# from .services.proctoring import get_proctoring_service
 
 from contextlib import asynccontextmanager
 
@@ -41,10 +40,6 @@ from contextlib import asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
     print("Starting up...")
-    # Temporarily disabled proctoring
-    # print("Loading proctoring models...")
-    # proctoring_service = get_proctoring_service()
-    # proctoring_service.load_models()
     print("Startup complete")
     yield
     # Shutdown

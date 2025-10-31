@@ -45,6 +45,14 @@ services:
     depends_on:
       - chroma-init
     restart: unless-stopped
+    # GPU support for AI proctoring (optional, remove if no GPU)
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
 
   # --- Judge0 Services (Unchanged) ---
   judge0-db:

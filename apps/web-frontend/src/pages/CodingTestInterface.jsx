@@ -9,6 +9,7 @@ import screenfull from 'screenfull';
 import Editor from '@monaco-editor/react';
 import { certificationsAPI, certTestsAPI, problemsAPI } from '../services/api';
 import { toast } from 'sonner';
+import WebcamProctoring from '../components/WebcamProctoring';
 
 export const CodingTestInterface = () => {
   const { certificationId, topicId, difficulty } = useParams();
@@ -28,6 +29,15 @@ export const CodingTestInterface = () => {
   const webcamRef = useRef(null);
   const [selectedLanguage, setSelectedLanguage] = useState('python');
   const [allowedLanguages, setAllowedLanguages] = useState(['python', 'javascript', 'cpp', 'c', 'java']);
+  const [proctoringViolations, setProctoringViolations] = useState([]);
+
+  // Handle proctoring violations
+  const handleViolation = (violations) => {
+    setProctoringViolations(prev => [...violations, ...prev]);
+    violations.forEach(v => {
+      toast.error(v.message, { duration: 3000 });
+    });
+  };
 
   const allLanguageOptions = [
     { id: 71, name: 'Python 3', value: 'python' },
@@ -698,6 +708,20 @@ export const CodingTestInterface = () => {
                     </div>
                   ))}
                 </div>
+              </div>
+            )}
+
+            {/* AI Proctoring Monitor */}
+            {attemptId && (
+              <div className="bg-slate-800/40 rounded-lg p-4 border border-slate-700">
+                <h3 className="text-lg font-bold text-purple-400 mb-3 flex items-center gap-2">
+                  <Eye className="h-5 w-5" />
+                  🎥 Proctoring Monitor
+                </h3>
+                <WebcamProctoring 
+                  attemptId={attemptId}
+                  onViolation={handleViolation}
+                />
               </div>
             )}
           </div>

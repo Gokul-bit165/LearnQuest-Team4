@@ -1,202 +1,197 @@
-"""
-Proctoring API endpoints
+﻿"""
+Proctoring API routes
+
+Provides a WebSocket endpoint for live video frames and simple REST endpoints
+to fetch proctoring sessions and violations.
 """
 
-from typing import Optional
-from fastapi import APIRouter, HTTPException, Depends, UploadFile, File
-from pydantic import BaseModel
-from bson import ObjectId
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, HTTPException
+from typing import Dict, Any, List, Optional
 from datetime import datetime
+from bson import ObjectId
+import cv2
+import numpy as np
+import base64
+import logging
 
-from ..auth import get_current_user
 from ..database import get_collection
-from ..services.proctoring import get_proctoring_service
+from ..auth import get_current_user
+from ..proctoring_detector import ProctoringDetector
 
-router = APIRouter(prefix="/api/ai", tags=["proctoring"])
+logger = logging.getLogger(__name__)
+router = APIRouter(prefix="/api/proctoring", tags=["proctoring"])
+
+# Active proctoring sessions in memory (attempt_id -> detector)
+active_sessions: Dict[str, ProctoringDetector] = {}
 
 
-class ProctorImageRequest(BaseModel):
-    attempt_id: str
-    image_base64: str  # base64 encoded image
-    timestamp: Optional[str] = None
+@router.websocket("/ws/{attempt_id}")
+async def proctoring_websocket(websocket: WebSocket, attempt_id: str):
+    """WebSocket endpoint for real-time proctoring.
 
-
-@router.post("/proctor")
-async def proctor_image(
-    request: ProctorImageRequest,
-    current_user=Depends(get_current_user)
-):
+    Clients send base64-encoded JPEG frames as JSON {"frame": "data:..."}.
+    Server replies with detection summary and stores violations in MongoDB.
     """
-    Process an image for proctoring violations
-    """
+    await websocket.accept()
+    logger.info(f"Proctoring WebSocket connected for attempt: {attempt_id}")
+
+    proctoring_sessions = get_collection("proctoring_sessions")
+    proctoring_violations = get_collection("proctoring_violations")
+
+    # Create detector instance
+    detector = ProctoringDetector()
+    active_sessions[attempt_id] = detector
+
+    # Create/update proctoring session
+    session_data = {
+        "attempt_id": attempt_id,
+        "started_at": datetime.utcnow(),
+        "status": "active",
+        "total_violations": 0,
+        "violation_counts": {
+            "looking_away": 0,
+            "phone_detected": 0,
+            "multiple_people": 0,
+            "no_face": 0,
+            "prohibited_object": 0,
+        },
+    }
+
+    session_result = proctoring_sessions.update_one(
+        {"attempt_id": attempt_id}, {"$set": session_data}, upsert=True
+    )
+    session_id = (
+        session_result.upserted_id
+        or proctoring_sessions.find_one({"attempt_id": attempt_id})["_id"]
+    )
+
     try:
-        # Get proctoring service
-        proctoring_service = get_proctoring_service()
-        
-        # Process image
-        result = proctoring_service.process_image(request.image_base64)
-        
-        # Log violations to the attempt if any found
-        if result['violations']:
-            attempts_collection = get_collection("certification_attempts")
-            
-            # Get attempt
-            attempt_doc = attempts_collection.find_one({
-                "_id": ObjectId(request.attempt_id)
-            })
-            
-            if attempt_doc and attempt_doc.get("status") in ["started", "in_progress"]:
-                # Calculate behavior score penalty
-                penalty = proctoring_service.calculate_behavior_penalty(result['violations'])
-                
-                # Create event
-                event = {
-                    "type": "violation_detected",
-                    "violations": result['violations'],
-                    "penalty": penalty,
-                    "metadata": result['metadata'],
-                    "timestamp": request.timestamp or datetime.utcnow().isoformat()
-                }
-                
-                # Update behavior score
-                new_behavior_score = max(0, attempt_doc.get("behavior_score", 100) + penalty)
-                
-                # Log to attempt
-                attempts_collection.update_one(
-                    {"_id": ObjectId(request.attempt_id)},
-                    {
-                        "$push": {"proctoring_logs": event},
-                        "$set": {
-                            "behavior_score": new_behavior_score,
-                            "status": "in_progress"
+        while True:
+            data = await websocket.receive_json()
+
+            if data.get("action") == "stop":
+                logger.info(f"Stopping proctoring for attempt: {attempt_id}")
+                break
+
+            frame_data = data.get("frame")
+            if not frame_data:
+                continue
+
+            try:
+                img_data = base64.b64decode(
+                    frame_data.split(",")[1] if "," in frame_data else frame_data
+                )
+                nparr = np.frombuffer(img_data, np.uint8)
+                frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+
+                if frame is None:
+                    logger.warning("Failed to decode frame")
+                    continue
+
+                # Process frame
+                result = detector.process_frame(frame)
+
+                # Save violations to database
+                if result.get("violations"):
+                    for violation in result["violations"]:
+                        violation_doc = {
+                            "attempt_id": attempt_id,
+                            "session_id": str(session_id),
+                            "type": violation.get("type"),
+                            "severity": violation.get("severity"),
+                            "message": violation.get("message"),
+                            "timestamp": datetime.fromisoformat(violation.get("timestamp")),
+                            "metadata": {
+                                "yaw": result.get("yaw"),
+                                "pitch": result.get("pitch"),
+                                "person_count": result.get("person_count"),
+                            },
                         }
+                        proctoring_violations.insert_one(violation_doc)
+
+                        # Update session violation counts
+                        proctoring_sessions.update_one(
+                            {"_id": session_id},
+                            {
+                                "$inc": {
+                                    f"violation_counts.{violation.get('type')}": 1,
+                                    "total_violations": 1,
+                                }
+                            },
+                        )
+
+                # Send result back to client
+                await websocket.send_json(
+                    {
+                        "status": "success",
+                        "data": {
+                            "looking_away": result.get("looking_away"),
+                            "phone_detected": result.get("phone_detected"),
+                            "multiple_people": result.get("multiple_people"),
+                            "has_violations": len(result.get("violations", [])) > 0,
+                            "violations": result.get("violations", []),
+                            "yaw": result.get("yaw"),
+                            "pitch": result.get("pitch"),
+                        },
                     }
                 )
-        
-        return {
-            "status": "ok",
-            "violations": result['violations'],
-            "metadata": result['metadata'],
-            "face_detected": result['face_detected'],
-            "person_count": result['person_count']
-        }
-        
+
+            except Exception as e:
+                logger.error(f"Error processing frame: {e}", exc_info=True)
+                await websocket.send_json({"status": "error", "message": str(e)})
+
+    except WebSocketDisconnect:
+        logger.info(f"WebSocket disconnected for attempt: {attempt_id}")
     except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to process proctoring image: {str(e)}"
+        logger.error(f"WebSocket error: {e}", exc_info=True)
+    finally:
+        # Cleanup
+        if attempt_id in active_sessions:
+            try:
+                active_sessions[attempt_id].cleanup()
+            except Exception:
+                pass
+            del active_sessions[attempt_id]
+
+        # Mark session as completed
+        proctoring_sessions.update_one(
+            {"_id": session_id}, {"$set": {"ended_at": datetime.utcnow(), "status": "completed"}}
         )
 
 
-@router.post("/proctor/file")
-async def proctor_image_file(
-    attempt_id: str,
-    file: UploadFile = File(...),
-    current_user=Depends(get_current_user)
-):
-    """
-    Process an uploaded image file for proctoring
-    """
-    try:
-        # Read file
-        contents = await file.read()
-        
-        # Convert to base64
-        import base64
-        image_base64 = base64.b64encode(contents).decode('utf-8')
-        
-        # Create request
-        request = ProctorImageRequest(
-            attempt_id=attempt_id,
-            image_base64=image_base64
-        )
-        
-        # Process using the main endpoint
-        return await proctor_image(request, current_user)
-        
-    except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to process proctoring file: {str(e)}"
-        )
+@router.get("/session/{attempt_id}")
+async def get_proctoring_session(attempt_id: str, current_user=Depends(get_current_user)):
+    """Get proctoring session details"""
+    proctoring_sessions = get_collection("proctoring_sessions")
+    proctoring_violations = get_collection("proctoring_violations")
+
+    session = proctoring_sessions.find_one({"attempt_id": attempt_id})
+
+    if not session:
+        raise HTTPException(status_code=404, detail="Proctoring session not found")
+
+    # Get violations
+    violations = list(
+        proctoring_violations.find({"attempt_id": attempt_id}).sort("timestamp", -1)
+    )
+
+    # Convert ObjectIds to strings
+    session["_id"] = str(session["_id"])
+    for v in violations:
+        v["_id"] = str(v["_id"])
+        if "session_id" in v:
+            v["session_id"] = str(v["session_id"])
+
+    return {"session": session, "violations": violations}
 
 
-class AudioEventRequest(BaseModel):
-    attempt_id: str
-    audio_features: dict  # RMS, voice_activity, etc.
-    timestamp: Optional[str] = None
-
-
-@router.post("/proctor/audio")
-async def log_audio_event(
-    request: AudioEventRequest,
-    current_user=Depends(get_current_user)
-):
-    """
-    Log audio-based proctoring events
-    """
-    try:
-        attempts_collection = get_collection("certification_attempts")
-        
-        # Get attempt
-        attempt_doc = attempts_collection.find_one({
-            "_id": ObjectId(request.attempt_id)
-        })
-        
-        if not attempt_doc:
-            raise HTTPException(status_code=404, detail="Attempt not found")
-        
-        if attempt_doc.get("status") not in ["started", "in_progress"]:
-            return {"status": "ignored", "reason": "test_not_active"}
-        
-        # Detect audio anomalies
-        violations = []
-        rms = request.audio_features.get("rms", 0)
-        voice_activity = request.audio_features.get("voice_activity", False)
-        multiple_speakers = request.audio_features.get("multiple_speakers", False)
-        
-        if rms > 0.8:  # Loud noise threshold
-            violations.append("loud_noise")
-        
-        if multiple_speakers:
-            violations.append("multiple_voice_sources")
-        
-        if not voice_activity and rms < 0.01:
-            violations.append("prolonged_silence")
-        
-        # Create event
-        event = {
-            "type": "audio_event",
-            "violations": violations,
-            "audio_features": request.audio_features,
-            "timestamp": request.timestamp or datetime.utcnow().isoformat()
-        }
-        
-        # Calculate penalty
-        penalty = -5 if violations else 0
-        
-        # Update behavior score
-        new_behavior_score = max(0, attempt_doc.get("behavior_score", 100) + penalty)
-        
-        # Log to attempt
-        attempts_collection.update_one(
-            {"_id": ObjectId(request.attempt_id)},
-            {
-                "$push": {"proctoring_logs": event},
-                "$set": {
-                    "behavior_score": new_behavior_score
-                }
-            }
-        )
-        
-        return {
-            "status": "ok",
-            "violations": violations,
-            "behavior_score": new_behavior_score
-        }
-        
-    except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to log audio event: {str(e)}"
-        )
+@router.get("/violations/{attempt_id}")
+async def get_proctoring_violations(attempt_id: str, current_user=Depends(get_current_user)):
+    """Return a list of violations for an attempt"""
+    proctoring_violations = get_collection("proctoring_violations")
+    violations = list(proctoring_violations.find({"attempt_id": attempt_id}).sort("timestamp", -1))
+    for v in violations:
+        v["_id"] = str(v["_id"])
+        if "session_id" in v:
+            v["session_id"] = str(v["session_id"])
+    return {"violations": violations}

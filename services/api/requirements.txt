@@ -19,7 +19,9 @@ google-auth==2.23.4
 google-auth-oauthlib==1.1.0
 google-auth-httplib2==0.1.1
 
-# Basic proctoring dependencies
+# AI Proctoring dependencies
 opencv-python-headless==4.8.1.78
+mediapipe==0.10.8
+ultralytics==8.1.20
 scipy==1.11.4
 scikit-learn==1.3.2
