@@ -100,6 +100,15 @@ async def get_user_dashboard(current_user: User = Depends(get_current_user)):
         completed_courses = user_doc.get("completed_courses", [])
         enrolled_courses = user_doc.get("enrolled_courses", [])
         
+        # Get certification test attempts
+        cert_attempts = get_collection("cert_attempts")
+        user_cert_attempts = list(cert_attempts.find({
+            "user_id": str(current_user.id),
+            "status": "completed"
+        }))
+        total_cert_tests = len(user_cert_attempts)
+        passed_cert_tests = len([a for a in user_cert_attempts if a.get("score", 0) >= 70])
+        
         # Calculate performance metrics
         total_quizzes = len(quiz_history)
         if total_quizzes > 0:
@@ -190,42 +199,80 @@ async def get_user_dashboard(current_user: User = Depends(get_current_user)):
                 "title": "First Quiz",
                 "description": "Completed your first quiz",
                 "icon": "🎯",
-                "earned": total_quizzes > 0
+                "earned": total_quizzes > 0,
+                "category": "quiz"
             },
             {
                 "id": 2,
                 "title": "Streak Master",
                 "description": "Maintained a 10-day streak",
                 "icon": "🔥",
-                "earned": streak_count >= 10
+                "earned": streak_count >= 10,
+                "category": "streak"
             },
             {
                 "id": 3,
-                "title": "Speed Learner",
-                "description": "Completed 5 lessons in one day",
-                "icon": "⚡",
-                "earned": len(completed_topics) >= 5
+                "title": "Knowledge Seeker",
+                "description": "Completed 5 lessons",
+                "icon": "📚",
+                "earned": len(completed_topics) >= 5,
+                "category": "lesson"
             },
             {
                 "id": 4,
                 "title": "Perfect Score",
                 "description": "Scored 100% on a quiz",
                 "icon": "💯",
-                "earned": best_score >= 100
+                "earned": best_score >= 100,
+                "category": "quiz"
             },
             {
                 "id": 5,
                 "title": "Course Master",
-                "description": "Completed a full course",
+                "description": "Completed a full course module",
                 "icon": "🏆",
-                "earned": len(completed_modules) > 0
+                "earned": len(completed_modules) > 0,
+                "category": "course"
             },
             {
                 "id": 6,
                 "title": "XP Collector",
                 "description": "Earned 1000 XP",
                 "icon": "⭐",
-                "earned": user_doc.get("xp", 0) >= 1000
+                "earned": user_doc.get("xp", 0) >= 1000,
+                "category": "xp"
+            },
+            {
+                "id": 7,
+                "title": "Certified Beginner",
+                "description": "Completed your first certification test",
+                "icon": "🎓",
+                "earned": total_cert_tests > 0,
+                "category": "certification"
+            },
+            {
+                "id": 8,
+                "title": "Certification Expert",
+                "description": "Passed 5 certification tests",
+                "icon": "🏅",
+                "earned": passed_cert_tests >= 5,
+                "category": "certification"
+            },
+            {
+                "id": 9,
+                "title": "Dedicated Learner",
+                "description": "Completed 20 lessons",
+                "icon": "📖",
+                "earned": len(completed_topics) >= 20,
+                "category": "lesson"
+            },
+            {
+                "id": 10,
+                "title": "Quiz Champion",
+                "description": "Completed 10 quizzes",
+                "icon": "🎪",
+                "earned": total_quizzes >= 10,
+                "category": "quiz"
             }
         ]
         
@@ -249,7 +296,9 @@ async def get_user_dashboard(current_user: User = Depends(get_current_user)):
                 "courses_completed": len(completed_modules),
                 "total_study_time": total_study_time,
                 "weekly_xp": weekly_xp,
-                "monthly_xp": monthly_xp
+                "monthly_xp": monthly_xp,
+                "cert_tests_completed": total_cert_tests,
+                "cert_tests_passed": passed_cert_tests
             },
             "recent_activity": quiz_history[-10:] if len(quiz_history) > 10 else quiz_history,
             "weekly_progress": weekly_progress,

@@ -524,6 +524,50 @@ const Dashboard = () => {
 
             {activeTab === 'progress' && (
               <>
+                {/* Progress Overview Cards */}
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: 0.2 }}
+                  className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8"
+                >
+                  <div className="bg-gradient-to-br from-blue-900/40 to-blue-800/20 border border-blue-700/50 rounded-xl p-6">
+                    <div className="flex items-center justify-between mb-3">
+                      <BookOpen className="w-8 h-8 text-blue-400" />
+                      <span className="text-3xl font-bold text-white">{stats.lessons_completed}</span>
+                    </div>
+                    <h3 className="text-blue-300 font-semibold mb-1">Lessons Learned</h3>
+                    <p className="text-slate-400 text-sm">Topics completed</p>
+                  </div>
+
+                  <div className="bg-gradient-to-br from-purple-900/40 to-purple-800/20 border border-purple-700/50 rounded-xl p-6">
+                    <div className="flex items-center justify-between mb-3">
+                      <Brain className="w-8 h-8 text-purple-400" />
+                      <span className="text-3xl font-bold text-white">{stats.total_quizzes}</span>
+                    </div>
+                    <h3 className="text-purple-300 font-semibold mb-1">Quizzes Attended</h3>
+                    <p className="text-slate-400 text-sm">Average: {stats.average_score}%</p>
+                  </div>
+
+                  <div className="bg-gradient-to-br from-green-900/40 to-green-800/20 border border-green-700/50 rounded-xl p-6">
+                    <div className="flex items-center justify-between mb-3">
+                      <Award className="w-8 h-8 text-green-400" />
+                      <span className="text-3xl font-bold text-white">{stats.cert_tests_completed || 0}</span>
+                    </div>
+                    <h3 className="text-green-300 font-semibold mb-1">Certification Tests</h3>
+                    <p className="text-slate-400 text-sm">Passed: {stats.cert_tests_passed || 0}</p>
+                  </div>
+
+                  <div className="bg-gradient-to-br from-orange-900/40 to-orange-800/20 border border-orange-700/50 rounded-xl p-6">
+                    <div className="flex items-center justify-between mb-3">
+                      <Trophy className="w-8 h-8 text-orange-400" />
+                      <span className="text-3xl font-bold text-white">{stats.courses_completed}</span>
+                    </div>
+                    <h3 className="text-orange-300 font-semibold mb-1">Courses Completed</h3>
+                    <p className="text-slate-400 text-sm">Started: {stats.courses_started}</p>
+                  </div>
+                </motion.div>
+
                 {/* Skill Distribution */}
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}

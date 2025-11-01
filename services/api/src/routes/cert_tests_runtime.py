@@ -487,11 +487,54 @@ async def finish_attempt(payload: Dict[str, Any], current_user=Depends(get_curre
             }
         }
     )
+    
+    # Update user's streak and XP
+    users = get_collection("users")
+    user_doc = users.find_one({"_id": ObjectId(current_user.id)})
+    
+    if user_doc:
+        # Calculate streak
+        today = datetime.utcnow().date()
+        last_active = user_doc.get("last_active_date")
+        
+        if last_active:
+            last_active_date = last_active.date() if isinstance(last_active, datetime) else last_active
+            days_diff = (today - last_active_date).days
+            
+            if days_diff == 1:
+                # Consecutive day - increment streak
+                new_streak = user_doc.get("streak_count", 0) + 1
+            elif days_diff == 0:
+                # Same day - keep current streak
+                new_streak = user_doc.get("streak_count", 0)
+            else:
+                # Gap in days - reset streak
+                new_streak = 1
+        else:
+            # First time - start streak
+            new_streak = 1
+        
+        # Award XP based on performance (10 XP per correct answer)
+        xp_earned = total_passed * 10
+        
+        # Update user's streak, XP, and last active date
+        users.update_one(
+            {"_id": ObjectId(current_user.id)},
+            {
+                "$inc": {"xp": xp_earned},
+                "$set": {
+                    "last_active_date": datetime.utcnow(),
+                    "streak_count": new_streak
+                }
+            }
+        )
 
     return {
         "message": "Test submitted successfully",
         "result": result,
-        "score": score
+        "score": score,
+        "xp_earned": xp_earned if 'xp_earned' in locals() else 0,
+        "streak_count": new_streak if 'new_streak' in locals() else 0
     }
 
 
