@@ -1,6 +1,31 @@
 import React, { useState, useEffect } from 'react'
-import { Download, FileText, Eye, AlertTriangle, CheckCircle, XCircle } from 'lucide-react'
+import { Download, FileText, Eye, AlertTriangle, CheckCircle, XCircle, TrendingUp, Activity, BarChart3, PieChart } from 'lucide-react'
 import { adminCertTestsAPI } from '../services/api'
+import { Line, Bar, Doughnut } from 'react-chartjs-2'
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend,
+  ArcElement,
+} from 'chart.js'
+
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend,
+  ArcElement
+)
 
 const ResultsAnalytics = () => {
   const [results, setResults] = useState([])
@@ -64,6 +89,146 @@ const ResultsAnalytics = () => {
     flaggedIncidents: results.filter(r => r.proctoring_events_count > 5).length
   }
 
+  // Prepare chart data
+  // Score distribution for last 30 days
+  const last30Days = new Date()
+  last30Days.setDate(last30Days.getDate() - 30)
+  const recentResults = results.filter(r => new Date(r.created_at) > last30Days)
+  
+  const dailyData = {}
+  recentResults.forEach(r => {
+    const date = new Date(r.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+    if (!dailyData[date]) {
+      dailyData[date] = { total: 0, sum: 0, passed: 0 }
+    }
+    dailyData[date].total++
+    dailyData[date].sum += r.score
+    if (r.score >= 85) dailyData[date].passed++
+  })
+
+  const sortedDates = Object.keys(dailyData).slice(-14) // Last 14 days
+  const lineChartData = {
+    labels: sortedDates,
+    datasets: [
+      {
+        label: 'Average Score',
+        data: sortedDates.map(date => (dailyData[date].sum / dailyData[date].total).toFixed(1)),
+        borderColor: 'rgb(59, 130, 246)',
+        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+        tension: 0.4,
+        fill: true,
+      },
+      {
+        label: 'Pass Rate',
+        data: sortedDates.map(date => ((dailyData[date].passed / dailyData[date].total) * 100).toFixed(1)),
+        borderColor: 'rgb(34, 197, 94)',
+        backgroundColor: 'rgba(34, 197, 94, 0.1)',
+        tension: 0.4,
+        fill: true,
+      }
+    ]
+  }
+
+  // Score range distribution
+  const scoreRanges = { '0-20': 0, '21-40': 0, '41-60': 0, '61-80': 0, '81-100': 0 }
+  results.forEach(r => {
+    if (r.score <= 20) scoreRanges['0-20']++
+    else if (r.score <= 40) scoreRanges['21-40']++
+    else if (r.score <= 60) scoreRanges['41-60']++
+    else if (r.score <= 80) scoreRanges['61-80']++
+    else scoreRanges['81-100']++
+  })
+
+  const barChartData = {
+    labels: Object.keys(scoreRanges),
+    datasets: [{
+      label: 'Number of Tests',
+      data: Object.values(scoreRanges),
+      backgroundColor: [
+        'rgba(239, 68, 68, 0.6)',
+        'rgba(251, 146, 60, 0.6)',
+        'rgba(250, 204, 21, 0.6)',
+        'rgba(132, 204, 22, 0.6)',
+        'rgba(34, 197, 94, 0.6)',
+      ],
+      borderColor: [
+        'rgb(239, 68, 68)',
+        'rgb(251, 146, 60)',
+        'rgb(250, 204, 21)',
+        'rgb(132, 204, 22)',
+        'rgb(34, 197, 94)',
+      ],
+      borderWidth: 2,
+    }]
+  }
+
+  // Difficulty distribution
+  const difficultyData = {}
+  results.forEach(r => {
+    const diff = r.difficulty || 'undefined'
+    difficultyData[diff] = (difficultyData[diff] || 0) + 1
+  })
+
+  const doughnutChartData = {
+    labels: Object.keys(difficultyData),
+    datasets: [{
+      data: Object.values(difficultyData),
+      backgroundColor: [
+        'rgba(59, 130, 246, 0.6)',
+        'rgba(251, 146, 60, 0.6)',
+        'rgba(239, 68, 68, 0.6)',
+        'rgba(168, 85, 247, 0.6)',
+      ],
+      borderColor: [
+        'rgb(59, 130, 246)',
+        'rgb(251, 146, 60)',
+        'rgb(239, 68, 68)',
+        'rgb(168, 85, 247)',
+      ],
+      borderWidth: 2,
+    }]
+  }
+
+  const chartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        labels: { color: 'rgb(203, 213, 225)' }
+      }
+    },
+    scales: {
+      y: {
+        ticks: { color: 'rgb(148, 163, 184)' },
+        grid: { color: 'rgba(148, 163, 184, 0.1)' }
+      },
+      x: {
+        ticks: { color: 'rgb(148, 163, 184)' },
+        grid: { color: 'rgba(148, 163, 184, 0.1)' }
+      }
+    },
+    animation: {
+      duration: 2000,
+      easing: 'easeInOutQuart'
+    }
+  }
+
+  const doughnutOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        position: 'bottom',
+        labels: { color: 'rgb(203, 213, 225)' }
+      }
+    },
+    animation: {
+      animateRotate: true,
+      animateScale: true,
+      duration: 2000
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -104,6 +269,104 @@ const ResultsAnalytics = () => {
         <div className="bg-slate-800 rounded-xl p-6 border border-slate-700">
           <div className="text-red-400 mb-2">Flagged Incidents</div>
           <div className="text-3xl font-bold text-white">{stats.flaggedIncidents}</div>
+        </div>
+      </div>
+
+      {/* Analytics Charts */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Trend Chart */}
+        <div className="bg-slate-800 rounded-xl p-6 border border-slate-700">
+          <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+            <TrendingUp className="w-5 h-5 text-blue-400" />
+            Performance Trends (Last 14 Days)
+          </h3>
+          <div className="h-64">
+            <Line data={lineChartData} options={chartOptions} />
+          </div>
+        </div>
+
+        {/* Score Distribution */}
+        <div className="bg-slate-800 rounded-xl p-6 border border-slate-700">
+          <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+            <BarChart3 className="w-5 h-5 text-green-400" />
+            Score Distribution
+          </h3>
+          <div className="h-64">
+            <Bar data={barChartData} options={chartOptions} />
+          </div>
+        </div>
+
+        {/* Difficulty Distribution */}
+        <div className="bg-slate-800 rounded-xl p-6 border border-slate-700">
+          <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+            <PieChart className="w-5 h-5 text-purple-400" />
+            Tests by Difficulty
+          </h3>
+          <div className="h-64">
+            <Doughnut data={doughnutChartData} options={doughnutOptions} />
+          </div>
+        </div>
+
+        {/* Real-time Metrics */}
+        <div className="bg-slate-800 rounded-xl p-6 border border-slate-700">
+          <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+            <Activity className="w-5 h-5 text-orange-400" />
+            Key Metrics
+          </h3>
+          <div className="space-y-4">
+            <div className="p-4 bg-slate-700/50 rounded-lg">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-slate-400">Completion Rate</span>
+                <span className="text-white font-bold">
+                  {results.length > 0 ? ((results.filter(r => r.status === 'completed').length / results.length) * 100).toFixed(1) : 0}%
+                </span>
+              </div>
+              <div className="w-full bg-slate-600 rounded-full h-2">
+                <div 
+                  className="bg-gradient-to-r from-blue-500 to-purple-600 h-2 rounded-full transition-all duration-1000"
+                  style={{ width: `${results.length > 0 ? ((results.filter(r => r.status === 'completed').length / results.length) * 100) : 0}%` }}
+                />
+              </div>
+            </div>
+
+            <div className="p-4 bg-slate-700/50 rounded-lg">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-slate-400">Tests This Week</span>
+                <span className="text-white font-bold">
+                  {results.filter(r => {
+                    const testDate = new Date(r.created_at)
+                    const weekAgo = new Date()
+                    weekAgo.setDate(weekAgo.getDate() - 7)
+                    return testDate > weekAgo
+                  }).length}
+                </span>
+              </div>
+            </div>
+
+            <div className="p-4 bg-slate-700/50 rounded-lg">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-slate-400">Avg. Test Duration</span>
+                <span className="text-white font-bold">
+                  {results.length > 0 ? Math.round(results.reduce((sum, r) => sum + (r.duration_minutes || 0), 0) / results.length) : 0} min
+                </span>
+              </div>
+            </div>
+
+            <div className="p-4 bg-slate-700/50 rounded-lg">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-slate-400">Violation Rate</span>
+                <span className={`font-bold ${stats.flaggedIncidents > 0 ? 'text-red-400' : 'text-green-400'}`}>
+                  {results.length > 0 ? ((stats.flaggedIncidents / results.length) * 100).toFixed(1) : 0}%
+                </span>
+              </div>
+              <div className="w-full bg-slate-600 rounded-full h-2">
+                <div 
+                  className="bg-gradient-to-r from-red-500 to-orange-600 h-2 rounded-full transition-all duration-1000"
+                  style={{ width: `${results.length > 0 ? ((stats.flaggedIncidents / results.length) * 100) : 0}%` }}
+                />
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 

@@ -873,6 +873,8 @@ async def get_all_attempts(current_user=Depends(get_current_user)):
             "status": att.get("status", "in_progress"),
             "created_at": att.get("created_at").isoformat() if att.get("created_at") else None,
             "completed_at": att.get("completed_at").isoformat() if att.get("completed_at") else None,
+            "completed": att.get("completed", False),
+            "result": att.get("result", {}),
             "proctoring_events_count": len(att.get("proctoring_events", [])),
             "violations": att.get("violations", {}),
             "feedback": att.get("feedback", ""),

@@ -17,6 +17,8 @@ import CertificationTestManager from './pages/CertificationTestManager'
 import TestsDashboard from './pages/TestsDashboard'
 import QuestionBanks from './pages/QuestionBanks'
 import ExamViolationsDashboard from './pages/ExamViolationsDashboard'
+import UserProgress from './pages/UserProgress'
+import UserComparison from './pages/UserComparison'
 
 function App() {
   // Capture token from URL on first load and store in localStorage
@@ -40,6 +42,8 @@ function App() {
       <Routes>
         <Route path="/" element={<Dashboard />} />
         <Route path="/users" element={<Users />} />
+        <Route path="/users/:userId/progress" element={<UserProgress />} />
+        <Route path="/users/compare" element={<UserComparison />} />
         <Route path="/courses" element={<Courses />} />
         <Route path="/courses/create" element={<CreateCoursePage />} />
         <Route path="/courses/:id/edit" element={<EditCoursePage />} />

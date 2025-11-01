@@ -9,8 +9,37 @@ import {
   CheckCircle,
   AlertCircle,
   Star,
-  Target
+  Target,
+  Activity,
+  PieChart
 } from 'lucide-react'
+import { Line, Bar, Doughnut } from 'react-chartjs-2'
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend,
+  ArcElement,
+  Filler
+} from 'chart.js'
+
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend,
+  ArcElement,
+  Filler
+)
 
 const Dashboard = () => {
   const [stats, setStats] = useState({
@@ -22,7 +51,9 @@ const Dashboard = () => {
     passRate: 0
   })
   const [loading, setLoading] = useState(true)
-  const [recentActivity, setRecentActivity] = useState([])
+  const [activeUsers, setActiveUsers] = useState([])
+  const [attemptsData, setAttemptsData] = useState([])
+  const [usersData, setUsersData] = useState([])
 
   useEffect(() => {
     fetchDashboardData()
@@ -79,8 +110,26 @@ const Dashboard = () => {
         passRate
       })
 
-      // Set recent activity (last 10 attempts)
-      setRecentActivity(attempts.slice(0, 10))
+      // Get active users (online in last 15 minutes)
+      const now = new Date()
+      const fifteenMinutesAgo = new Date(now.getTime() - 15 * 60 * 1000)
+      const activeUsersList = users.filter(user => {
+        if (user.last_active_date) {
+          const lastActive = new Date(user.last_active_date)
+          return lastActive > fifteenMinutesAgo
+        }
+        return false
+      }).sort((a, b) => {
+        const dateA = new Date(a.last_active_date)
+        const dateB = new Date(b.last_active_date)
+        return dateB - dateA
+      }).slice(0, 10)
+      
+      setActiveUsers(activeUsersList)
+      
+      // Store attempts for charts
+      setAttemptsData(attempts)
+      setUsersData(users)
     } catch (error) {
       console.error('Error fetching dashboard data:', error)
     } finally {
@@ -139,6 +188,142 @@ const Dashboard = () => {
     }
   ]
 
+  // Prepare chart data
+  // User growth over last 7 days
+  const last7Days = []
+  const today = new Date()
+  for (let i = 6; i >= 0; i--) {
+    const date = new Date(today)
+    date.setDate(date.getDate() - i)
+    last7Days.push(date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }))
+  }
+
+  const userGrowthData = {
+    labels: last7Days,
+    datasets: [{
+      label: 'New Users',
+      data: last7Days.map((_, i) => {
+        const date = new Date(today)
+        date.setDate(date.getDate() - (6 - i))
+        return usersData.filter(u => {
+          const created = new Date(u.created_at)
+          return created.toDateString() === date.toDateString()
+        }).length
+      }),
+      borderColor: 'rgb(59, 130, 246)',
+      backgroundColor: 'rgba(59, 130, 246, 0.2)',
+      tension: 0.4,
+      fill: true,
+    }]
+  }
+
+  // Test attempts distribution by day
+  const attemptsPerDay = {
+    labels: last7Days,
+    datasets: [{
+      label: 'Tests Completed',
+      data: last7Days.map((_, i) => {
+        const date = new Date(today)
+        date.setDate(date.getDate() - (6 - i))
+        return attemptsData.filter(a => {
+          const created = new Date(a.created_at)
+          return created.toDateString() === date.toDateString()
+        }).length
+      }),
+      backgroundColor: 'rgba(34, 197, 94, 0.6)',
+      borderColor: 'rgb(34, 197, 94)',
+      borderWidth: 2,
+    }]
+  }
+
+  // Pass vs Fail distribution
+  const passedCount = attemptsData.filter(a => a.passed || a.score >= 85).length
+  const failedCount = attemptsData.length - passedCount
+
+  const passFailData = {
+    labels: ['Passed', 'Failed'],
+    datasets: [{
+      data: [passedCount, failedCount],
+      backgroundColor: [
+        'rgba(34, 197, 94, 0.6)',
+        'rgba(239, 68, 68, 0.6)',
+      ],
+      borderColor: [
+        'rgb(34, 197, 94)',
+        'rgb(239, 68, 68)',
+      ],
+      borderWidth: 2,
+    }]
+  }
+
+  const lineChartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        labels: { color: 'rgb(203, 213, 225)' }
+      },
+      tooltip: {
+        backgroundColor: 'rgba(15, 23, 42, 0.9)',
+        titleColor: 'rgb(226, 232, 240)',
+        bodyColor: 'rgb(203, 213, 225)',
+        borderColor: 'rgb(51, 65, 85)',
+        borderWidth: 1
+      }
+    },
+    scales: {
+      y: {
+        beginAtZero: true,
+        ticks: { 
+          color: 'rgb(148, 163, 184)',
+          stepSize: 1
+        },
+        grid: { color: 'rgba(148, 163, 184, 0.1)' }
+      },
+      x: {
+        ticks: { color: 'rgb(148, 163, 184)' },
+        grid: { color: 'rgba(148, 163, 184, 0.1)' }
+      }
+    },
+    animation: {
+      duration: 2000,
+      easing: 'easeInOutQuart'
+    }
+  }
+
+  const barChartOptions = {
+    ...lineChartOptions,
+    animation: {
+      duration: 1500,
+      easing: 'easeOutBounce'
+    }
+  }
+
+  const doughnutOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        position: 'bottom',
+        labels: { 
+          color: 'rgb(203, 213, 225)',
+          padding: 15,
+          font: { size: 12 }
+        }
+      },
+      tooltip: {
+        backgroundColor: 'rgba(15, 23, 42, 0.9)',
+        titleColor: 'rgb(226, 232, 240)',
+        bodyColor: 'rgb(203, 213, 225)',
+      }
+    },
+    animation: {
+      animateRotate: true,
+      animateScale: true,
+      duration: 2000
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -177,40 +362,122 @@ const Dashboard = () => {
         })}
       </div>
 
-      {/* Recent Activity */}
+      {/* Analytics Charts */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* User Growth Chart */}
+        <div className="bg-slate-800 rounded-xl p-6 border border-slate-700">
+          <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+            <TrendingUp className="w-5 h-5 text-blue-400" />
+            User Growth (Last 7 Days)
+          </h3>
+          <div className="h-64">
+            <Line data={userGrowthData} options={lineChartOptions} />
+          </div>
+        </div>
+
+        {/* Test Activity Chart */}
+        <div className="bg-slate-800 rounded-xl p-6 border border-slate-700">
+          <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+            <BarChart3 className="w-5 h-5 text-green-400" />
+            Test Activity (Last 7 Days)
+          </h3>
+          <div className="h-64">
+            <Bar data={attemptsPerDay} options={barChartOptions} />
+          </div>
+        </div>
+
+        {/* Pass/Fail Distribution */}
+        <div className="bg-slate-800 rounded-xl p-6 border border-slate-700">
+          <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+            <PieChart className="w-5 h-5 text-purple-400" />
+            Pass/Fail Distribution
+          </h3>
+          <div className="h-64">
+            <Doughnut data={passFailData} options={doughnutOptions} />
+          </div>
+        </div>
+      </div>
+
+      {/* Real-time Metrics */}
+      <div className="bg-slate-800 rounded-xl p-6 border border-slate-700">
+        <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+          <Activity className="w-5 h-5 text-orange-400" />
+          Real-time Platform Metrics
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="p-4 bg-slate-700/50 rounded-lg">
+            <div className="text-slate-400 text-sm mb-2">Active Users</div>
+            <div className="text-2xl font-bold text-green-400">{activeUsers.length}</div>
+            <div className="text-xs text-slate-500 mt-1">Online now</div>
+          </div>
+          <div className="p-4 bg-slate-700/50 rounded-lg">
+            <div className="text-slate-400 text-sm mb-2">Today's Tests</div>
+            <div className="text-2xl font-bold text-blue-400">
+              {attemptsData.filter(a => {
+                const created = new Date(a.created_at)
+                return created.toDateString() === today.toDateString()
+              }).length}
+            </div>
+            <div className="text-xs text-slate-500 mt-1">Completed today</div>
+          </div>
+          <div className="p-4 bg-slate-700/50 rounded-lg">
+            <div className="text-slate-400 text-sm mb-2">Avg. Score</div>
+            <div className="text-2xl font-bold text-yellow-400">
+              {attemptsData.length > 0 ? 
+                Math.round(attemptsData.reduce((sum, a) => sum + (a.score || 0), 0) / attemptsData.length) : 0}%
+            </div>
+            <div className="text-xs text-slate-500 mt-1">All time</div>
+          </div>
+          <div className="p-4 bg-slate-700/50 rounded-lg">
+            <div className="text-slate-400 text-sm mb-2">Success Rate</div>
+            <div className="text-2xl font-bold text-purple-400">{stats.passRate}%</div>
+            <div className="text-xs text-slate-500 mt-1">Pass threshold: 85%</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Active Users */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-slate-800 rounded-xl p-6 border border-slate-700">
           <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-            <BarChart3 className="w-5 h-5 text-blue-400" />
-            Recent Activity
+            <Users className="w-5 h-5 text-green-400" />
+            Active Users
+            <span className="ml-auto text-sm text-slate-400">
+              {activeUsers.length} online
+            </span>
           </h3>
           <div className="space-y-3">
-            {recentActivity.length === 0 ? (
-              <p className="text-slate-400 text-center py-4">No recent activity</p>
+            {activeUsers.length === 0 ? (
+              <p className="text-slate-400 text-center py-4">No users currently active</p>
             ) : (
-              recentActivity.map((activity, index) => (
-                <div key={index} className="flex items-center gap-3 p-3 bg-slate-700/50 rounded-lg">
-                  <div className={`p-2 rounded-full ${activity.passed ? 'bg-green-500/20' : 'bg-red-500/20'}`}>
-                    {activity.passed ? (
-                      <CheckCircle className="w-4 h-4 text-green-400" />
-                    ) : (
-                      <AlertCircle className="w-4 h-4 text-red-400" />
-                    )}
+              activeUsers.map((user, index) => {
+                const lastActive = new Date(user.last_active_date)
+                const minutesAgo = Math.floor((new Date() - lastActive) / 1000 / 60)
+                const timeAgo = minutesAgo < 1 ? 'Just now' : 
+                               minutesAgo === 1 ? '1 min ago' : 
+                               `${minutesAgo} mins ago`
+                
+                return (
+                  <div key={index} className="flex items-center gap-3 p-3 bg-slate-700/50 rounded-lg hover:bg-slate-700 transition-colors">
+                    <div className="relative">
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+                        <span className="text-white font-semibold text-sm">
+                          {user.name?.charAt(0).toUpperCase() || 'U'}
+                        </span>
+                      </div>
+                      <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-slate-800 rounded-full"></div>
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-white text-sm font-medium">{user.name}</p>
+                      <p className="text-slate-400 text-xs">{user.email}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-green-400 text-xs font-medium">Online</p>
+                      <p className="text-slate-500 text-xs">{timeAgo}</p>
+                    </div>
                   </div>
-                  <div className="flex-1">
-                    <p className="text-white text-sm">
-                      {activity.user_name} {activity.passed ? 'passed' : 'failed'} {activity.certification_title}
-                    </p>
-                    <p className="text-slate-400 text-xs">
-                      {new Date(activity.created_at).toLocaleDateString()}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-white text-sm font-medium">{activity.score}%</p>
-                    <p className="text-slate-400 text-xs">Score</p>
-                  </div>
-                </div>
-              ))
+                )
+              })
             )}
           </div>
         </div>
