@@ -56,6 +56,9 @@ export const adminAPI = {
 export const adminCertTestsAPI = {
   // Question Banks
   listBanks: () => api.get('/api/admin/cert-tests/banks'),
+  getBank: (bankId) => api.get(`/api/admin/cert-tests/banks/${bankId}`),
+  deleteBank: (bankId) => api.delete(`/api/admin/cert-tests/banks/${bankId}`),
+  updateBank: (bankId, payload) => api.put(`/api/admin/cert-tests/banks/${bankId}`, payload),
   uploadBanks: (files) => {
     const formData = new FormData();
     files.forEach((f) => formData.append('files', f));

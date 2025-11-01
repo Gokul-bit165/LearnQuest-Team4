@@ -627,9 +627,21 @@ const TestDetailsView = ({ candidate }) => {
   const durationMinutes = startTime && endTime ? Math.round((endTime - startTime) / 1000 / 60) : 0;
   
   const score = candidate.score || 0;
-  const totalQuestions = candidate.question_count || 0;
-  const correctAnswers = candidate.correct_answers || 0;
-  const wrongAnswers = candidate.wrong_answers || 0;
+  
+  // Use result object if available (for MCQ/Code breakdown), otherwise fall back to legacy fields
+  const resultData = candidate.result || {};
+  const totalQuestions = resultData.total_questions || candidate.total_questions || candidate.questions?.length || 0;
+  const correctAnswers = resultData.passed_questions || candidate.correct_answers || 0;
+  
+  // Calculate wrong and unanswered from MCQ/Code breakdown if available
+  const mcqCorrect = resultData.mcq_correct || 0;
+  const mcqTotal = resultData.mcq_total || 0;
+  const codeCorrect = resultData.code_correct || 0;
+  const codeTotal = resultData.code_total || 0;
+  
+  const mcqWrong = mcqTotal - mcqCorrect;
+  const codeWrong = codeTotal - codeCorrect;
+  const wrongAnswers = mcqWrong + codeWrong;
   const unanswered = totalQuestions - correctAnswers - wrongAnswers;
 
   return (
@@ -690,6 +702,36 @@ const TestDetailsView = ({ candidate }) => {
           </div>
         </div>
       </div>
+
+      {/* MCQ and Code Breakdown (if available) */}
+      {(mcqTotal > 0 || codeTotal > 0) && (
+        <div>
+          <h3 className="text-white font-semibold mb-4 flex items-center gap-2">
+            <TrendingUp className="w-5 h-5 text-purple-400" />
+            Score Breakdown by Question Type
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {mcqTotal > 0 && (
+              <div className="bg-gradient-to-br from-purple-900/40 to-purple-800/20 border border-purple-700/50 rounded-lg p-4">
+                <div className="text-purple-300 text-sm mb-2">Multiple Choice Questions</div>
+                <div className="text-white font-bold text-3xl mb-1">{mcqCorrect}/{mcqTotal}</div>
+                <div className="text-purple-400 text-sm">
+                  {mcqTotal > 0 ? ((mcqCorrect / mcqTotal) * 100).toFixed(1) : 0}% correct
+                </div>
+              </div>
+            )}
+            {codeTotal > 0 && (
+              <div className="bg-gradient-to-br from-cyan-900/40 to-cyan-800/20 border border-cyan-700/50 rounded-lg p-4">
+                <div className="text-cyan-300 text-sm mb-2">Coding Questions</div>
+                <div className="text-white font-bold text-3xl mb-1">{codeCorrect}/{codeTotal}</div>
+                <div className="text-cyan-400 text-sm">
+                  {codeTotal > 0 ? ((codeCorrect / codeTotal) * 100).toFixed(1) : 0}% correct
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Test Timeline */}
       <div>

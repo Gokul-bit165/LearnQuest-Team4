@@ -140,7 +140,10 @@ export const certTestsAPI = {
     question_id: questionId,
     answer: answer
   }),
-  finishAttempt: (attemptId) => api.post('/api/cert-tests/finish', { attempt_id: attemptId }),
+  finishAttempt: (attemptId, mcqAnswers = {}) => api.post('/api/cert-tests/finish', { 
+    attempt_id: attemptId,
+    mcq_answers: mcqAnswers
+  }),
   getAttempt: (attemptId) => api.get(`/api/cert-tests/attempts/${attemptId}`),
   runCode: (payload) => api.post('/api/cert-tests/run-code', payload),
   submitCode: (payload) => api.post('/api/cert-tests/submit-code', payload),

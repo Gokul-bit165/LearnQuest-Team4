@@ -30,6 +30,7 @@ export const CodingTestInterface = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedLanguage, setSelectedLanguage] = useState('python');
   const [allowedLanguages, setAllowedLanguages] = useState(['python', 'javascript', 'cpp', 'c', 'java']);
+  const [lockLanguage, setLockLanguage] = useState(false);
   const [proctoringViolations, setProctoringViolations] = useState([]);
   const [isInitialSetup, setIsInitialSetup] = useState(true); // Grace period for initial setup
   const [showViolationAlert, setShowViolationAlert] = useState(false);
@@ -37,6 +38,7 @@ export const CodingTestInterface = () => {
   const [customInput, setCustomInput] = useState('');
   const [customOutput, setCustomOutput] = useState(null);
   const [isRunningCustom, setIsRunningCustom] = useState(false);
+  const [mcqAnswers, setMcqAnswers] = useState({}); // Track MCQ answers
 
   // Handle proctoring violations
   const handleViolation = (violations) => {
@@ -65,6 +67,11 @@ export const CodingTestInterface = () => {
     { id: 54, name: 'C++', value: 'cpp' },
     { id: 50, name: 'C', value: 'c' },
     { id: 62, name: 'Java', value: 'java' },
+    { id: 51, name: 'C#', value: 'csharp' },
+    { id: 72, name: 'Ruby', value: 'ruby' },
+    { id: 60, name: 'Go', value: 'go' },
+    { id: 73, name: 'Rust', value: 'rust' },
+    { id: 68, name: 'PHP', value: 'php' },
   ];
   
   // Filter languages based on admin settings
@@ -103,6 +110,11 @@ export const CodingTestInterface = () => {
           if (!attempt.restrictions.allowed_languages.includes(selectedLanguage)) {
             setSelectedLanguage(attempt.restrictions.allowed_languages[0] || 'python');
           }
+        }
+        
+        // Set lock language from restrictions
+        if (attempt.restrictions?.lock_language) {
+          setLockLanguage(true);
         }
       } 
       // Handle new direct route: /certifications/test/:certificationId
@@ -745,7 +757,8 @@ export const CodingTestInterface = () => {
       // For cert tests with attemptId, use finish endpoint
       if (attemptId) {
         console.log('Finishing attempt:', attemptId);
-        const response = await certTestsAPI.finishAttempt(attemptId);
+        console.log('MCQ Answers:', mcqAnswers);
+        const response = await certTestsAPI.finishAttempt(attemptId, mcqAnswers);
         console.log('Finish response:', response);
         
         if (screenfull.isEnabled && screenfull.isFullscreen) {
@@ -821,6 +834,15 @@ export const CodingTestInterface = () => {
   };
 
   const getQuestionStatus = (index) => {
+    const question = questions[index];
+    
+    // Check if it's an MCQ question
+    if (question.type !== 'code') {
+      // MCQ: Check if answer is selected
+      return mcqAnswers[index] !== undefined ? 'passed' : 'unattempted';
+    }
+    
+    // Coding question: Check code and results
     const result = testResults[index];
     const hasCode = code[index] && code[index] !== questions[index]?.starter_code;
     if (!hasCode) return 'unattempted';
@@ -926,7 +948,9 @@ export const CodingTestInterface = () => {
           <div className="flex-1 overflow-auto p-6 space-y-8">
             {/* Problem Description Section */}
             <div>
-              <h2 className="text-xl font-bold text-white mb-4">Problem Description</h2>
+              <h2 className="text-xl font-bold text-white mb-4">
+                {currentQ.type === 'code' ? 'Problem Description' : 'Question'}
+              </h2>
               <h3 className="text-lg font-semibold text-slate-200 mb-3">{currentQ.title}</h3>
               <div className="flex items-center gap-2 mb-4">
                 <Badge className={
@@ -938,13 +962,60 @@ export const CodingTestInterface = () => {
                 }>
                   {currentQ.difficulty}
                 </Badge>
+                {currentQ.type !== 'code' && (
+                  <Badge className="bg-purple-700/40 text-purple-300 border border-purple-600">
+                    Multiple Choice
+                  </Badge>
+                )}
               </div>
-              <p className="text-slate-300 leading-relaxed whitespace-pre-line mb-4">
-                {currentQ.prompt || currentQ.content}
-              </p>
+              
+              {currentQ.type !== 'code' ? (
+                /* MCQ Question */
+                <div className="space-y-4">
+                  <p className="text-slate-300 leading-relaxed mb-6">{currentQ.prompt || currentQ.content || ''}</p>
+                  
+                  {/* MCQ Options */}
+                  {currentQ.options && currentQ.options.length > 0 && (
+                    <div className="space-y-3">
+                      {currentQ.options.map((option, idx) => (
+                        <label
+                          key={idx}
+                          className={`flex items-start gap-3 p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                            mcqAnswers[currentQuestion] === idx
+                              ? 'bg-blue-700/30 border-blue-500'
+                              : 'bg-slate-800 border-slate-700 hover:border-blue-600'
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            name={`question-${currentQuestion}`}
+                            value={idx}
+                            checked={mcqAnswers[currentQuestion] === idx}
+                            onChange={() => setMcqAnswers(prev => ({ ...prev, [currentQuestion]: idx }))}
+                            className="mt-1 w-4 h-4 text-blue-600"
+                          />
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <span className="font-semibold text-slate-400">{String.fromCharCode(65 + idx)}.</span>
+                              <span className="text-slate-200">{option}</span>
+                            </div>
+                          </div>
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                /* Coding Question */
+                <>
+                  <p className="text-slate-300 leading-relaxed whitespace-pre-line mb-4">
+                    {currentQ.prompt || currentQ.content}
+                  </p>
+                </>
+              )}
 
               {currentQ.tags && (
-                <div className="flex items-center gap-2 flex-wrap">
+                <div className="flex items-center gap-2 flex-wrap mt-4">
                   <span className="text-sm text-slate-400">Tags:</span>
                   {(Array.isArray(currentQ.tags) ? currentQ.tags : [currentQ.tags]).map((tag, idx) => (
                     <span key={idx} className="px-2 py-1 bg-slate-700 text-slate-300 rounded text-xs">
@@ -955,7 +1026,8 @@ export const CodingTestInterface = () => {
               )}
             </div>
 
-            {/* Test Cases Section */}
+            {/* Test Cases Section - Only for coding questions */}
+            {currentQ.type === 'code' && (
             <div>
               <h2 className="text-xl font-bold text-white mb-4">Test Cases</h2>
               {currentQ.public_test_cases && currentQ.public_test_cases.length > 0 ? (
@@ -1002,8 +1074,10 @@ export const CodingTestInterface = () => {
                 </div>
               </div>
             </div>
+            )}
 
-            {/* Custom Input/Output Section */}
+            {/* Custom Input/Output Section - Only for coding questions */}
+            {currentQ.type === 'code' && (
             <div>
               <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
                 <Terminal className="h-5 w-5 text-blue-400" />
@@ -1108,9 +1182,10 @@ export const CodingTestInterface = () => {
                 </div>
               )}
             </div>
+            )}
 
-            {/* Run Results Section */}
-            {currentResults && currentResults.results && (
+            {/* Run Results Section - Only for coding questions */}
+            {currentQ.type === 'code' && currentResults && currentResults.results && (
               <div>
                 <h2 className="text-xl font-bold text-white mb-4">Run Results</h2>
                 
@@ -1195,24 +1270,29 @@ export const CodingTestInterface = () => {
           />
         )}
 
-        {/* Right Panel - Code Editor */}
+        {/* Right Panel - Code Editor (only for coding questions) or MCQ Summary */}
         <div className="w-1/2 flex flex-col bg-slate-900">
+          {currentQ.type === 'code' ? (
+            <>
           {/* Editor Header */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-slate-700 bg-slate-800">
             <div className="flex items-center gap-3">
               <Code2 className="h-4 w-4 text-slate-400" />
               <select 
-                className="bg-slate-900 border border-slate-700 text-white px-4 py-2 rounded text-sm hover:border-blue-500 transition-colors focus:outline-none focus:border-blue-500"
+                className="bg-slate-900 border border-slate-700 text-white px-4 py-2 rounded text-sm hover:border-blue-500 transition-colors focus:outline-none focus:border-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
                 value={selectedLanguage}
                 onChange={(e) => setSelectedLanguage(e.target.value)}
-                disabled={languageOptions.length === 1}
+                disabled={lockLanguage || languageOptions.length === 1}
               >
                 {languageOptions.map(lang => (
                   <option key={lang.value} value={lang.value}>{lang.name}</option>
                 ))}
               </select>
-              {languageOptions.length === 1 && (
-                <span className="text-xs text-yellow-400 font-semibold">🔒 Language Locked</span>
+              {lockLanguage && (
+                <span className="text-xs text-yellow-400 font-semibold">🔒 Language Locked by Admin</span>
+              )}
+              {!lockLanguage && languageOptions.length === 1 && (
+                <span className="text-xs text-yellow-400 font-semibold">🔒 Single Language Available</span>
               )}
               {languageOptions.length === 0 && (
                 <span className="text-xs text-red-400">⚠️ No languages allowed</span>
@@ -1281,6 +1361,30 @@ export const CodingTestInterface = () => {
               }}
             />
           </div>
+          </>
+          ) : (
+            /* MCQ Answer Summary Panel */
+            <div className="flex-1 p-6 overflow-auto">
+              <h2 className="text-2xl font-bold text-white mb-4">Your Answer</h2>
+              {mcqAnswers[currentQuestion] !== undefined ? (
+                <div className="space-y-4">
+                  <div className="p-4 bg-blue-900/20 border border-blue-700 rounded-lg">
+                    <p className="text-slate-300 mb-2">Selected Answer:</p>
+                    <p className="text-xl font-semibold text-white">
+                      {String.fromCharCode(65 + mcqAnswers[currentQuestion])}. {currentQ.options[mcqAnswers[currentQuestion]]}
+                    </p>
+                  </div>
+                  <div className="text-sm text-slate-400">
+                    ✓ Answer saved. You can change it anytime before submitting the test.
+                  </div>
+                </div>
+              ) : (
+                <div className="p-6 bg-slate-800/50 border border-slate-700 rounded-lg text-center">
+                  <p className="text-slate-400">Please select an answer from the options on the left.</p>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 

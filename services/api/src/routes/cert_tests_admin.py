@@ -75,6 +75,70 @@ async def upload_banks(files: List[UploadFile] = File(...), admin_user=Depends(r
     return {"uploaded": saved}
 
 
+@router.get("/banks/{bank_id}")
+async def get_bank(bank_id: str, admin_user=Depends(require_admin_user)):
+    """Get a specific question bank with all questions"""
+    from bson import ObjectId
+    col = get_collection("cert_test_banks")
+    try:
+        bank = col.find_one({"_id": ObjectId(bank_id)})
+    except:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid bank ID")
+    
+    if not bank:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Bank not found")
+    
+    bank["id"] = str(bank.pop("_id"))
+    return bank
+
+
+@router.delete("/banks/{bank_id}")
+async def delete_bank(bank_id: str, admin_user=Depends(require_admin_user)):
+    """Delete a question bank"""
+    from bson import ObjectId
+    col = get_collection("cert_test_banks")
+    try:
+        result = col.delete_one({"_id": ObjectId(bank_id)})
+    except:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid bank ID")
+    
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Bank not found")
+    
+    return {"message": "Bank deleted successfully"}
+
+
+@router.put("/banks/{bank_id}")
+async def update_bank(bank_id: str, payload: dict, admin_user=Depends(require_admin_user)):
+    """Update a question bank"""
+    from bson import ObjectId
+    col = get_collection("cert_test_banks")
+    
+    # Extract updatable fields
+    update_fields = {}
+    if "display_name" in payload:
+        update_fields["display_name"] = payload["display_name"]
+    if "questions" in payload:
+        update_fields["questions"] = payload["questions"]
+        update_fields["question_count"] = len(payload["questions"])
+    
+    if not update_fields:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No fields to update")
+    
+    update_fields["updated_at"] = datetime.utcnow()
+    update_fields["updated_by"] = str(admin_user.id)
+    
+    try:
+        result = col.update_one({"_id": ObjectId(bank_id)}, {"$set": update_fields})
+    except:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid bank ID")
+    
+    if result.matched_count == 0:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Bank not found")
+    
+    return {"message": "Bank updated successfully"}
+
+
 @router.get("/specs")
 async def list_specs(admin_user=Depends(require_admin_user)):
     col = get_collection("cert_test_specs")

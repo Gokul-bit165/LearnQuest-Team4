@@ -247,12 +247,17 @@ const ResultsAnalytics = () => {
               )}
 
               {/* Answers with Full Code */}
-              {selectedAttempt.answers && selectedAttempt.answers.length > 0 && (
+              {selectedAttempt.questions && selectedAttempt.questions.length > 0 && (
                 <div>
                   <h3 className="text-lg font-semibold text-white mb-3">Detailed Question Analysis</h3>
                   <div className="space-y-4">
-                    {selectedAttempt.answers.map((answer, idx) => {
-                      const question = selectedAttempt.questions?.[idx];
+                    {selectedAttempt.questions.map((question, idx) => {
+                      const answer = selectedAttempt.answers?.find(a => a.question_number === idx);
+                      const isMCQ = question.type !== 'code';
+                      const mcqAnswers = selectedAttempt.mcq_answers || {};
+                      const userMCQAnswer = mcqAnswers[idx];
+                      const isCorrect = isMCQ ? userMCQAnswer === question.correct_answer : answer?.passed;
+                      
                       return (
                         <div key={idx} className="bg-slate-700/50 rounded-lg p-4 space-y-3">
                           {/* Question Header */}
@@ -260,30 +265,92 @@ const ResultsAnalytics = () => {
                             <div className="flex-1">
                               <div className="flex items-center gap-3 mb-2">
                                 <span className="text-white font-bold text-lg">Question {idx + 1}</span>
-                                <span className={`px-3 py-1 text-xs font-semibold rounded-full ${
-                                  answer.passed ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'
+                                <span className={`px-2 py-1 text-xs font-semibold rounded ${
+                                  isMCQ ? 'bg-purple-500/20 text-purple-400' : 'bg-cyan-500/20 text-cyan-400'
                                 }`}>
-                                  {answer.passed ? '✓ Passed' : '✗ Failed'}
+                                  {isMCQ ? 'MCQ' : 'CODE'}
                                 </span>
+                                {(isMCQ ? userMCQAnswer !== undefined : answer) && (
+                                  <span className={`px-3 py-1 text-xs font-semibold rounded-full ${
+                                    isCorrect ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'
+                                  }`}>
+                                    {isCorrect ? '✓ Correct' : '✗ Incorrect'}
+                                  </span>
+                                )}
+                                {isMCQ && userMCQAnswer === undefined && (
+                                  <span className="px-3 py-1 text-xs font-semibold rounded-full bg-orange-500/20 text-orange-400">
+                                    Not Answered
+                                  </span>
+                                )}
                               </div>
                               {question && (
                                 <div className="text-slate-300 text-sm mb-2">
-                                  <span className="font-semibold">{question.title || 'Untitled Question'}</span>
+                                  <span className="font-semibold">{question.title || question.prompt || 'Untitled Question'}</span>
                                 </div>
                               )}
                             </div>
                           </div>
 
-                          {/* Question Description */}
-                          {question?.description && (
+                          {/* Question Description/Prompt */}
+                          {(question?.description || question?.prompt || question?.content) && (
                             <div className="bg-slate-800/50 rounded p-3 mb-3">
-                              <div className="text-slate-400 text-xs uppercase mb-1">Problem Statement</div>
-                              <div className="text-slate-300 text-sm whitespace-pre-wrap">{question.description}</div>
+                              <div className="text-slate-400 text-xs uppercase mb-1">
+                                {isMCQ ? 'Question' : 'Problem Statement'}
+                              </div>
+                              <div className="text-slate-300 text-sm whitespace-pre-wrap">
+                                {question.description || question.prompt || question.content}
+                              </div>
                             </div>
                           )}
 
-                          {/* Student's Code */}
-                          {answer.code && (
+                          {/* MCQ Options and Answer */}
+                          {isMCQ && question.options && (
+                            <div className="mb-3">
+                              <div className="text-slate-400 text-xs uppercase mb-2">Answer Options</div>
+                              <div className="space-y-2">
+                                {question.options.map((option, optIdx) => {
+                                  const isUserAnswer = userMCQAnswer === optIdx;
+                                  const isCorrectAnswer = question.correct_answer === optIdx;
+                                  return (
+                                    <div
+                                      key={optIdx}
+                                      className={`rounded p-3 border-2 ${
+                                        isUserAnswer && isCorrectAnswer
+                                          ? 'bg-green-500/10 border-green-500'
+                                          : isUserAnswer && !isCorrectAnswer
+                                          ? 'bg-red-500/10 border-red-500'
+                                          : isCorrectAnswer
+                                          ? 'bg-green-500/10 border-green-500/50'
+                                          : 'bg-slate-800/50 border-slate-700'
+                                      }`}
+                                    >
+                                      <div className="flex items-start gap-3">
+                                        <span className="text-slate-400 font-semibold">{String.fromCharCode(65 + optIdx)}.</span>
+                                        <span className="text-slate-200 flex-1">{option}</span>
+                                        <div className="flex gap-2">
+                                          {isUserAnswer && (
+                                            <span className={`text-xs font-semibold ${
+                                              isCorrectAnswer ? 'text-green-400' : 'text-red-400'
+                                            }`}>
+                                              Student's Answer
+                                            </span>
+                                          )}
+                                          {isCorrectAnswer && (
+                                            <span className="text-xs font-semibold text-green-400">
+                                              ✓ Correct Answer
+                                            </span>
+                                          )}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Student's Code (for coding questions) */}
+                          {!isMCQ && answer?.code && (
                             <div className="mb-3">
                               <div className="text-slate-400 text-xs uppercase mb-2">Student's Solution</div>
                               <pre className="bg-slate-900 rounded p-4 overflow-x-auto text-sm">
@@ -292,8 +359,8 @@ const ResultsAnalytics = () => {
                             </div>
                           )}
 
-                          {/* Test Results */}
-                          {answer.result && (
+                          {/* Test Results (for coding questions) */}
+                          {!isMCQ && answer?.result && (
                             <div>
                               <div className="text-slate-400 text-xs uppercase mb-2">Execution Results</div>
                               <div className="bg-slate-900 rounded p-3 space-y-2">

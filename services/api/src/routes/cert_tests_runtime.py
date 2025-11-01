@@ -145,7 +145,8 @@ async def start_attempt(payload: Dict[str, Any], current_user=Depends(get_curren
     elif bank_ids:
         banks_collection = get_collection("cert_test_banks")
         from bson import ObjectId
-        question_pool = []
+        mcq_pool = []
+        code_pool = []
         
         for bid in bank_ids:
             try:
@@ -154,23 +155,61 @@ async def start_attempt(payload: Dict[str, Any], current_user=Depends(get_curren
                 bank = banks_collection.find_one({"file_name": bid})
             
             if bank and isinstance(bank.get("questions"), list):
-                # Filter for coding questions only (type="code")
-                coding_questions = [
-                    q for q in bank["questions"] 
-                    if q.get("type", "").lower() == "code"
-                ]
-                question_pool.extend(coding_questions)
+                print(f"DEBUG: Bank {bid} has {len(bank.get('questions', []))} questions")
+                for q in bank["questions"]:
+                    q_type = q.get("type", "mcq").lower()
+                    if q_type == "code":
+                        code_pool.append(q)
+                    else:
+                        # Default to MCQ if type is not specified or is "mcq"
+                        mcq_pool.append(q)
         
-        # Randomize and select questions
-        question_count = settings.get("question_count", 10)
+        print(f"DEBUG: MCQ pool size: {len(mcq_pool)}, Code pool size: {len(code_pool)}")
+        
+        # Get counts from spec (with defaults)
+        mcq_count = spec.get("mcq_count")
+        code_count = spec.get("code_count")
+        
+        # Fallback: if counts not specified, use question_count or distribute evenly
+        if mcq_count is None and code_count is None:
+            total_requested = spec.get("question_count", 10)
+            # If both pools have questions, distribute evenly
+            if mcq_pool and code_pool:
+                mcq_count = total_requested // 2
+                code_count = total_requested - mcq_count
+            elif mcq_pool:
+                mcq_count = total_requested
+                code_count = 0
+            elif code_pool:
+                mcq_count = 0
+                code_count = total_requested
+            else:
+                mcq_count = 0
+                code_count = 0
+        else:
+            # Use specified counts or default to 0
+            mcq_count = mcq_count if mcq_count is not None else 0
+            code_count = code_count if code_count is not None else 0
+        
+        print(f"DEBUG: Requested MCQ: {mcq_count}, Code: {code_count}")
+        
+        # Randomize pools if enabled
         if settings.get("randomize", True):
-            random.shuffle(question_pool)
+            random.shuffle(mcq_pool)
+            random.shuffle(code_pool)
         
-        questions = question_pool[:question_count]
+        # Select questions from each pool (handle if pool is smaller than requested)
+        selected_mcq = mcq_pool[:mcq_count] if mcq_pool else []
+        selected_code = code_pool[:code_count] if code_pool else []
         
-        # Process questions: separate public and hidden test cases
+        # Combine and optionally shuffle the final mix
+        questions = selected_mcq + selected_code
+        if settings.get("randomize", True):
+            random.shuffle(questions)
+        
+        # Process coding questions: separate public and hidden test cases
         for q in questions:
-            if "test_cases" in q:
+            if q.get("type", "").lower() == "code" and "test_cases" in q:
                 all_tests = q.get("test_cases", [])
                 public_tests = [tc for tc in all_tests if not tc.get("is_hidden", False)]
                 hidden_tests = [tc for tc in all_tests if tc.get("is_hidden", False)]
@@ -179,7 +218,7 @@ async def start_attempt(payload: Dict[str, Any], current_user=Depends(get_curren
                 q["hidden_test_cases"] = hidden_tests
                 q["all_test_cases"] = all_tests
         
-        print(f"DEBUG: Loaded {len(questions)} coding questions from {len(bank_ids)} banks")
+        print(f"DEBUG: Loaded {len(selected_mcq)} MCQ + {len(selected_code)} coding questions from {len(bank_ids)} banks")
 
     attempts = get_collection("cert_attempts")
     doc = {
@@ -188,6 +227,7 @@ async def start_attempt(payload: Dict[str, Any], current_user=Depends(get_curren
         "topic_id": topic_id,
         "difficulty": difficulty,
         "settings": settings,
+        "questions": questions,  # IMPORTANT: Save questions in the attempt
         "created_at": datetime.utcnow(),
         "status": "active",
     }
@@ -338,13 +378,15 @@ async def submit_attempt(payload: Dict[str, Any], current_user=Depends(get_curre
 @router.post("/finish")
 async def finish_attempt(payload: Dict[str, Any], current_user=Depends(get_current_user)):
     """Finish a certification test attempt. This endpoint marks the attempt as completed and calculates scores.
-    Expects: { attempt_id: str }
+    Expects: { attempt_id: str, mcq_answers: {question_index: answer_index} }
     Returns: { message: str, result: {...} }
     """
     attempt_id = payload.get("attempt_id")
     if not attempt_id:
         raise HTTPException(status_code=400, detail="attempt_id is required")
 
+    mcq_answers = payload.get("mcq_answers", {})  # Get MCQ answers from payload
+    
     attempts = get_collection("cert_attempts")
     specs = get_collection("cert_test_specs")
     from bson import ObjectId
@@ -369,21 +411,52 @@ async def finish_attempt(payload: Dict[str, Any], current_user=Depends(get_curre
         }
 
     # Calculate score based on answers
-    answers = att.get("answers", [])
+    coding_answers = att.get("answers", [])  # Coding submissions
+    questions = att.get("questions", [])  # All questions in the test
     settings = att.get("settings", {})
     pass_percentage = settings.get("pass_percentage", 70)
     
-    # Calculate score
-    total_questions = len(answers)
-    passed_questions = 0
+    print(f"DEBUG FINISH: Attempt {attempt_id}")
+    print(f"DEBUG: Total questions in test: {len(questions)}")
+    print(f"DEBUG: Coding submissions: {len(coding_answers)}")
+    print(f"DEBUG: MCQ answers received: {mcq_answers}")
     
-    for answer in answers:
-        # Check if the answer passed (all test cases passed)
+    # Calculate score for coding questions
+    total_questions = len(questions)
+    total_coding = 0
+    passed_coding = 0
+    
+    for answer in coding_answers:
         if answer.get("passed", False):
-            passed_questions += 1
+            passed_coding += 1
+        total_coding += 1
+    
+    print(f"DEBUG: Coding - Total: {total_coding}, Passed: {passed_coding}")
+    
+    # Calculate score for MCQ questions
+    total_mcq = 0
+    passed_mcq = 0
+    
+    for idx, question in enumerate(questions):
+        q_type = question.get("type", "mcq").lower()
+        if q_type != "code":
+            total_mcq += 1
+            # Check if MCQ answer is correct
+            user_answer = mcq_answers.get(str(idx))
+            correct_answer = question.get("correct_answer")
+            print(f"DEBUG: MCQ Q{idx}: user_answer={user_answer}, correct={correct_answer}, type={type(user_answer)}, correct_type={type(correct_answer)}")
+            if user_answer is not None:
+                if user_answer == correct_answer:
+                    passed_mcq += 1
+                    print(f"DEBUG: MCQ Q{idx} CORRECT!")
+    
+    print(f"DEBUG: MCQ - Total: {total_mcq}, Passed: {passed_mcq}")
+    
+    # Calculate total score
+    total_passed = passed_coding + passed_mcq
     
     # Calculate percentage score
-    score = int((passed_questions / total_questions) * 100) if total_questions > 0 else 0
+    score = int((total_passed / total_questions) * 100) if total_questions > 0 else 0
     passed = score >= pass_percentage
     
     # Prepare result
@@ -392,7 +465,11 @@ async def finish_attempt(payload: Dict[str, Any], current_user=Depends(get_curre
         "final_score": score,
         "passed": passed,
         "total_questions": total_questions,
-        "passed_questions": passed_questions,
+        "passed_questions": total_passed,
+        "mcq_correct": passed_mcq,
+        "mcq_total": total_mcq,
+        "code_correct": passed_coding,
+        "code_total": total_coding,
         "pass_percentage": pass_percentage,
         "message": f"Test completed! Score: {score}%"
     }
@@ -405,7 +482,8 @@ async def finish_attempt(payload: Dict[str, Any], current_user=Depends(get_curre
                 "status": "completed",
                 "completed_at": datetime.utcnow(),
                 "score": score,
-                "result": result
+                "result": result,
+                "mcq_answers": mcq_answers  # Store MCQ answers
             }
         }
     )
@@ -723,7 +801,9 @@ async def get_single_attempt(attempt_id: str, current_user=Depends(get_current_u
         "correct_answers": correct_answers,
         "wrong_answers": wrong_answers,
         "unanswered": unanswered,
-        "duration_minutes": duration_minutes
+        "duration_minutes": duration_minutes,
+        # Include result object with MCQ/Code breakdown
+        "result": att.get("result", {})
     }
 
 

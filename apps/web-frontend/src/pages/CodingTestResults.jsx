@@ -145,11 +145,27 @@ export const CodingTestResults = () => {
   const passed = score >= 85;
   const eligibleForReview = score >= 80;
   
-  // Use backend-calculated values if available, otherwise calculate from arrays
-  const totalQuestions = results.total_questions || results.questions?.length || 0;
-  const correctAnswers = results.correct_answers || results.answers?.filter(a => a.passed)?.length || 0;
-  const wrongAnswers = results.wrong_answers || results.answers?.filter(a => !a.passed && a.code)?.length || 0;
-  const unanswered = results.unanswered !== undefined ? results.unanswered : (totalQuestions - correctAnswers - wrongAnswers);
+  // Use backend-calculated values if available
+  const resultData = results.result || {};
+  const totalQuestions = resultData.total_questions || results.questions?.length || 0;
+  const correctAnswers = resultData.passed_questions || results.answers?.filter(a => a.passed)?.length || 0;
+  
+  // MCQ and Code breakdown
+  const mcqCorrect = resultData.mcq_correct || 0;
+  const mcqTotal = resultData.mcq_total || 0;
+  const codeCorrect = resultData.code_correct || 0;
+  const codeTotal = resultData.code_total || 0;
+  
+  // Debug logging
+  console.log('Result Data:', resultData);
+  console.log('MCQ Stats:', { mcqCorrect, mcqTotal });
+  console.log('Code Stats:', { codeCorrect, codeTotal });
+  
+  // Calculate wrong and unanswered - MCQs are answered if they're in mcq_answers
+  const mcqWrong = mcqTotal - mcqCorrect;
+  const codeWrong = codeTotal - codeCorrect;
+  const wrongAnswers = mcqWrong + codeWrong;
+  const unanswered = 0; // All questions are either correct or wrong (MCQs are always "answered" if presented)
   
   // Calculate test duration and timing
   const startTime = results.started_at ? new Date(results.started_at) : null;
@@ -307,6 +323,60 @@ export const CodingTestResults = () => {
             </CardContent>
           </Card>
         </div>
+
+        {/* Question Type Breakdown */}
+        {(mcqTotal > 0 || codeTotal > 0) && (
+          <Card className="bg-slate-800/50 border-slate-700 mb-8">
+            <CardContent className="p-6">
+              <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
+                <Activity className="w-5 h-5 text-purple-400" />
+                Score Breakdown by Question Type
+              </h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* MCQ Score */}
+                {mcqTotal > 0 && (
+                  <div className="bg-slate-700/30 rounded-lg p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="text-slate-300 font-semibold">Multiple Choice Questions</div>
+                      <Badge className="bg-purple-500/20 text-purple-400 border-purple-500/30">
+                        MCQ
+                      </Badge>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div className="text-3xl font-bold text-purple-400">
+                        {mcqCorrect}/{mcqTotal}
+                      </div>
+                      <div className="text-slate-400 text-sm">
+                        {mcqTotal > 0 ? ((mcqCorrect / mcqTotal) * 100).toFixed(1) : 0}% correct
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Code Score */}
+                {codeTotal > 0 && (
+                  <div className="bg-slate-700/30 rounded-lg p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="text-slate-300 font-semibold">Coding Questions</div>
+                      <Badge className="bg-cyan-500/20 text-cyan-400 border-cyan-500/30">
+                        CODE
+                      </Badge>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div className="text-3xl font-bold text-cyan-400">
+                        {codeCorrect}/{codeTotal}
+                      </div>
+                      <div className="text-slate-400 text-sm">
+                        {codeTotal > 0 ? ((codeCorrect / codeTotal) * 100).toFixed(1) : 0}% correct
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Test Details */}
         <Card className="bg-slate-800/50 border-slate-700 mb-8">

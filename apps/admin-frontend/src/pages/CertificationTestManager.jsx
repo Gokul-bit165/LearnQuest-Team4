@@ -15,6 +15,8 @@ const CertificationTestManager = () => {
     bank_ids: [],
     question_count: 10,
     total_questions: 10,
+    mcq_count: 5,
+    code_count: 5,
     duration_minutes: 30,
     pass_percentage: 70,
     randomize: true,
@@ -24,6 +26,8 @@ const CertificationTestManager = () => {
     enable_fullscreen: true,
     enable_proctoring: true,
     prerequisite_course_id: '',
+    allowed_languages: ['python', 'javascript', 'cpp', 'c', 'java'],
+    lock_language: false,
   })
 
   useEffect(() => {
@@ -45,6 +49,8 @@ const CertificationTestManager = () => {
             bank_ids: s.bank_ids || [],
             question_count: s.question_count ?? 10,
             total_questions: s.total_questions ?? s.question_count ?? 10,
+            mcq_count: s.mcq_count ?? 5,
+            code_count: s.code_count ?? 5,
             duration_minutes: s.duration_minutes ?? 30,
             pass_percentage: s.pass_percentage ?? 70,
             randomize: s.randomize ?? true,
@@ -54,6 +60,8 @@ const CertificationTestManager = () => {
             enable_fullscreen: s.enable_fullscreen ?? true,
             enable_proctoring: s.enable_proctoring ?? true,
             prerequisite_course_id: s.prerequisite_course_id || '',
+            allowed_languages: s.allowed_languages || ['python', 'javascript', 'cpp', 'c', 'java'],
+            lock_language: s.lock_language ?? false,
           })
         })
         .catch(() => {
@@ -130,7 +138,7 @@ const CertificationTestManager = () => {
     "options": ["POST", "PUT", "PATCH", "CONNECT"],
     "correct_answer": 1,
     "difficulty": "Medium",
-    "topic_name": "Web",
+    "topic_name": "Web Development",
     "tags": ["http", "web"],
     "explanation": "PUT is idempotent - calling it multiple times with the same data produces the same result."
   },
@@ -140,29 +148,29 @@ const CertificationTestManager = () => {
     "correct_answer": 1,
     "difficulty": "Medium",
     "topic_name": "Data Structures",
-    "tags": ["algorithms", "complexity"]
+    "tags": ["algorithms", "complexity"],
+    "explanation": "Binary search has O(log n) time complexity."
   },
   {
     "type": "code",
     "title": "Sum of Two Numbers",
-    "prompt": "Write a program that reads two integers from input and prints their sum.",
+    "prompt": "Write a program that reads two integers from input (one per line) and prints their sum.",
     "test_cases": [
-      { "input": "1 2", "expected_output": "3", "is_hidden": false },
-      { "input": "10 20", "expected_output": "30", "is_hidden": false },
-      { "input": "-5 5", "expected_output": "0", "is_hidden": true }
+      { "input": "5\\n3", "expected_output": "8", "is_hidden": false },
+      { "input": "10\\n20", "expected_output": "30", "is_hidden": false },
+      { "input": "-5\\n5", "expected_output": "0", "is_hidden": true }
     ],
     "difficulty": "Easy",
     "topic_name": "Basics",
     "tags": ["code", "math", "input-output"],
     "starter_code": {
-      "python": "# Read two integers and print their sum\\na = int(input())\\nb = int(input())\\n# Your code here",
-      "javascript": "// Read input and print sum\\nconst readline = require('readline');\\n// Your code here"
+      "python": "# Read two integers and print their sum\\na = int(input())\\nb = int(input())\\nprint(a + b)"
     }
   },
   {
     "type": "code",
     "title": "Reverse a String",
-    "prompt": "Write a function that takes a string as input and returns the reversed string.",
+    "prompt": "Write a program that takes a string as input and prints the reversed string.",
     "test_cases": [
       { "input": "hello", "expected_output": "olleh", "is_hidden": false },
       { "input": "world", "expected_output": "dlrow", "is_hidden": false },
@@ -170,7 +178,42 @@ const CertificationTestManager = () => {
     ],
     "difficulty": "Easy",
     "topic_name": "Strings",
-    "tags": ["strings", "manipulation"]
+    "tags": ["strings", "manipulation"],
+    "starter_code": {
+      "python": "# Read string and print reversed\\ns = input()\\nprint(s[::-1])"
+    }
+  },
+  {
+    "title": "Which data structure uses LIFO?",
+    "options": ["Queue", "Stack", "Array", "Tree"],
+    "correct_answer": 1,
+    "difficulty": "Easy",
+    "topic_name": "Data Structures",
+    "tags": ["stack", "data-structures"]
+  },
+  {
+    "type": "code",
+    "title": "Check Even or Odd",
+    "prompt": "Write a program that reads an integer and prints 'Even' if it's even, 'Odd' if it's odd.",
+    "test_cases": [
+      { "input": "4", "expected_output": "Even", "is_hidden": false },
+      { "input": "7", "expected_output": "Odd", "is_hidden": false },
+      { "input": "0", "expected_output": "Even", "is_hidden": true }
+    ],
+    "difficulty": "Easy",
+    "topic_name": "Conditionals",
+    "tags": ["conditionals", "math"],
+    "starter_code": {
+      "python": "# Check even or odd\\nn = int(input())\\nif n % 2 == 0:\\n    print('Even')\\nelse:\\n    print('Odd')"
+    }
+  },
+  {
+    "title": "What does CSS stand for?",
+    "options": ["Computer Style Sheets", "Cascading Style Sheets", "Creative Style System", "Colorful Style Sheets"],
+    "correct_answer": 1,
+    "difficulty": "Easy",
+    "topic_name": "Web Development",
+    "tags": ["css", "frontend"]
   }
 ]`;
 
@@ -352,28 +395,62 @@ const CertificationTestManager = () => {
                   <option>Hard</option>
                 </select>
               </div>
-              <div>
-                <label className="block text-sm text-slate-300 mb-2">Questions Per Test</label>
-                <input
-                  type="number"
-                  min={1}
-                  value={form.question_count}
-                  onChange={(e) => setForm({ ...form, question_count: parseInt(e.target.value) || 1 })}
-                  className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded text-white"
-                />
-                <p className="text-xs text-slate-400 mt-1">Number of questions randomly selected per test attempt</p>
+              
+              {/* Question Distribution */}
+              <div className="md:col-span-2 bg-blue-900/20 border border-blue-700/50 rounded-lg p-4">
+                <h4 className="text-white font-semibold mb-3 flex items-center gap-2">
+                  <Shuffle className="w-4 h-4" /> Question Distribution
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm text-slate-300 mb-2">MCQ Questions</label>
+                    <input
+                      type="number"
+                      min={0}
+                      value={form.mcq_count}
+                      onChange={(e) => {
+                        const mcq = parseInt(e.target.value) || 0
+                        setForm({ 
+                          ...form, 
+                          mcq_count: mcq,
+                          question_count: mcq + form.code_count
+                        })
+                      }}
+                      className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded text-white"
+                    />
+                    <p className="text-xs text-slate-400 mt-1">Multiple choice questions</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm text-slate-300 mb-2">Coding Questions</label>
+                    <input
+                      type="number"
+                      min={0}
+                      value={form.code_count}
+                      onChange={(e) => {
+                        const code = parseInt(e.target.value) || 0
+                        setForm({ 
+                          ...form, 
+                          code_count: code,
+                          question_count: form.mcq_count + code
+                        })
+                      }}
+                      className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded text-white"
+                    />
+                    <p className="text-xs text-slate-400 mt-1">Programming problems</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm text-slate-300 mb-2">Total Per Test</label>
+                    <input
+                      type="number"
+                      value={form.question_count}
+                      readOnly
+                      className="w-full px-3 py-2 bg-slate-600 border border-slate-500 rounded text-white cursor-not-allowed"
+                    />
+                    <p className="text-xs text-slate-400 mt-1">Auto-calculated total</p>
+                  </div>
+                </div>
               </div>
-              <div>
-                <label className="block text-sm text-slate-300 mb-2">Total Questions in Pool</label>
-                <input
-                  type="number"
-                  min={1}
-                  value={form.total_questions}
-                  onChange={(e) => setForm({ ...form, total_questions: parseInt(e.target.value) || 1 })}
-                  className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded text-white"
-                />
-                <p className="text-xs text-slate-400 mt-1">Total number of questions available in the question pool</p>
-              </div>
+
               <div>
                 <label className="block text-sm text-slate-300 mb-2 flex items-center gap-2"><Clock className="w-4 h-4" /> Duration (minutes)</label>
                 <input
@@ -430,6 +507,49 @@ const CertificationTestManager = () => {
                   />
                   <Settings className="w-4 h-4" /> Force Fullscreen
                 </label>
+              </div>
+            </div>
+
+            {/* Programming Language Settings */}
+            <div>
+              <h3 className="text-slate-300 mb-3 flex items-center gap-2 font-semibold">
+                <Code className="w-4 h-4" /> Programming Language Options
+              </h3>
+              <div className="space-y-4 bg-slate-700/50 p-4 rounded-lg border border-slate-600">
+                <label className="flex items-center gap-2 text-slate-300 cursor-pointer hover:text-white transition">
+                  <input
+                    type="checkbox"
+                    checked={form.lock_language}
+                    onChange={(e) => setForm({ ...form, lock_language: e.target.checked })}
+                    className="w-4 h-4"
+                  />
+                  <Code className="w-4 h-4" /> Lock Programming Language
+                  <span className="text-xs text-slate-400">(Students cannot change language during test)</span>
+                </label>
+                
+                <div>
+                  <label className="block text-sm text-slate-300 mb-2">Allowed Programming Languages</label>
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2">
+                    {['python', 'javascript', 'cpp', 'c', 'java', 'csharp', 'ruby', 'go', 'rust', 'php'].map(lang => (
+                      <label key={lang} className="flex items-center gap-2 text-slate-300 cursor-pointer hover:text-white transition bg-slate-800/50 p-2 rounded border border-slate-600 hover:border-slate-500">
+                        <input
+                          type="checkbox"
+                          checked={form.allowed_languages.includes(lang)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setForm({ ...form, allowed_languages: [...form.allowed_languages, lang] })
+                            } else {
+                              setForm({ ...form, allowed_languages: form.allowed_languages.filter(l => l !== lang) })
+                            }
+                          }}
+                          className="w-4 h-4"
+                        />
+                        <span className="text-sm capitalize">{lang === 'cpp' ? 'C++' : lang === 'csharp' ? 'C#' : lang}</span>
+                      </label>
+                    ))}
+                  </div>
+                  <p className="text-xs text-slate-400 mt-2">Select which programming languages students can use for coding questions</p>
+                </div>
               </div>
             </div>
 
@@ -607,7 +727,15 @@ const CertificationTestManager = () => {
               <h3 className="text-white font-semibold mb-4 flex items-center gap-2">
                 <Settings className="w-5 h-5" /> Test Configuration Summary
               </h3>
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm mb-4">
+              <div className="grid grid-cols-2 md:grid-cols-6 gap-4 text-sm mb-4">
+                <div className="bg-slate-800/50 p-3 rounded">
+                  <div className="text-slate-400 mb-1">MCQ</div>
+                  <div className="text-white font-semibold">{form.mcq_count}</div>
+                </div>
+                <div className="bg-slate-800/50 p-3 rounded">
+                  <div className="text-slate-400 mb-1">Coding</div>
+                  <div className="text-white font-semibold">{form.code_count}</div>
+                </div>
                 <div className="bg-slate-800/50 p-3 rounded">
                   <div className="text-slate-400 mb-1">Duration</div>
                   <div className="text-white font-semibold">{form.duration_minutes} min</div>
@@ -615,10 +743,6 @@ const CertificationTestManager = () => {
                 <div className="bg-slate-800/50 p-3 rounded">
                   <div className="text-slate-400 mb-1">Pass Mark</div>
                   <div className="text-white font-semibold">{form.pass_percentage}%</div>
-                </div>
-                <div className="bg-slate-800/50 p-3 rounded">
-                  <div className="text-slate-400 mb-1">Questions/Test</div>
-                  <div className="text-white font-semibold">{form.question_count}</div>
                 </div>
                 <div className="bg-slate-800/50 p-3 rounded">
                   <div className="text-slate-400 mb-1">Total Pool</div>
