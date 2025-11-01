@@ -111,6 +111,15 @@ const WebcamProctoring = ({ attemptId, onViolation }) => {
 
   // Connect to WebSocket
   const connectWebSocket = useCallback(() => {
+    // Close existing connection if any
+    if (wsRef.current) {
+      try {
+        wsRef.current.close();
+      } catch (err) {
+        console.error('Error closing existing WebSocket:', err);
+      }
+    }
+
     // Use the API base URL - default to localhost:8000 for development
     const apiHost = import.meta.env.VITE_API_URL || 'http://localhost:8000';
     const wsProtocol = apiHost.startsWith('https') ? 'wss:' : 'ws:';
@@ -123,6 +132,8 @@ const WebcamProctoring = ({ attemptId, onViolation }) => {
 
     ws.onopen = () => {
       console.log('✅ Proctoring WebSocket connected');
+      setError(null); // Clear any previous errors
+      setIsActive(true);
     };
 
     ws.onmessage = async (event) => {
@@ -194,10 +205,20 @@ const WebcamProctoring = ({ attemptId, onViolation }) => {
       setError('Connection error. Proctoring may not be working.');
     };
 
-    ws.onclose = () => {
-      console.log('Proctoring WebSocket closed');
+    ws.onclose = (event) => {
+      console.log('Proctoring WebSocket closed', event.code, event.reason);
+      
       // Don't set isActive to false - camera should stay on even if WS connection drops
-      // setIsActive(false);
+      // Attempt to reconnect after 3 seconds if not a clean close
+      if (event.code !== 1000 && wsRef.current === ws) {
+        console.log('Attempting to reconnect WebSocket in 3 seconds...');
+        setTimeout(() => {
+          if (wsRef.current === ws || !wsRef.current) {
+            console.log('Reconnecting WebSocket...');
+            connectWebSocket();
+          }
+        }, 3000);
+      }
     };
 
     return ws;
@@ -230,7 +251,7 @@ const WebcamProctoring = ({ attemptId, onViolation }) => {
       
       // Monitor noise levels
       const dataArray = new Uint8Array(analyser.frequencyBinCount);
-      const NOISE_THRESHOLD = 30; // Adjust threshold (0-255) - set to 30 to reduce false positives
+      const NOISE_THRESHOLD = 40; // Adjust threshold (0-255) - set to 30 to reduce false positives
       const CHECK_INTERVAL = 100; // Check every 100ms
       
       noiseCheckIntervalRef.current = setInterval(async () => {
@@ -318,32 +339,47 @@ const WebcamProctoring = ({ attemptId, onViolation }) => {
   // Send frame to server
   const sendFrame = () => {
     if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
+      if (wsRef.current) {
+        console.warn(`WebSocket not ready (state: ${wsRef.current.readyState})`);
+      }
       return;
     }
 
     if (!videoRef.current || !canvasRef.current) {
+      console.warn('Video or canvas not available');
       return;
     }
 
     const video = videoRef.current;
     const canvas = canvasRef.current;
-    const context = canvas.getContext('2d');
 
-    // Set canvas size to match video
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
+    // Check if video is ready
+    if (video.videoWidth === 0 || video.videoHeight === 0) {
+      console.warn('Video not ready yet (no dimensions)');
+      return;
+    }
 
-    // Draw video frame to canvas
-    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+    try {
+      const context = canvas.getContext('2d');
 
-    // Convert to base64
-    const frameData = canvas.toDataURL('image/jpeg', 0.7);
+      // Set canvas size to match video
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
 
-    // Send via WebSocket with current noise level
-    wsRef.current.send(JSON.stringify({
-      frame: frameData,
-      noise_level: noiseLevel
-    }));
+      // Draw video frame to canvas
+      context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+      // Convert to base64
+      const frameData = canvas.toDataURL('image/jpeg', 0.7);
+
+      // Send via WebSocket with current noise level
+      wsRef.current.send(JSON.stringify({
+        frame: frameData,
+        noise_level: noiseLevel
+      }));
+    } catch (err) {
+      console.error('Error sending frame:', err);
+    }
   };
 
   // Start proctoring

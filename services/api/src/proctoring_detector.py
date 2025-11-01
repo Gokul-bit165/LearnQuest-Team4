@@ -19,13 +19,16 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # --- Constants and Configuration ---
-HEAD_YAW_THRESHOLD = 25   # Degrees
-HEAD_PITCH_THRESHOLD = 15  # Degrees
+HEAD_YAW_THRESHOLD = 30   # Degrees - increased from 25 to be more lenient
+HEAD_PITCH_THRESHOLD = 20  # Degrees - increased from 15 to be more lenient
 
 YOLO_FRAME_SKIP = 2  # Process every 2nd frame for performance
 
 # Violation thresholds (consecutive frames before alert)
-VIOLATION_THRESHOLD = 5
+# At 4 FPS (250ms per frame): 12 frames = 3 seconds
+VIOLATION_THRESHOLD = 12  # Looking away threshold - 3 seconds
+PHONE_VIOLATION_THRESHOLD = 8  # Phone detection - 2 seconds
+NOISE_VIOLATION_THRESHOLD = 12  # Noise threshold - 3 seconds
 
 class ProctoringDetector:
     """
@@ -69,6 +72,16 @@ class ProctoringDetector:
             "phone_detected": 0,
             "multiple_people": 0
         }
+        
+        # Cooldown mechanism: track last violation time
+        # After a violation is triggered, wait 2 seconds before detecting next
+        self.last_violation_time = {
+            "looking_away": 0,
+            "phone_detected": 0,
+            "multiple_people": 0,
+            "no_face": 0
+        }
+        self.COOLDOWN_SECONDS = 2  # 2 second cooldown between violations
         
         logger.info("Proctoring models loaded successfully")
     
@@ -163,24 +176,34 @@ class ProctoringDetector:
                 is_looking_away = True
                 self.consecutive_violations["looking_away"] += 1
                 if self.consecutive_violations["looking_away"] >= VIOLATION_THRESHOLD:
-                    violations.append({
-                        'type': 'looking_away',
-                        'severity': 'medium',
-                        'message': 'Student looking away from screen',
-                        'timestamp': datetime.utcnow().isoformat()
-                    })
+                    # Check cooldown: only trigger if 2 seconds have passed since last violation
+                    current_time = time.time()
+                    if current_time - self.last_violation_time["looking_away"] >= self.COOLDOWN_SECONDS:
+                        violations.append({
+                            'type': 'looking_away',
+                            'severity': 'medium',
+                            'message': 'Student looking away from screen',
+                            'timestamp': datetime.utcnow().isoformat()
+                        })
+                        self.last_violation_time["looking_away"] = current_time
+                        self.consecutive_violations["looking_away"] = 0  # Reset counter after violation
             else:
                 self.consecutive_violations["looking_away"] = 0
         else:
             is_looking_away = True
             self.consecutive_violations["looking_away"] += 1
             if self.consecutive_violations["looking_away"] >= VIOLATION_THRESHOLD:
-                violations.append({
-                    'type': 'no_face',
-                    'severity': 'high',
-                    'message': 'No face detected',
-                    'timestamp': datetime.utcnow().isoformat()
-                })
+                # Check cooldown for no_face
+                current_time = time.time()
+                if current_time - self.last_violation_time["no_face"] >= self.COOLDOWN_SECONDS:
+                    violations.append({
+                        'type': 'no_face',
+                        'severity': 'high',
+                        'message': 'No face detected',
+                        'timestamp': datetime.utcnow().isoformat()
+                    })
+                    self.last_violation_time["no_face"] = current_time
+                    self.consecutive_violations["looking_away"] = 0  # Reset counter
         
         # 2. Object & Person Detection (every N frames)
         if self.frame_count % YOLO_FRAME_SKIP == 0:
@@ -204,13 +227,18 @@ class ProctoringDetector:
                         color = (0, 0, 255)  # Red
                         is_phone_detected = True
                         self.consecutive_violations["phone_detected"] += 1
-                        if self.consecutive_violations["phone_detected"] >= VIOLATION_THRESHOLD:
-                            violations.append({
-                                'type': 'prohibited_object',
-                                'severity': 'high',
-                                'message': f'{class_name} detected',
-                                'timestamp': datetime.utcnow().isoformat()
-                            })
+                        if self.consecutive_violations["phone_detected"] >= PHONE_VIOLATION_THRESHOLD:
+                            # Check cooldown
+                            current_time = time.time()
+                            if current_time - self.last_violation_time["phone_detected"] >= self.COOLDOWN_SECONDS:
+                                violations.append({
+                                    'type': 'prohibited_object',
+                                    'severity': 'high',
+                                    'message': f'{class_name} detected',
+                                    'timestamp': datetime.utcnow().isoformat()
+                                })
+                                self.last_violation_time["phone_detected"] = current_time
+                                self.consecutive_violations["phone_detected"] = 0
                     elif class_name == 'person':
                         color = (255, 0, 0)  # Blue
                         person_count += 1
@@ -228,12 +256,17 @@ class ProctoringDetector:
                 is_multiple_people = True
                 self.consecutive_violations["multiple_people"] += 1
                 if self.consecutive_violations["multiple_people"] >= VIOLATION_THRESHOLD:
-                    violations.append({
-                        'type': 'multiple_people',
-                        'severity': 'high',
-                        'message': f'{person_count} people detected',
-                        'timestamp': datetime.utcnow().isoformat()
-                    })
+                    # Check cooldown
+                    current_time = time.time()
+                    if current_time - self.last_violation_time["multiple_people"] >= self.COOLDOWN_SECONDS:
+                        violations.append({
+                            'type': 'multiple_people',
+                            'severity': 'high',
+                            'message': f'{person_count} people detected',
+                            'timestamp': datetime.utcnow().isoformat()
+                        })
+                        self.last_violation_time["multiple_people"] = current_time
+                        self.consecutive_violations["multiple_people"] = 0
             else:
                 self.consecutive_violations["multiple_people"] = 0
         

@@ -78,6 +78,10 @@ export const adminCertTestsAPI = {
     }),
   setSpecActive: (certId, difficulty, active) =>
     api.patch(`/api/admin/cert-tests/specs/${certId}/${difficulty}/status`, { active }),
+  
+  // Test Attempts (Results)
+  getAllAttempts: () => api.get('/api/cert-tests/attempts'),
+  getAttempt: (attemptId) => api.get(`/api/cert-tests/attempts/${attemptId}`),
 };
 
 export default api

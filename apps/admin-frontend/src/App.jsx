@@ -16,6 +16,7 @@ import CertificateManagement from './pages/CertificateManagement'
 import CertificationTestManager from './pages/CertificationTestManager'
 import TestsDashboard from './pages/TestsDashboard'
 import QuestionBanks from './pages/QuestionBanks'
+import ExamViolationsDashboard from './pages/ExamViolationsDashboard'
 
 function App() {
   // Capture token from URL on first load and store in localStorage
@@ -50,6 +51,7 @@ function App() {
         <Route path="/certification-tests" element={<CertificationTestManager />} />
         <Route path="/question-banks" element={<QuestionBanks />} />
         <Route path="/proctoring-review" element={<ProctoringReview />} />
+        <Route path="/exam-violations" element={<ExamViolationsDashboard />} />
         <Route path="/results-analytics" element={<ResultsAnalytics />} />
         <Route path="/certificate-management" element={<CertificateManagement />} />
         <Route path="*" element={<Navigate to="/" replace />} />

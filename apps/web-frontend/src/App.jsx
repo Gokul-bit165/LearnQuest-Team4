@@ -24,6 +24,7 @@ import { DifficultySelection } from './components/certification/DifficultySelect
 import { TestSetup } from './components/certification/TestSetup';
 import { TestResults } from './components/certification/TestResults';
 import CodingTestInterface from './pages/CodingTestInterface';
+import CodingTestResults from './pages/CodingTestResults';
 import { Toaster } from 'sonner';
 import './App.css';
 
@@ -179,6 +180,14 @@ function App() {
               element={
                 <ProtectedRoute>
                   <TestResults />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/test-results/:attemptId" 
+              element={
+                <ProtectedRoute>
+                  <CodingTestResults />
                 </ProtectedRoute>
               } 
             />

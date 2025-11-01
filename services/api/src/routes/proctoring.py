@@ -13,6 +13,7 @@ import cv2
 import numpy as np
 import base64
 import logging
+import time
 
 from ..database import get_collection
 from ..auth import get_current_user
@@ -37,10 +38,16 @@ async def proctoring_websocket(websocket: WebSocket, attempt_id: str):
 
     proctoring_sessions = get_collection("proctoring_sessions")
     proctoring_violations = get_collection("proctoring_violations")
+    cert_attempts = get_collection("cert_attempts")  # Added to update main attempt document
 
     # Create detector instance
     detector = ProctoringDetector()
     active_sessions[attempt_id] = detector
+    
+    # Track noise violations (count consecutive frames above threshold)
+    noise_consecutive_count = 0
+    last_noise_violation_time = 0
+    NOISE_COOLDOWN = 2  # seconds between noise violations
 
     # Create/update proctoring session
     session_data = {
@@ -69,6 +76,7 @@ async def proctoring_websocket(websocket: WebSocket, attempt_id: str):
     try:
         while True:
             data = await websocket.receive_json()
+            logger.info(f"📩 Received WebSocket message: action={data.get('action')}, type={data.get('type')}, has_frame={bool(data.get('frame'))}")
 
             if data.get("action") == "stop":
                 logger.info(f"Stopping proctoring for attempt: {attempt_id}")
@@ -80,32 +88,73 @@ async def proctoring_websocket(websocket: WebSocket, attempt_id: str):
                     noise_level = data.get("noise_level", 0)
                     threshold = data.get("threshold", 15)
                     
-                    violation_doc = {
-                        "attempt_id": attempt_id,
-                        "session_id": str(session_id),
-                        "type": "excessive_noise",
-                        "severity": "medium",
-                        "message": f"Excessive noise detected (level: {noise_level}, threshold: {threshold})",
-                        "timestamp": datetime.utcnow(),
-                        "metadata": {
-                            "noise_level": noise_level,
-                            "threshold": threshold,
-                        },
-                    }
-                    proctoring_violations.insert_one(violation_doc)
-                    
-                    # Update session violation counts
-                    proctoring_sessions.update_one(
-                        {"_id": session_id},
-                        {
-                            "$inc": {
-                                "violation_counts.excessive_noise": 1,
-                                "total_violations": 1,
-                            }
-                        },
-                    )
-                    
-                    logger.info(f"Noise violation recorded: {noise_level}")
+                    # Track consecutive frames above threshold (need 12 frames = 3 seconds at 4 FPS)
+                    if noise_level > threshold:
+                        noise_consecutive_count += 1
+                        
+                        # Only trigger violation after 12 consecutive frames (3 seconds) AND cooldown passed
+                        if noise_consecutive_count >= 12:
+                            current_time = time.time()
+                            if current_time - last_noise_violation_time >= NOISE_COOLDOWN:
+                                violation_doc = {
+                                    "attempt_id": attempt_id,
+                                    "session_id": str(session_id),
+                                    "type": "excessive_noise",
+                                    "severity": "medium",
+                                    "message": f"Excessive noise detected (level: {noise_level}, threshold: {threshold})",
+                                    "timestamp": datetime.utcnow(),
+                                    "metadata": {
+                                        "noise_level": noise_level,
+                                        "threshold": threshold,
+                                    },
+                                }
+                                proctoring_violations.insert_one(violation_doc)
+                                
+                                # Update session violation counts
+                                proctoring_sessions.update_one(
+                                    {"_id": session_id},
+                                    {
+                                        "$inc": {
+                                            "violation_counts.excessive_noise": 1,
+                                            "total_violations": 1,
+                                        }
+                                    },
+                                )
+                                
+                                # ALSO update cert_attempts document
+                                try:
+                                    from bson import ObjectId
+                                    cert_attempts.update_one(
+                                        {"_id": ObjectId(attempt_id)},
+                                        {
+                                            "$push": {
+                                                "proctoring_events": {
+                                                    "type": "violation",
+                                                    "violation_type": "excessive_noise",
+                                                    "severity": "medium",
+                                                    "message": f"Excessive noise detected (level: {noise_level}, threshold: {threshold})",
+                                                    "timestamp": datetime.utcnow(),
+                                                    "metadata": {
+                                                        "noise_level": noise_level,
+                                                        "threshold": threshold,
+                                                    }
+                                                }
+                                            },
+                                            "$inc": {
+                                                "violations.excessive_noise": 1
+                                            }
+                                        }
+                                    )
+                                except Exception as e:
+                                    logger.error(f"Failed to update cert_attempts with noise violation: {e}")
+                                
+                                logger.info(f"Noise violation recorded: {noise_level}")
+                                last_noise_violation_time = current_time
+                                noise_consecutive_count = 0  # Reset after logging violation
+                    else:
+                        # Reset counter if noise drops below threshold
+                        noise_consecutive_count = 0
+                        
                 except Exception as e:
                     logger.error(f"Error processing noise violation: {e}")
                 continue
@@ -130,7 +179,9 @@ async def proctoring_websocket(websocket: WebSocket, attempt_id: str):
 
                 # Save violations to database
                 if result.get("violations"):
+                    logger.info(f"🚨 VIOLATIONS DETECTED for attempt {attempt_id}: {len(result.get('violations'))} violations")
                     for violation in result["violations"]:
+                        logger.info(f"   - Type: {violation.get('type')}, Severity: {violation.get('severity')}, Message: {violation.get('message')}")
                         violation_doc = {
                             "attempt_id": attempt_id,
                             "session_id": str(session_id),
@@ -156,6 +207,34 @@ async def proctoring_websocket(websocket: WebSocket, attempt_id: str):
                                 }
                             },
                         )
+                        
+                        # ALSO update cert_attempts document for easy retrieval
+                        try:
+                            from bson import ObjectId
+                            cert_attempts.update_one(
+                                {"_id": ObjectId(attempt_id)},
+                                {
+                                    "$push": {
+                                        "proctoring_events": {
+                                            "type": "violation",
+                                            "violation_type": violation.get("type"),
+                                            "severity": violation.get("severity"),
+                                            "message": violation.get("message"),
+                                            "timestamp": datetime.fromisoformat(violation.get("timestamp")),
+                                            "metadata": {
+                                                "yaw": result.get("yaw"),
+                                                "pitch": result.get("pitch"),
+                                                "person_count": result.get("person_count"),
+                                            }
+                                        }
+                                    },
+                                    "$inc": {
+                                        f"violations.{violation.get('type')}": 1
+                                    }
+                                }
+                            )
+                        except Exception as e:
+                            logger.error(f"Failed to update cert_attempts with violation: {e}")
 
                 # Send result back to client
                 await websocket.send_json(

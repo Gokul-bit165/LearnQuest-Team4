@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { AlertCircle, CheckCircle2, Clock, Eye, Volume2, Play, ChevronLeft, ChevronRight, Lock, Terminal, Code2 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Card, CardContent } from '../components/ui/card';
@@ -13,9 +13,11 @@ import WebcamProctoring from '../components/WebcamProctoring';
 export const CodingTestInterface = () => {
   const { certificationId, topicId, difficulty } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   
   const [certification, setCertification] = useState(null);
   const [attemptId, setAttemptId] = useState(null);
+  const [userName, setUserName] = useState(location.state?.userName || 'Student');
   const [questions, setQuestions] = useState([]);
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [code, setCode] = useState({});
@@ -24,17 +26,36 @@ export const CodingTestInterface = () => {
   const [violations, setViolations] = useState({ tabSwitch: 0, copyPaste: 0 });
   const [isLoading, setIsLoading] = useState(true);
   const [isRunning, setIsRunning] = useState(false);
+  const [isSubmittingProblem, setIsSubmittingProblem] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedLanguage, setSelectedLanguage] = useState('python');
   const [allowedLanguages, setAllowedLanguages] = useState(['python', 'javascript', 'cpp', 'c', 'java']);
   const [proctoringViolations, setProctoringViolations] = useState([]);
   const [isInitialSetup, setIsInitialSetup] = useState(true); // Grace period for initial setup
+  const [showViolationAlert, setShowViolationAlert] = useState(false);
+  const [currentViolationMsg, setCurrentViolationMsg] = useState('');
+  const [customInput, setCustomInput] = useState('');
+  const [customOutput, setCustomOutput] = useState(null);
+  const [isRunningCustom, setIsRunningCustom] = useState(false);
 
   // Handle proctoring violations
   const handleViolation = (violations) => {
     setProctoringViolations(prev => [...violations, ...prev]);
     violations.forEach(v => {
-      toast.error(v.message, { duration: 3000 });
+      // Show toast notification
+      toast.error(`🚨 ${v.message}`, { 
+        duration: 4000,
+        style: {
+          background: '#dc2626',
+          color: 'white',
+          fontWeight: 'bold'
+        }
+      });
+      
+      // Show prominent alert modal
+      setCurrentViolationMsg(v.message);
+      setShowViolationAlert(true);
+      setTimeout(() => setShowViolationAlert(false), 3000);
     });
   };
 
@@ -62,7 +83,7 @@ export const CodingTestInterface = () => {
       // Handle proctored route: /certifications/proctored/test/:topicId/:difficulty
       if (topicId && difficulty) {
         // Start a new test attempt using the cert-tests API
-        const startResponse = await certTestsAPI.startAttempt(topicId, difficulty, 'User');
+        const startResponse = await certTestsAPI.startAttempt(topicId, difficulty, userName);
         attempt = startResponse.data;
         setAttemptId(attempt.attempt_id);
         
@@ -171,6 +192,14 @@ export const CodingTestInterface = () => {
         setViolations(prev => {
           const newCount = prev.tabSwitch + 1;
           const totalViolations = newCount + prev.copyPaste;
+          
+          // Log tab switch violation to backend
+          certTestsAPI.logViolation(attemptId, {
+            type: 'tab_switch',
+            severity: 'medium',
+            message: 'User switched tab or window',
+            timestamp: new Date().toISOString()
+          }).catch(err => console.error('Failed to log tab switch:', err));
           
           if (totalViolations >= 3) {
             toast.error('❌ DISQUALIFIED: 3+ violations detected! Test will be auto-submitted.', {
@@ -431,6 +460,97 @@ export const CodingTestInterface = () => {
     setCode(prev => ({ ...prev, [currentQuestion]: value || '' }));
   };
 
+  const handleRunCustomInput = async () => {
+    if (isRunningCustom || !code[currentQuestion]?.trim()) {
+      if (!code[currentQuestion]?.trim()) {
+        toast.error('Please write some code first');
+      }
+      return;
+    }
+    
+    setIsRunningCustom(true);
+    setCustomOutput(null);
+    toast.info('Running code with custom input...');
+
+    try {
+      const selectedLang = languageOptions.find(lang => lang.value === selectedLanguage);
+      
+      if (!selectedLang) {
+        throw new Error('No language selected');
+      }
+      
+      // Create a single test case with custom input
+      // Expected output doesn't matter for custom testing - we just want to see what the code produces
+      const customTestCase = [{
+        input: customInput || "",
+        expected_output: "", // Empty expected output for custom testing
+        is_hidden: false
+      }];
+
+      console.log('Running custom input with payload:', {
+        language_id: selectedLang.id,
+        source_code: code[currentQuestion].substring(0, 100) + '...',
+        test_cases: customTestCase
+      });
+
+      const response = await certTestsAPI.runCode({
+        language_id: selectedLang.id,
+        source_code: code[currentQuestion],
+        test_cases: customTestCase
+      });
+      
+      console.log('Custom input response:', response.data);
+
+      const result = response.data;
+      
+      // Extract the first result (our custom test case)
+      if (result.results && result.results.length > 0) {
+        const testResult = result.results[0];
+        setCustomOutput({
+          stdout: testResult.output || '',
+          stderr: testResult.error || '',
+          compile_output: result.compile_output || '',
+          status: testResult.error ? 'Error' : 'Success',
+          passed: !testResult.error
+        });
+
+        if (!testResult.error) {
+          toast.success('Code executed successfully!');
+        } else {
+          toast.error('Execution failed');
+        }
+      } else {
+        // Fallback for unexpected response format
+        setCustomOutput({
+          stdout: '',
+          stderr: 'Unexpected response format',
+          status: 'Error'
+        });
+        toast.error('Unexpected response format');
+      }
+    } catch (error) {
+      console.error('Error running custom input:', error);
+      console.error('Error details:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status
+      });
+      
+      const errorMessage = error.response?.data?.detail || error.message || 'Failed to execute code';
+      
+      setCustomOutput({
+        stdout: '',
+        stderr: errorMessage,
+        compile_output: '',
+        status: 'Error',
+        passed: false
+      });
+      toast.error(errorMessage);
+    } finally {
+      setIsRunningCustom(false);
+    }
+  };
+
   const handleRunCode = async () => {
     if (!code[currentQuestion]?.trim()) {
       toast.error('Please write some code first');
@@ -492,9 +612,11 @@ export const CodingTestInterface = () => {
       return;
     }
     
-    setIsRunning(true);
-    setConsoleOutput('Submitting solution...\n\n');
-    setShowConsole(true);
+    console.log('=== handleSubmitProblem START ===');
+    console.log('Current question:', currentQuestion);
+    console.log('Attempt ID:', attemptId);
+    
+    setIsSubmittingProblem(true);
     
     try {
       const selectedLang = languageOptions.find(lang => lang.value === selectedLanguage);
@@ -513,13 +635,13 @@ export const CodingTestInterface = () => {
       
       // If still no test cases, show error
       if (!allTestCases || allTestCases.length === 0) {
-        setConsoleOutput('Error: No test cases available for this problem.\nPlease contact the administrator.');
         toast.error('No test cases available');
-        setIsRunning(false);
+        setIsSubmittingProblem(false);
         return;
       }
       
-      console.log('Submitting with test cases:', allTestCases);
+      console.log(`Submitting with ${allTestCases.length} test cases (including hidden tests)...`);
+      toast.info(`Running ${allTestCases.length} test cases... This may take 10-30 seconds`, { duration: 3000 });
       
       // Use cert tests API for certification tests
       const response = await certTestsAPI.runCode({
@@ -548,20 +670,64 @@ export const CodingTestInterface = () => {
         ? '✓ All test cases passed! Solution accepted.' 
         : '✗ Some test cases failed. Review your code and try again.';
       
-      setConsoleOutput(output);
+      console.log(output);
       setTestResults(prev => ({ ...prev, [currentQuestion]: result }));
+      
+      // Save the submission to database
+      if (attemptId) {
+        console.log('=== Saving submission to database ===');
+        console.log('Payload:', {
+          attempt_id: attemptId,
+          question_number: currentQuestion,
+          code_length: code[currentQuestion]?.length,
+          language_id: selectedLang.id,
+          passed: result.overall_passed
+        });
+        
+        try {
+          const saveResponse = await certTestsAPI.submitCode({
+            attempt_id: attemptId,
+            question_number: currentQuestion,
+            code: code[currentQuestion],
+            language_id: selectedLang.id,
+            passed: result.overall_passed,
+            test_results: result
+          });
+          console.log('✓ Code submission saved to database:', saveResponse.data);
+          toast.success('✓ Submission saved successfully!');
+          
+        } catch (saveError) {
+          console.error('✗ Error saving submission:', saveError);
+          console.error('Error details:', {
+            message: saveError.message,
+            response: saveError.response?.data,
+            status: saveError.response?.status
+          });
+          toast.error('Failed to save submission');
+        }
+      } else {
+        console.warn('No attemptId available - skipping database save');
+      }
       
       if (result.overall_passed) {
         toast.success(`Problem ${currentQuestion + 1} submitted successfully!`);
       } else {
         toast.error('Some test cases failed');
       }
+      
+      console.log('=== handleSubmitProblem COMPLETE ===');
     } catch (error) {
-      console.error('Error submitting solution:', error);
-      setConsoleOutput('Error: Failed to submit solution\n' + (error.response?.data?.detail || error.message));
-      toast.error('Failed to submit solution');
+      console.error('✗ Error submitting solution:', error);
+      console.error('Error details:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status
+      });
+      toast.error('Failed to submit solution: ' + (error.response?.data?.detail || error.message));
     } finally {
-      setIsRunning(false);
+      console.log('Setting isSubmittingProblem to false');
+      setIsSubmittingProblem(false);
+      console.log('=== handleSubmitProblem END ===');
     }
   };
 
@@ -573,14 +739,29 @@ export const CodingTestInterface = () => {
     }
     
     setIsSubmitting(true);
+    toast.info('Submitting test...', { duration: 2000 });
     
     try {
       // For cert tests with attemptId, use finish endpoint
       if (attemptId) {
-        await certTestsAPI.finishAttempt(attemptId);
-        if (screenfull.isEnabled && screenfull.isFullscreen) screenfull.exit();
+        console.log('Finishing attempt:', attemptId);
+        const response = await certTestsAPI.finishAttempt(attemptId);
+        console.log('Finish response:', response);
+        
+        if (screenfull.isEnabled && screenfull.isFullscreen) {
+          try {
+            await screenfull.exit();
+          } catch (fsError) {
+            console.log('Fullscreen exit error:', fsError);
+          }
+        }
+        
         toast.success('Test submitted successfully!');
-        navigate('/certification');
+        
+        // Small delay before navigation to ensure state is saved
+        setTimeout(() => {
+          navigate(`/test-results/${attemptId}`);
+        }, 500);
       } else {
         // Fallback for old certification system
         const submissions = [];
@@ -602,14 +783,33 @@ export const CodingTestInterface = () => {
           time_taken: (certification.duration_minutes * 60) - timeRemaining
         });
         
-        if (screenfull.isEnabled && screenfull.isFullscreen) screenfull.exit();
+        if (screenfull.isEnabled && screenfull.isFullscreen) {
+          try {
+            await screenfull.exit();
+          } catch (fsError) {
+            console.log('Fullscreen exit error:', fsError);
+          }
+        }
+        
         toast.success('Test submitted successfully!');
         navigate(`/certifications/${certificationId}/result`);
       }
     } catch (error) {
       console.error('Error submitting test:', error);
-      toast.error('Failed to submit test');
-    } finally {
+      console.error('Error details:', error.response?.data);
+      
+      // More specific error messages
+      if (error.response?.status === 404) {
+        toast.error('Test attempt not found. Please try again.');
+      } else if (error.response?.status === 403) {
+        toast.error('You do not have permission to submit this test.');
+      } else if (error.response?.data?.detail) {
+        toast.error(`Submission failed: ${error.response.data.detail}`);
+      } else {
+        toast.error('Failed to submit test. Please try again.');
+      }
+      
+      // Reset submitting state so user can retry
       setIsSubmitting(false);
     }
   };
@@ -803,6 +1003,112 @@ export const CodingTestInterface = () => {
               </div>
             </div>
 
+            {/* Custom Input/Output Section */}
+            <div>
+              <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <Terminal className="h-5 w-5 text-blue-400" />
+                Custom Test Case
+              </h2>
+              <p className="text-sm text-slate-400 mb-3">
+                Test your code with custom input before submitting
+              </p>
+
+              {/* Custom Input */}
+              <div className="mb-3">
+                <label className="block text-sm font-semibold text-slate-300 mb-2">
+                  Input:
+                </label>
+                <textarea
+                  value={customInput}
+                  onChange={(e) => setCustomInput(e.target.value)}
+                  placeholder="Enter your custom input here..."
+                  className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-200 font-mono text-sm focus:outline-none focus:border-blue-500 resize-vertical"
+                  rows={4}
+                />
+              </div>
+
+              {/* Run Custom Button */}
+              <button
+                onClick={handleRunCustomInput}
+                disabled={isRunningCustom || !code[currentQuestion]?.trim()}
+                className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-700 disabled:cursor-not-allowed text-white rounded-lg text-sm font-medium shadow-lg hover:shadow-blue-500/50 transition-all flex items-center justify-center gap-2 mb-3"
+              >
+                {isRunningCustom ? (
+                  <>
+                    <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
+                    Running...
+                  </>
+                ) : (
+                  <>
+                    <Play className="h-4 w-4" />
+                    Run with Custom Input
+                  </>
+                )}
+              </button>
+
+              {/* Custom Output */}
+              {customOutput && (
+                <div className="space-y-3">
+                  {/* Status */}
+                  <div className={`p-3 rounded-lg border ${
+                    customOutput.passed && !customOutput.stderr
+                      ? 'bg-green-900/20 border-green-700/50' 
+                      : customOutput.stderr
+                      ? 'bg-red-900/20 border-red-700/50'
+                      : 'bg-slate-800 border-slate-700'
+                  }`}>
+                    <div className="text-sm font-semibold text-slate-300 mb-1">Status:</div>
+                    <div className={`text-sm font-mono ${
+                      customOutput.passed && !customOutput.stderr ? 'text-green-400' : 
+                      customOutput.stderr ? 'text-red-400' : 'text-slate-300'
+                    }`}>
+                      {customOutput.stderr ? 'Failed' : customOutput.passed ? 'Success' : customOutput.status}
+                    </div>
+                  </div>
+
+                  {/* Standard Output */}
+                  {customOutput.stdout && (
+                    <div className="p-3 rounded-lg border bg-slate-800 border-slate-700">
+                      <div className="text-sm font-semibold text-green-400 mb-2">Output:</div>
+                      <pre className="text-sm font-mono text-slate-200 whitespace-pre-wrap break-words">
+                        {customOutput.stdout}
+                      </pre>
+                    </div>
+                  )}
+
+                  {/* No Output Message */}
+                  {!customOutput.stdout && !customOutput.stderr && !customOutput.compile_output && (
+                    <div className="p-3 rounded-lg border bg-slate-800 border-slate-700">
+                      <div className="text-sm font-semibold text-slate-400 mb-2">Output:</div>
+                      <pre className="text-sm font-mono text-slate-400 whitespace-pre-wrap break-words">
+                        (no output)
+                      </pre>
+                    </div>
+                  )}
+
+                  {/* Compilation Error */}
+                  {customOutput.compile_output && (
+                    <div className="p-3 rounded-lg border bg-red-900/20 border-red-700/50">
+                      <div className="text-sm font-semibold text-red-400 mb-2">Compilation Error:</div>
+                      <pre className="text-sm font-mono text-red-300 whitespace-pre-wrap break-words">
+                        {customOutput.compile_output}
+                      </pre>
+                    </div>
+                  )}
+
+                  {/* Runtime Error */}
+                  {customOutput.stderr && !customOutput.compile_output && (
+                    <div className="p-3 rounded-lg border bg-red-900/20 border-red-700/50">
+                      <div className="text-sm font-semibold text-red-400 mb-2">Error:</div>
+                      <pre className="text-sm font-mono text-red-300 whitespace-pre-wrap break-words">
+                        {customOutput.stderr}
+                      </pre>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
             {/* Run Results Section */}
             {currentResults && currentResults.results && (
               <div>
@@ -923,12 +1229,36 @@ export const CodingTestInterface = () => {
               </button>
               <button
                 onClick={handleSubmitProblem}
-                disabled={isRunning || !code[currentQuestion]?.trim()}
+                disabled={isSubmittingProblem || !code[currentQuestion]?.trim()}
                 className="px-3 py-2 bg-purple-600 hover:bg-purple-700 disabled:bg-slate-700 disabled:cursor-not-allowed text-white rounded-lg text-sm font-medium shadow-lg hover:shadow-purple-500/50 transition-all flex items-center gap-2"
               >
-                <CheckCircle2 className="h-4 w-4" />
-                Submit
+                {isSubmittingProblem ? (
+                  <>
+                    <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
+                    Submitting...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="h-4 w-4" />
+                    Submit Problem
+                  </>
+                )}
               </button>
+            </div>
+          </div>
+          
+          {/* Helper Text */}
+          <div className="px-4 py-2 bg-slate-800/50 border-b border-slate-700">
+            <div className="flex items-start gap-2 text-xs text-slate-400">
+              <div className="flex items-center gap-1">
+                <Play className="h-3 w-3 text-green-400" />
+                <span><strong>Run:</strong> Tests with sample cases only (fast)</span>
+              </div>
+              <span className="text-slate-600">|</span>
+              <div className="flex items-center gap-1">
+                <CheckCircle2 className="h-3 w-3 text-purple-400" />
+                <span><strong>Submit:</strong> Tests with all cases including hidden (may take 10-30 seconds)</span>
+              </div>
             </div>
           </div>
 
@@ -995,8 +1325,31 @@ export const CodingTestInterface = () => {
 
 
 
+      {/* Violation Alert Popup Modal */}
+      {showViolationAlert && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 animate-in fade-in duration-200">
+          <div className="bg-gradient-to-br from-red-900 to-red-800 border-4 border-red-500 rounded-2xl p-8 max-w-md mx-4 shadow-2xl animate-in zoom-in duration-200">
+            <div className="flex items-center gap-4 mb-4">
+              <div className="bg-red-500 rounded-full p-3 animate-pulse">
+                <AlertCircle className="h-8 w-8 text-white" />
+              </div>
+              <div>
+                <h3 className="text-2xl font-bold text-white">⚠️ VIOLATION DETECTED</h3>
+                <p className="text-red-200 text-sm">This incident has been recorded</p>
+              </div>
+            </div>
+            <div className="bg-red-950/50 rounded-lg p-4 mb-4">
+              <p className="text-white font-semibold">{currentViolationMsg}</p>
+            </div>
+            <p className="text-red-200 text-sm text-center">
+              Multiple violations may result in test disqualification
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Violations */}
-      {(violations.tabSwitch > 0 || violations.copyPaste > 0) && (
+      {(violations.tabSwitch > 0 || violations.copyPaste > 0 || proctoringViolations.length > 0) && (
         <div className="fixed bottom-6 left-6 z-50">
           <Card className="border-2 border-red-600/70 bg-gradient-to-br from-slate-800 to-slate-900 backdrop-blur shadow-xl">
             <CardContent className="p-3">
@@ -1012,6 +1365,20 @@ export const CodingTestInterface = () => {
               {violations.copyPaste > 0 && (
                 <div className="text-xs text-red-300">
                   Copy/Paste: <span className="font-bold">{violations.copyPaste}</span>
+                </div>
+              )}
+              {proctoringViolations.length > 0 && (
+                <div className="text-xs text-orange-300 mt-1">
+                  Camera Violations: <span className="font-bold">{proctoringViolations.length}</span>
+                </div>
+              )}
+              {proctoringViolations.length > 0 && (
+                <div className="mt-2 max-h-32 overflow-y-auto space-y-1">
+                  {proctoringViolations.slice(0, 5).map((v, idx) => (
+                    <div key={idx} className="text-[10px] text-red-200 bg-red-900/30 px-2 py-1 rounded">
+                      {v.message}
+                    </div>
+                  ))}
                 </div>
               )}
             </CardContent>

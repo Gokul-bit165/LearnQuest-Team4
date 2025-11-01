@@ -40,7 +40,7 @@ async def get_proctoring_logs(
 ):
     """Get proctoring logs for a specific attempt (admin only)"""
     try:
-        attempts_collection = get_collection("certification_attempts")
+        attempts_collection = get_collection("cert_attempts")  # Fixed: changed from certification_attempts
         certifications_collection = get_collection("certifications")
         users_collection = get_collection("users")
         
@@ -91,7 +91,7 @@ async def get_all_attempts(
 ):
     """Get all certification attempts with filtering (admin only)"""
     try:
-        attempts_collection = get_collection("certification_attempts")
+        attempts_collection = get_collection("cert_attempts")  # Fixed: changed from certification_attempts
         certifications_collection = get_collection("certifications")
         users_collection = get_collection("users")
         
@@ -147,7 +147,7 @@ async def update_proctoring_review(
 ):
     """Update proctoring review with admin override"""
     try:
-        attempts_collection = get_collection("certification_attempts")
+        attempts_collection = get_collection("cert_attempts")  # Fixed: changed from certification_attempts
         
         # Get attempt
         attempt_doc = attempts_collection.find_one({"_id": ObjectId(attempt_id)})
@@ -207,7 +207,7 @@ async def get_violations_summary(
 ):
     """Get summary of violations for an attempt"""
     try:
-        attempts_collection = get_collection("certification_attempts")
+        attempts_collection = get_collection("cert_attempts")  # Fixed: changed from certification_attempts
         
         attempt_doc = attempts_collection.find_one({"_id": ObjectId(attempt_id)})
         
@@ -240,4 +240,60 @@ async def get_violations_summary(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to fetch violations: {str(e)}"
+        )
+
+
+@router.get("/statistics")
+async def get_proctoring_statistics(
+    current_user=Depends(require_admin_user)
+):
+    """Get aggregate proctoring statistics"""
+    try:
+        attempts_collection = get_collection("cert_attempts")  # Fixed: changed from certification_attempts
+        
+        # Get all attempts
+        all_attempts = list(attempts_collection.find({}))
+        
+        total_attempts = len(all_attempts)
+        safe_count = 0
+        warning_count = 0
+        violation_count = 0
+        total_noise_events = 0
+        total_camera_events = 0
+        
+        for attempt in all_attempts:
+            behavior_score = attempt.get("behavior_score", 100)
+            score_diff = 100 - behavior_score
+            
+            if score_diff < 5:
+                safe_count += 1
+            elif score_diff < 10:
+                warning_count += 1
+            else:
+                violation_count += 1
+            
+            # Count specific violation types
+            logs = attempt.get("proctoring_logs", [])
+            for log in logs:
+                if log.get("type") == "violation_detected":
+                    violations = log.get("violations", [])
+                    for v in violations:
+                        if v == "noise_detected":
+                            total_noise_events += 1
+                        elif v in ["looking_away", "multiple_faces", "no_face"]:
+                            total_camera_events += 1
+        
+        return {
+            "total_candidates": total_attempts,
+            "safe_users": safe_count,
+            "warnings": warning_count,
+            "violations": violation_count,
+            "noise_events": total_noise_events,
+            "camera_events": total_camera_events
+        }
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to fetch statistics: {str(e)}"
         )

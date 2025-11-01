@@ -14,6 +14,7 @@ const CertificationTestManager = () => {
     difficulty: 'Easy',
     bank_ids: [],
     question_count: 10,
+    total_questions: 10,
     duration_minutes: 30,
     pass_percentage: 70,
     randomize: true,
@@ -43,6 +44,7 @@ const CertificationTestManager = () => {
             difficulty: s.difficulty || diff,
             bank_ids: s.bank_ids || [],
             question_count: s.question_count ?? 10,
+            total_questions: s.total_questions ?? s.question_count ?? 10,
             duration_minutes: s.duration_minutes ?? 30,
             pass_percentage: s.pass_percentage ?? 70,
             randomize: s.randomize ?? true,
@@ -240,7 +242,10 @@ const CertificationTestManager = () => {
                 <p className="text-slate-300 text-sm">
                   1. Upload MCQ question banks using JSON format below<br />
                   2. View and edit your question banks in the <strong>Question Banks</strong> page<br />
-                  3. Select question banks below to create your certification test
+                  3. Select question banks and configure below:<br />
+                  &nbsp;&nbsp;&nbsp;• <strong>Questions/Test</strong>: How many questions each student gets per test<br />
+                  &nbsp;&nbsp;&nbsp;• <strong>Total Pool</strong>: Total questions available (for randomization)<br />
+                  4. Save test specification to make it available for students
                 </p>
               </div>
             </div>
@@ -348,7 +353,7 @@ const CertificationTestManager = () => {
                 </select>
               </div>
               <div>
-                <label className="block text-sm text-slate-300 mb-2">Total Questions</label>
+                <label className="block text-sm text-slate-300 mb-2">Questions Per Test</label>
                 <input
                   type="number"
                   min={1}
@@ -356,6 +361,18 @@ const CertificationTestManager = () => {
                   onChange={(e) => setForm({ ...form, question_count: parseInt(e.target.value) || 1 })}
                   className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded text-white"
                 />
+                <p className="text-xs text-slate-400 mt-1">Number of questions randomly selected per test attempt</p>
+              </div>
+              <div>
+                <label className="block text-sm text-slate-300 mb-2">Total Questions in Pool</label>
+                <input
+                  type="number"
+                  min={1}
+                  value={form.total_questions}
+                  onChange={(e) => setForm({ ...form, total_questions: parseInt(e.target.value) || 1 })}
+                  className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded text-white"
+                />
+                <p className="text-xs text-slate-400 mt-1">Total number of questions available in the question pool</p>
               </div>
               <div>
                 <label className="block text-sm text-slate-300 mb-2 flex items-center gap-2"><Clock className="w-4 h-4" /> Duration (minutes)</label>
@@ -590,7 +607,7 @@ const CertificationTestManager = () => {
               <h3 className="text-white font-semibold mb-4 flex items-center gap-2">
                 <Settings className="w-5 h-5" /> Test Configuration Summary
               </h3>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm mb-4">
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm mb-4">
                 <div className="bg-slate-800/50 p-3 rounded">
                   <div className="text-slate-400 mb-1">Duration</div>
                   <div className="text-white font-semibold">{form.duration_minutes} min</div>
@@ -600,8 +617,12 @@ const CertificationTestManager = () => {
                   <div className="text-white font-semibold">{form.pass_percentage}%</div>
                 </div>
                 <div className="bg-slate-800/50 p-3 rounded">
-                  <div className="text-slate-400 mb-1">Total Questions</div>
+                  <div className="text-slate-400 mb-1">Questions/Test</div>
                   <div className="text-white font-semibold">{form.question_count}</div>
+                </div>
+                <div className="bg-slate-800/50 p-3 rounded">
+                  <div className="text-slate-400 mb-1">Total Pool</div>
+                  <div className="text-white font-semibold">{form.total_questions}</div>
                 </div>
                 <div className="bg-slate-800/50 p-3 rounded">
                   <div className="text-slate-400 mb-1">Question Banks</div>
@@ -642,7 +663,9 @@ const CertificationTestManager = () => {
             {specs.map((s) => (
               <div key={s._id || `${s.cert_id}-${s.difficulty}`} className="p-3 bg-slate-700 rounded border border-slate-600">
                 <div className="text-white font-medium">{s.cert_id} - {s.difficulty}</div>
-                <div className="text-slate-400 text-sm">{s.question_count} questions • {s.duration_minutes} min • Pass {s.pass_percentage}% • Randomize: {s.randomize ? 'Yes' : 'No'} • Restrict: {s.restrict_copy_paste ? 'Yes' : 'No'}</div>
+                <div className="text-slate-400 text-sm">
+                  {s.question_count} Q/Test • Pool: {s.total_questions || s.question_count} • {s.duration_minutes} min • Pass {s.pass_percentage}% • Randomize: {s.randomize ? 'Yes' : 'No'} • Restrict: {s.restrict_copy_paste ? 'Yes' : 'No'}
+                </div>
               </div>
             ))}
           </div>

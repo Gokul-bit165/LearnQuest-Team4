@@ -8,6 +8,7 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  timeout: 120000, // 2 minutes timeout for long-running test cases
 });
 
 // Request interceptor to add auth token
@@ -143,6 +144,15 @@ export const certTestsAPI = {
   getAttempt: (attemptId) => api.get(`/api/cert-tests/attempts/${attemptId}`),
   runCode: (payload) => api.post('/api/cert-tests/run-code', payload),
   submitCode: (payload) => api.post('/api/cert-tests/submit-code', payload),
+  submitFeedback: (attemptId, feedback) => api.post('/api/cert-tests/feedback', {
+    attempt_id: attemptId,
+    feedback: feedback
+  }),
+  getAllAttempts: () => api.get('/api/cert-tests/attempts'),
+  logViolation: (attemptId, violation) => api.post('/api/cert-tests/log-violation', {
+    attempt_id: attemptId,
+    ...violation
+  }),
 };
 
 export default api;

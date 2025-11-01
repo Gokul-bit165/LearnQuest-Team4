@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Body
 from typing import Dict, Any, List
 from datetime import datetime
 import random
@@ -337,7 +337,7 @@ async def submit_attempt(payload: Dict[str, Any], current_user=Depends(get_curre
 
 @router.post("/finish")
 async def finish_attempt(payload: Dict[str, Any], current_user=Depends(get_current_user)):
-    """Finish a certification test attempt. This endpoint marks the attempt as completed.
+    """Finish a certification test attempt. This endpoint marks the attempt as completed and calculates scores.
     Expects: { attempt_id: str }
     Returns: { message: str, result: {...} }
     """
@@ -346,6 +346,7 @@ async def finish_attempt(payload: Dict[str, Any], current_user=Depends(get_curre
         raise HTTPException(status_code=400, detail="attempt_id is required")
 
     attempts = get_collection("cert_attempts")
+    specs = get_collection("cert_test_specs")
     from bson import ObjectId
     
     try:
@@ -363,33 +364,56 @@ async def finish_attempt(payload: Dict[str, Any], current_user=Depends(get_curre
     if att.get("status") == "completed":
         return {
             "message": "Test already completed",
-            "result": att.get("result", {})
+            "result": att.get("result", {}),
+            "score": att.get("score", 0)
         }
 
-    # Mark as completed
+    # Calculate score based on answers
+    answers = att.get("answers", [])
+    settings = att.get("settings", {})
+    pass_percentage = settings.get("pass_percentage", 70)
+    
+    # Calculate score
+    total_questions = len(answers)
+    passed_questions = 0
+    
+    for answer in answers:
+        # Check if the answer passed (all test cases passed)
+        if answer.get("passed", False):
+            passed_questions += 1
+    
+    # Calculate percentage score
+    score = int((passed_questions / total_questions) * 100) if total_questions > 0 else 0
+    passed = score >= pass_percentage
+    
+    # Prepare result
+    result = {
+        "test_score": score,
+        "final_score": score,
+        "passed": passed,
+        "total_questions": total_questions,
+        "passed_questions": passed_questions,
+        "pass_percentage": pass_percentage,
+        "message": f"Test completed! Score: {score}%"
+    }
+
+    # Mark as completed with score
     attempts.update_one(
         {"_id": att["_id"]}, 
         {
             "$set": {
                 "status": "completed",
                 "completed_at": datetime.utcnow(),
+                "score": score,
+                "result": result
             }
         }
     )
 
-    # Return the result if it exists, otherwise return basic completion info
-    result = att.get("result", {})
-    if not result:
-        result = {
-            "test_score": 0,
-            "final_score": 0,
-            "passed": False,
-            "message": "Test submitted without grading. Please review your answers."
-        }
-
     return {
         "message": "Test submitted successfully",
-        "result": result
+        "result": result,
+        "score": score
     }
 
 
@@ -415,13 +439,14 @@ async def run_code_for_cert(payload: Dict[str, Any], current_user=Depends(get_cu
     overall_passed = True
 
     try:
-        async with httpx.AsyncClient(timeout=60) as client:
+        async with httpx.AsyncClient(timeout=120) as client:
             for idx, tc in enumerate(public_tests, start=1):
                 payload_req = {
                     "language_id": language_id,
                     "source_code": source_code,
                     "stdin": tc.get("input", "")
                 }
+                print(f"Running test case {idx}/{len(public_tests)}...")
                 try:
                     resp = await client.post(
                         f"{judge0_url}/submissions/?base64_encoded=false&wait=true",
@@ -470,4 +495,266 @@ async def run_code_for_cert(payload: Dict[str, Any], current_user=Depends(get_cu
         "overall_passed": overall_passed,
         "results": results,
     }
+
+
+@router.post("/submit-code")
+async def submit_code(payload: Dict[str, Any], current_user=Depends(get_current_user)):
+    """Submit code solution for a specific question in the attempt.
+    Expects: { attempt_id: str, question_number: int, code: str, language_id: int, passed: bool, test_results: {...} }
+    Returns: { message: str }
+    """
+    print("=== /submit-code endpoint called ===")
+    print(f"User: {current_user.email if hasattr(current_user, 'email') else current_user}")
+    print(f"Payload keys: {list(payload.keys())}")
+    
+    attempt_id = payload.get("attempt_id")
+    question_number = payload.get("question_number")
+    code = payload.get("code")
+    language_id = payload.get("language_id")
+    passed = payload.get("passed", False)
+    test_results = payload.get("test_results", {})
+    
+    print(f"attempt_id: {attempt_id}")
+    print(f"question_number: {question_number}")
+    print(f"code_length: {len(code) if code else 0}")
+    print(f"language_id: {language_id}")
+    print(f"passed: {passed}")
+    
+    if not attempt_id or question_number is None:
+        raise HTTPException(status_code=400, detail="attempt_id and question_number are required")
+
+    attempts = get_collection("cert_attempts")
+    from bson import ObjectId
+    
+    try:
+        att = attempts.find_one({"_id": ObjectId(attempt_id)})
+    except Exception:
+        att = None
+    
+    if not att:
+        raise HTTPException(status_code=404, detail="Attempt not found")
+    
+    if str(att.get("user_id")) != str(current_user.id):
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    # Prepare answer object
+    answer = {
+        "question_number": question_number,
+        "code": code,
+        "language_id": language_id,
+        "passed": passed,
+        "test_results": test_results,
+        "submitted_at": datetime.utcnow()
+    }
+
+    # Update or insert answer in answers array
+    existing_answers = att.get("answers", [])
+    
+    # Find if this question already has an answer
+    answer_exists = False
+    for i, ans in enumerate(existing_answers):
+        if ans.get("question_number") == question_number:
+            existing_answers[i] = answer
+            answer_exists = True
+            break
+    
+    if not answer_exists:
+        existing_answers.append(answer)
+
+    # Update attempt with new answers
+    attempts.update_one(
+        {"_id": att["_id"]},
+        {
+            "$set": {
+                "answers": existing_answers,
+                "last_updated": datetime.utcnow()
+            }
+        }
+    )
+
+    return {"message": "Code submitted successfully", "passed": passed}
+
+
+@router.post("/feedback")
+async def submit_feedback(payload: Dict[str, Any], current_user=Depends(get_current_user)):
+    """Submit feedback for a certification test attempt.
+    Expects: { attempt_id: str, feedback: str }
+    Returns: { message: str }
+    """
+    attempt_id = payload.get("attempt_id")
+    feedback = payload.get("feedback")
+    
+    if not attempt_id or not feedback:
+        raise HTTPException(status_code=400, detail="attempt_id and feedback are required")
+
+    attempts = get_collection("cert_attempts")
+    from bson import ObjectId
+    
+    try:
+        att = attempts.find_one({"_id": ObjectId(attempt_id)})
+    except Exception:
+        att = None
+    
+    if not att:
+        raise HTTPException(status_code=404, detail="Attempt not found")
+    
+    if str(att.get("user_id")) != str(current_user.id):
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    # Add feedback to attempt
+    attempts.update_one(
+        {"_id": att["_id"]},
+        {
+            "$set": {
+                "feedback": feedback,
+                "feedback_submitted_at": datetime.utcnow()
+            }
+        }
+    )
+
+    return {"message": "Feedback submitted successfully"}
+
+
+@router.post("/log-violation")
+async def log_violation(
+    attempt_id: str = Body(...),
+    type: str = Body(...),
+    severity: str = Body(...),
+    message: str = Body(...),
+    timestamp: str = Body(...),
+    current_user=Depends(get_current_user)
+):
+    """Log a violation (tab switch, copy/paste, etc.) to the attempt"""
+    attempts = get_collection("cert_attempts")
+    from bson import ObjectId
+    from datetime import datetime
+    
+    try:
+        att_id = ObjectId(attempt_id)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid attempt ID")
+    
+    att = attempts.find_one({"_id": att_id})
+    if not att:
+        raise HTTPException(status_code=404, detail="Attempt not found")
+    
+    if str(att.get("user_id")) != str(current_user.id):
+        raise HTTPException(status_code=403, detail="Forbidden")
+    
+    # Add violation to proctoring_events
+    violation_event = {
+        "type": "violation",
+        "violation_type": type,
+        "severity": severity,
+        "message": message,
+        "timestamp": datetime.fromisoformat(timestamp.replace('Z', '+00:00')) if timestamp else datetime.utcnow(),
+    }
+    
+    attempts.update_one(
+        {"_id": att_id},
+        {
+            "$push": {"proctoring_events": violation_event},
+            "$inc": {f"violations.{type}": 1}
+        }
+    )
+    
+    return {"message": "Violation logged successfully"}
+
+
+@router.get("/attempts/{attempt_id}")
+async def get_single_attempt(attempt_id: str, current_user=Depends(get_current_user)):
+    """Get a single certification test attempt by ID.
+    Returns: { attempt_id, user_id, user_name, cert_id, difficulty, score, status, questions, answers, proctoring_events, ... }
+    """
+    attempts = get_collection("cert_attempts")
+    from bson import ObjectId
+    
+    try:
+        att = attempts.find_one({"_id": ObjectId(attempt_id)})
+    except Exception:
+        att = None
+    
+    if not att:
+        raise HTTPException(status_code=404, detail="Attempt not found")
+    
+    # Calculate detailed statistics
+    questions = att.get("questions", [])
+    answers = att.get("answers", [])
+    settings = att.get("settings", {})
+    
+    total_questions = len(questions)
+    correct_answers = len([a for a in answers if a.get("passed")])
+    # Count answered as questions that have been attempted (have code OR have result)
+    answered_questions = len([a for a in answers if (a.get("code") or a.get("result"))])
+    unanswered = max(0, total_questions - answered_questions)
+    wrong_answers = answered_questions - correct_answers
+    
+    # Calculate duration
+    started_at = att.get("started_at") or att.get("created_at")
+    finished_at = att.get("finished_at") or att.get("completed_at")
+    duration_minutes = 0
+    if started_at and finished_at:
+        duration_seconds = (finished_at - started_at).total_seconds() if hasattr(started_at, 'total_seconds') else 0
+        duration_minutes = int(duration_seconds / 60)
+    
+    # Return full attempt details
+    return {
+        "attempt_id": str(att["_id"]),
+        "user_id": str(att.get("user_id", "")),
+        "user_name": att.get("user_name", "Unknown"),
+        "topic_id": att.get("topic_id", ""),
+        "difficulty": att.get("difficulty", ""),
+        "score": att.get("score", 0),
+        "status": att.get("status", "in_progress"),
+        "started_at": started_at.isoformat() if started_at else None,
+        "finished_at": finished_at.isoformat() if finished_at else None,
+        "created_at": att.get("created_at").isoformat() if att.get("created_at") else None,
+        "completed_at": att.get("completed_at").isoformat() if att.get("completed_at") else None,
+        "questions": questions,
+        "answers": answers,
+        "proctoring_events": att.get("proctoring_events", []),
+        "violations": att.get("violations", {}),
+        "feedback": att.get("feedback", ""),
+        "eligible_for_review": att.get("score", 0) >= 80,
+        "settings": settings,
+        "restrictions": att.get("restrictions", {}),
+        # Additional statistics
+        "total_questions": total_questions,
+        "correct_answers": correct_answers,
+        "wrong_answers": wrong_answers,
+        "unanswered": unanswered,
+        "duration_minutes": duration_minutes
+    }
+
+
+@router.get("/attempts")
+async def get_all_attempts(current_user=Depends(get_current_user)):
+    """Get all certification test attempts (for admin).
+    Returns: [{ attempt_id, user_id, user_name, cert_id, difficulty, score, status, created_at, ... }]
+    """
+    attempts = get_collection("cert_attempts")
+    from bson import ObjectId
+    
+    # Get all attempts
+    all_attempts = list(attempts.find({}).sort("created_at", -1))
+    
+    result = []
+    for att in all_attempts:
+        result.append({
+            "attempt_id": str(att["_id"]),
+            "user_id": str(att.get("user_id", "")),
+            "user_name": att.get("user_name", "Unknown"),
+            "cert_id": att.get("topic_id", ""),
+            "difficulty": att.get("difficulty", ""),
+            "score": att.get("score", 0),
+            "status": att.get("status", "in_progress"),
+            "created_at": att.get("created_at").isoformat() if att.get("created_at") else None,
+            "completed_at": att.get("completed_at").isoformat() if att.get("completed_at") else None,
+            "proctoring_events_count": len(att.get("proctoring_events", [])),
+            "violations": att.get("violations", {}),
+            "feedback": att.get("feedback", ""),
+            "eligible_for_review": att.get("score", 0) >= 80
+        })
+    
+    return result
 
