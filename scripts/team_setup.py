@@ -67,7 +67,7 @@ def create_env_file():
     # Create the directory if it doesn't exist
     env_path.parent.mkdir(parents=True, exist_ok=True)
     
-     env_content = """# Database Configuration
+    env_content = """# Database Configuration
 MONGO_URL=mongodb+srv://gokul9942786_db_user:eTMzG8J5Z3hC86C0@cluster0.qvkilbo.mongodb.net/learnquest?retryWrites=true&w=majority&appName=Cluster0
 MONGO_DB=learnquest
 
